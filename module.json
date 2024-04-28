@@ -1,0 +1,25 @@
+{
+	"name": "terrain-height-tools",
+	"title": "Terrain Height Tools",
+	"description": "Tools for painting grid spaces with terrain heights and calculating line of sight with respect to these heights.",
+	"version": "0.0.1",
+	"compatibility": {
+		"minimum": "10",
+		"verified": "10",
+		"maximum": "10"
+	},
+	"author": "Will Bennion (@wibble199)",
+	"esmodules": [
+		"module/main.mjs"
+	],
+	"styles": [
+		"styles/main.css"
+	],
+	"languages": [
+		{
+			"lang": "en",
+			"name": "English",
+			"path": "lang/en.json"
+		}
+	]
+}

@@ -1,0 +1,10 @@
+{
+	"CONTROLS": {
+		"GroupTerrainHeightTools": "Terrain Height Tools",
+		"TerrainHeightToolsClear": "Clear Height Markers",
+		"TerrainHeightToolsErase": "Erase",
+		"TerrainHeightToolsFill": "Fill",
+		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Markers",
+		"TerrainHeightToolsPaint": "Paint"
+	}
+}

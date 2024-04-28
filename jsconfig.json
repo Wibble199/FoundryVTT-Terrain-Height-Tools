@@ -1,0 +1,11 @@
+{
+	"compilerOptions": {
+		"module": "ES6",
+		"target": "ES6",
+		"lib": [
+			"dom",
+			"ES2019"
+		]
+	},
+	"include": ["module/**/*", "foundry.js"]
+}
