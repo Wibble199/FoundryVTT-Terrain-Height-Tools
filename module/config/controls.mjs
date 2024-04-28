@@ -45,9 +45,7 @@ export function registerSceneControls(controls) {
 				name: "clear",
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsClear"),
 				icon: "fas fa-trash",
-				onClick: () => {
-					// TODO: ask the user to confirm and then delete all height data from the scene
-				},
+				onClick: () => canvas.terrainHeightLayer?.clear(),
 				button: true
 			}
 		]

@@ -13,6 +13,13 @@ export default class TerrainHeightLayer extends InteractionLayer {
 
 	constructor() {
 		super();
+
+		/** @type {TerrainHeightGraphics | undefined} */
+		this.graphics = undefined;
+
+		/** @type {PIXI.Graphics | undefined} */
+		this.debugGraphics = undefined;
+
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
 	}
 
@@ -23,21 +30,39 @@ export default class TerrainHeightLayer extends InteractionLayer {
 		});
 	}
 
-	/** @type {TerrainHeightGraphics} */
-	get graphics() {
-		return canvas.primary.children.find(c => c instanceof TerrainHeightGraphics);
-	}
-
-	async _onSceneUpdate(scene, data) {
-		// TODO: update the drawings if the height data has been updated
-		this.graphics.update(tempData);
-	}
-
+	// -------------- //
+	// Event handlers //
+	// -------------- //
 	/** @override */
 	async _draw(options) {
 		super._draw(options);
 
-		// TODO: is it sensible to redraw graphics on _draw? When exactly does _draw get called?
+		if (this.graphics) {
+			// TODO: is it sensible to redraw graphics on _draw? When exactly does _draw get called?
+			this.graphics.update(tempData);
+		} else {
+			this.graphics = new TerrainHeightGraphics();
+			canvas.primary.addChild(this.graphics);
+
+			this.debugGraphics = new PIXI.Graphics();
+			this.debugGraphics.elevation = Infinity;
+			canvas.primary.addChild(this.debugGraphics);
+		}
+	}
+
+	/** @override */
+	async _tearDown(options) {
+		super._tearDown(options);
+
+		if (this.graphics) canvas.primary.removeChild(this.graphics);
+		this.graphics = undefined;
+
+		if (this.debugGraphics) canvas.primary.removeChild(this.debugGraphics);
+		this.debugGraphics = undefined;
+	}
+
+	async _onSceneUpdate(scene, data) {
+		// TODO: update the drawings if the height data has been updated
 		this.graphics.update(tempData);
 	}
 
@@ -87,6 +112,49 @@ export default class TerrainHeightLayer extends InteractionLayer {
 				return;
 		}
 
+		this.debugGraphics.clear();
 		this.graphics.update(tempData);
+	}
+
+	clear() {
+		tempData.gridCoordinates = [];
+		this.debugGraphics.clear();
+		this.graphics.update(tempData);
+	}
+
+	// ------------------ //
+	// Debug draw methods //
+	// ------------------ //
+	/** @param {Vertex} vertex */
+	_debugDrawVertex(vertex, color = 0x00FF00) {
+		if (!CONFIG.debug.terrainHeightLayer) return;
+
+		this.debugGraphics
+			.lineStyle({ width: 0 })
+			.beginFill({ color })
+			.drawCircle(vertex.x, vertex.y, 5)
+			.endFill();
+	}
+
+	/** @param {Edge} edge */
+	_debugDrawEdge(edge, color = 0x00FF00) {
+		this.debugDrawLine(edge.p1.x, edge.p1.y, edge.p2.x, edge.p2.y, color);
+	}
+
+	_debugDrawLine(x1, y1, x2, y2, color = 0x00FF00) {
+		if (!CONFIG.debug.terrainHeightLayer) return;
+
+		this.debugGraphics
+			.lineStyle({ color: color, width: 2 })
+			.moveTo(x1, y1)
+			.lineTo(x2, y2);
+	}
+
+	_debugDrawRect(x1, y1, x2, y2, color = 0x00FF00) {
+		if (!CONFIG.debug.terrainHeightLayer) return;
+
+		this.debugGraphics
+			.lineStyle({ color: color, width: 2 })
+			.drawRect(x1, y1, x2 - x1, y2 - y1);
 	}
 }
