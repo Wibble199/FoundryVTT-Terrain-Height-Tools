@@ -6,5 +6,8 @@
 		"TerrainHeightToolsFill": "Fill",
 		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Markers",
 		"TerrainHeightToolsPaint": "Paint"
+	},
+	"SETTINGS": {
+		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height on Token Layer"
 	}
 }

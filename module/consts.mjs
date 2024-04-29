@@ -9,5 +9,5 @@ export const tools = /** @type {const} */ ({
 
 /** @enum {keyof typeof settings} */
 export const settings = /** @type {const} */ ({
-
+	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer"
 });

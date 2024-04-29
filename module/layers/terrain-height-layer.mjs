@@ -1,4 +1,4 @@
-import { moduleName, tools } from "../consts.mjs";
+import { moduleName, settings, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { cellExists } from "../utils/array-utils.mjs";
 import GridHighlightGraphics from "./grid-highlight-graphics.mjs";
@@ -62,6 +62,18 @@ export default class TerrainHeightLayer extends InteractionLayer {
 
 			this.graphics.update(this.#heightMap);
 		}
+	}
+
+	/** @override */
+	_activate() {
+		// When this layer is activated (via the menu sidebar), always show the height map
+		this.graphics.setVisible(true);
+	}
+
+	/** @override */
+	_deactivate() {
+		// When this layer is deactivated (via the menu sidebar), hide the height map unless configured to show
+		this.graphics.setVisible(game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer));
 	}
 
 	/** @override */

@@ -1,3 +1,4 @@
+import { moduleName, settings } from "../consts.mjs";
 import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
 import { groupBy } from "../utils/array-utils.mjs";
 import { debug } from "../utils/log.mjs";
@@ -9,6 +10,7 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 
 	constructor() {
 		super();
+		this.alpha = game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer) ? 1 : 0;
 	}
 
 	// Sorting within the PrimaryCanvasGroup works by the `elevation`, then by whether it is a token, then by whether it
@@ -25,6 +27,7 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 	 * @param {HeightMap} data
 	 */
 	update(data) {
+		TokenLayer
 		this.clear();
 
 		const t1 = performance.now();
@@ -208,5 +211,15 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 		}
 
 		return solidPolygons;
+	}
+
+	setVisible(visible) {
+		return CanvasAnimation.animate([
+			{
+				parent: this,
+				attribute: "alpha",
+				to: visible ? 1 : 0
+			}
+		], { duration: 250 });
 	}
 }

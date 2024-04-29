@@ -1,4 +1,4 @@
-import { moduleName, tools } from "../consts.mjs";
+import { moduleName, settings, tools } from "../consts.mjs";
 
 /**
  * Registers the scene menu controls.
@@ -10,11 +10,9 @@ export function registerSceneControls(controls) {
 		name: "terrainHeightLayerToggle",
 		title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerToggle"),
 		icon: "fas fa-chart-simple",
-		onClick: () => {
-			// TODO: Turn on/off the persistent layer
-		},
-		active: true,
-		toggle: true
+		onClick: isActive => game.settings.set(moduleName, settings.showTerrainHeightOnTokenLayer, isActive),
+		toggle: true,
+		active: game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer)
 	});
 
 	// Menu for editing the terrain
