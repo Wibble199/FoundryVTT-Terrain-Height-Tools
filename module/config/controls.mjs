@@ -24,7 +24,7 @@ export function registerSceneControls(controls) {
 		icon: "fas fa-chart-simple",
 		layer: "terrainHeightLayer",
 		activeTool: tools.paint,
-		visible: true, // TODO: permissions
+		visible: game.user.can("UPDATE_SCENE"),
 		tools: [
 			{
 				name: tools.paint,
@@ -45,7 +45,7 @@ export function registerSceneControls(controls) {
 				name: "clear",
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsClear"),
 				icon: "fas fa-trash",
-				onClick: () => canvas.terrainHeightLayer?.clear(),
+				onClick: () => game.canvas.terrainHeightLayer?.clear(),
 				button: true
 			}
 		]

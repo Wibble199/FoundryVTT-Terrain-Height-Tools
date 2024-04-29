@@ -37,8 +37,8 @@ export class Polygon {
 		const thisBb = this.boundingBox;
 		const otherBb = other.boundingBox;
 
-		canvas.terrainHeightLayer._debugDrawRect(thisBb.x1, thisBb.y1, thisBb.x2, thisBb.y2);
-		canvas.terrainHeightLayer._debugDrawRect(otherBb.x1, otherBb.y1, otherBb.x2, otherBb.y2, 0xFF0000);
+		game.canvas.terrainHeightLayer._debugDrawRect(thisBb.x1, thisBb.y1, thisBb.x2, thisBb.y2);
+		game.canvas.terrainHeightLayer._debugDrawRect(otherBb.x1, otherBb.y1, otherBb.x2, otherBb.y2, 0xFF0000);
 
 		if (thisBb.x1 > otherBb.x1 || thisBb.y1 > otherBb.y1 || thisBb.x2 < otherBb.x2 || thisBb.y2 < otherBb.y2)
 			return false;
@@ -50,14 +50,14 @@ export class Polygon {
 		// odd number, then this is within the polygon. We don't need to woyry about the offset causing the point to no
 		// longer be within the polygon as all the grid shapes are convex.
 		const testPoint = other.points.find(p => p.y === otherBb.y1).clone();
-		testPoint.y += canvas.grid.h * 0.05;
+		testPoint.y += game.canvas.grid.h * 0.05;
 
 		const intersections = this.edges
 			.map(e => e.intersectsYAt(testPoint.y))
 			.filter(x => !!x && x < testPoint.x);
 
-		canvas.terrainHeightLayer._debugDrawLine(0, testPoint.y, testPoint.x, testPoint.y);
-		intersections.forEach(x => canvas.terrainHeightLayer._debugDrawVertex({ x, y: testPoint.y }));
+		game.canvas.terrainHeightLayer._debugDrawLine(0, testPoint.y, testPoint.x, testPoint.y);
+		intersections.forEach(x => game.canvas.terrainHeightLayer._debugDrawVertex({ x, y: testPoint.y }));
 
 		return intersections.length % 2 === 1;
 	}

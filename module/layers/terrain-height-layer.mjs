@@ -1,9 +1,8 @@
-import { tools } from "../consts.mjs";
+import { moduleName, tools } from "../consts.mjs";
+import { HeightMap } from "../geometry/height-map.mjs";
+import { cellExists } from "../utils/array-utils.mjs";
+import GridHighlightGraphics from "./grid-highlight-graphics.mjs";
 import TerrainHeightGraphics from "./terrain-height-graphics.mjs";
-
-const tempData = {
-	gridCoordinates: []
-};
 
 /**
  * Layer for handling interaction with the terrain height data.
@@ -11,15 +10,23 @@ const tempData = {
  */
 export default class TerrainHeightLayer extends InteractionLayer {
 
+	/** @type {HeightMap | undefined} */
+	#heightMap;
+
+	/** @type {TerrainHeightGraphics | undefined} */
+	graphics;
+
+	/** @type {GridHighlightGraphics | undefined} */
+	highlightGraphics;
+
+	/** @type {PIXI.Graphics | undefined} */
+	debugGraphics;
+
+	/** @type {[number, number][]} */
+	pendingChanges = [];
+
 	constructor() {
 		super();
-
-		/** @type {TerrainHeightGraphics | undefined} */
-		this.graphics = undefined;
-
-		/** @type {PIXI.Graphics | undefined} */
-		this.debugGraphics = undefined;
-
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
 	}
 
@@ -39,14 +46,21 @@ export default class TerrainHeightLayer extends InteractionLayer {
 
 		if (this.graphics) {
 			// TODO: is it sensible to redraw graphics on _draw? When exactly does _draw get called?
-			this.graphics.update(tempData);
+			this.#updateGraphics();
 		} else {
 			this.graphics = new TerrainHeightGraphics();
-			canvas.primary.addChild(this.graphics);
+			game.canvas.primary.addChild(this.graphics);
+
+			this.highlightGraphics = new GridHighlightGraphics();
+			game.canvas.primary.addChild(this.highlightGraphics);
 
 			this.debugGraphics = new PIXI.Graphics();
 			this.debugGraphics.elevation = Infinity;
-			canvas.primary.addChild(this.debugGraphics);
+			game.canvas.primary.addChild(this.debugGraphics);
+
+			this.#heightMap = new HeightMap(game.canvas.scene);
+
+			this.graphics.update(this.#heightMap);
 		}
 	}
 
@@ -54,16 +68,30 @@ export default class TerrainHeightLayer extends InteractionLayer {
 	async _tearDown(options) {
 		super._tearDown(options);
 
-		if (this.graphics) canvas.primary.removeChild(this.graphics);
+		if (this.graphics) game.canvas.primary.removeChild(this.graphics);
 		this.graphics = undefined;
 
-		if (this.debugGraphics) canvas.primary.removeChild(this.debugGraphics);
+		if (this.highlightGraphics) game.canvas.primary.removeChild(this.highlightGraphics);
+		this.highlightGraphics = undefined;
+
+		if (this.debugGraphics) game.canvas.primary.removeChild(this.debugGraphics);
 		this.debugGraphics = undefined;
 	}
 
 	async _onSceneUpdate(scene, data) {
-		// TODO: update the drawings if the height data has been updated
-		this.graphics.update(tempData);
+		// Do nothing if the updated scene is not the one the user is looking at
+		if (scene.id !== game.canvas.scene.id) return;
+
+		this.#heightMap.reload();
+		this.#updateGraphics();
+	}
+
+	// ---- //
+	// Data //
+	// ---- //
+	#updateGraphics() {
+		this.debugGraphics.clear();
+		this.graphics.update(this.#heightMap);
 	}
 
 	// -------------------- //
@@ -73,6 +101,7 @@ export default class TerrainHeightLayer extends InteractionLayer {
 	_onClickLeft(event) {
 		const { x, y } = event.data.origin;
 		this.#useTool(x, y);
+		this.#commitPendingToolUsage();
 	}
 
 	/** @override */
@@ -81,8 +110,9 @@ export default class TerrainHeightLayer extends InteractionLayer {
 		this.#useTool(x, y);
 	}
 
-	// TODO: maybe use own interaction rather than using the InteractionLayer so that we can handle right-click drags
-	// to erase an area under the mouse
+	_onDragLeftDrop(event) {
+		this.#commitPendingToolUsage();
+	}
 
 	/**
 	 * @param {number} x
@@ -91,35 +121,51 @@ export default class TerrainHeightLayer extends InteractionLayer {
 	 * @returns
 	 */
 	#useTool(x, y, tool = undefined) {
-		const [row, col] = canvas.grid.grid.getGridPositionFromPixels(x, y);
+		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
 
 		switch (tool ?? game.activeTool) {
 			case tools.paint:
-				if (tempData.gridCoordinates.find(c => c[0] === row && c[1] === col))
-					return;
-				tempData.gridCoordinates.push([row, col]);
-				// Need to be sorted top to bottom, left to right so that the polygon merge hole detection works properly.
-				tempData.gridCoordinates.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+				if (!cellExists(this.pendingChanges, row, col) && !this.#heightMap.has(row, col)) {
+					this.pendingChanges.push([row, col]);
+					this.highlightGraphics.color = 0xFF0000;
+					this.highlightGraphics.highlight(row, col);
+				}
 				break;
 
 			case tools.erase:
-				const idx = tempData.gridCoordinates.findIndex(c => c[0] === row && c[1] === col);
-				if (idx < 0) return;
-				tempData.gridCoordinates.splice(idx, 1);
+				if (!cellExists(this.pendingChanges, row, col) && this.#heightMap.has(row, col)) {
+					this.pendingChanges.push([row, col]);
+					this.highlightGraphics.color = 0x000000;
+					this.highlightGraphics.highlight(row, col);
+				}
 				break;
 
 			default:
 				return;
 		}
-
-		this.debugGraphics.clear();
-		this.graphics.update(tempData);
 	}
 
-	clear() {
-		tempData.gridCoordinates = [];
-		this.debugGraphics.clear();
-		this.graphics.update(tempData);
+	async #commitPendingToolUsage(tool = undefined) {
+		const pendingChanges = this.pendingChanges;
+		this.pendingChanges = [];
+		this.highlightGraphics.clear();
+
+		switch (tool ?? game.activeTool) {
+			case tools.paint:
+				if (await this.#heightMap.paintCells(pendingChanges))
+					this.#updateGraphics();
+				break;
+
+			case tools.erase:
+				if (await this.#heightMap.eraseCells(pendingChanges))
+					this.#updateGraphics();
+				break;
+		}
+	}
+
+	async clear() {
+		if (await this.#heightMap.clear())
+			this.#updateGraphics(this.#heightMap);
 	}
 
 	// ------------------ //
@@ -131,7 +177,7 @@ export default class TerrainHeightLayer extends InteractionLayer {
 
 		this.debugGraphics
 			.lineStyle({ width: 0 })
-			.beginFill({ color })
+			.beginFill(color)
 			.drawCircle(vertex.x, vertex.y, 5)
 			.endFill();
 	}

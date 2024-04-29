@@ -1,4 +1,4 @@
-import { Edge, Polygon, Vertex } from "../geometry/index.mjs";
+import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
 import { groupBy } from "../utils/array-utils.mjs";
 import { debug } from "../utils/log.mjs";
 
@@ -22,10 +22,12 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 
 	/**
 	 * Redraws the graphics layer using the supplied data.
-	 * @param {*} data // TODO: use a proper typedef
+	 * @param {HeightMap} data
 	 */
 	update(data) {
 		this.clear();
+
+		const t1 = performance.now();
 
 		const polys = data.gridCoordinates.map(([x, y]) => this.#getPolyPoints(x, y));
 		const mergedPolys = TerrainHeightGraphics.#combinePolygons(polys);
@@ -38,6 +40,9 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 				this.endHole();
 			}
 		});
+
+		const t2 = performance.now();
+		debug(`Terrain height rendering took ${t2 - t1}ms`)
 	}
 
 	/**
@@ -85,19 +90,19 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 	/**
 	 * For the cell at the given x and y grid coordinates, returns the points to draw a poly at that location.
 	 * The points are returned in a clockwise direction.
-	 * @param {number} cx X cordinates of the space to get points for.
-	 * @param {number} cy Y cordinates of the space to get points for.
+	 * @param {number} cx X cordinates of the cell to get points for.
+	 * @param {number} cy Y cordinates of the cell to get points for.
 	 * @returns {Polygon}
 	 */
 	#getPolyPoints(cx, cy) {
 		// Gridless is not supported
-		if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+		if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
 
-		const [x, y] = canvas.grid.grid.getPixelsFromGridPosition(cx, cy);
+		const [x, y] = game.canvas.grid.grid.getPixelsFromGridPosition(cx, cy);
 
 		// Can get the points for a square grid easily
-		if (canvas.grid.type === CONST.GRID_TYPES.SQUARE) {
-			const { w, h } = canvas.grid;
+		if (game.canvas.grid.type === CONST.GRID_TYPES.SQUARE) {
+			const { w, h } = game.canvas.grid;
 			return new Polygon([
 				new Vertex(x, y),
 				new Vertex(x + w, y),
@@ -107,7 +112,7 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 		}
 
 		// For hex grids, can use the getPolygon function to generate them for us
-		const pointsFlat = canvas.grid.grid.getPolygon(x, y)
+		const pointsFlat = game.canvas.grid.grid.getPolygon(x, y)
 		const polygon = new Polygon();
 		for (let i = 0; i < pointsFlat.length; i += 2) {
 			polygon.points.push(new Vertex(pointsFlat[i], pointsFlat[i + 1]));
@@ -182,7 +187,7 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 
 			} else {
 				const testPoint = hole.points.find(p => p.y === hole.boundingBox.y1).clone();
-				testPoint.y += canvas.grid.h * 0.05;
+				testPoint.y += game.canvas.grid.h * 0.05;
 				const intersectsWithEdges = containingPolygons.flatMap(poly => poly.poly.edges
 					.map(edge => ({
 						intersectsAt: edge.intersectsYAt(testPoint.y),
