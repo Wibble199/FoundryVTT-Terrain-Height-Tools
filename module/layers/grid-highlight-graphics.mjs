@@ -22,23 +22,23 @@ export default class GridHighlightGraphics extends GridHighlight {
 
 		const [x, y] = game.canvas.grid.grid.getPixelsFromGridPosition(row, col);
 
-		// Can get the points for a square grid easily
-		if (game.canvas.grid.type === CONST.GRID_TYPES.SQUARE) {
-			const { w, h } = game.canvas.grid;
-			return [
-				{ x, y },
-				{ x: x + w, y },
-				{ x: x + w, y: y + h },
-				{ x, y: y + h },
-			];
+		// For hex grids, can use the getPolygon function to generate them for us
+		if (game.canvas.grid.isHex) {
+			const pointsFlat = game.canvas.grid.grid.getPolygon(x, y)
+			const polygon = [];
+			for (let i = 0; i < pointsFlat.length; i += 2) {
+				polygon.push({ x: pointsFlat[i], y: pointsFlat[i + 1] });
+			}
+			return polygon;
 		}
 
-		// For hex grids, can use the getPolygon function to generate them for us
-		const pointsFlat = game.canvas.grid.grid.getPolygon(x, y)
-		const polygon = [];
-		for (let i = 0; i < pointsFlat.length; i += 2) {
-			polygon.push({ x: pointsFlat[i], y: pointsFlat[i + 1] });
-		}
-		return polygon;
+		// Can get the points for a square grid easily
+		const { w, h } = game.canvas.grid;
+		return [
+			{ x, y },
+			{ x: x + w, y },
+			{ x: x + w, y: y + h },
+			{ x, y: y + h },
+		];
 	}
 }

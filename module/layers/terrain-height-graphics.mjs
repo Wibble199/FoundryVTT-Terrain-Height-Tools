@@ -8,9 +8,17 @@ import { debug } from "../utils/log.mjs";
  */
 export default class TerrainHeightGraphics extends PIXI.Graphics {
 
+	/** @type {PIXI.Texture} */
+	cursorRadiusMaskTexture;
+
+	/** @type {PIXI.Sprite} */
+	cursorRadiusMask;
+
 	constructor() {
 		super();
 		this.alpha = game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer) ? 1 : 0;
+		this._setMaskRadius(this.terrainHeightLayerVisibilityRadius);
+		Hooks.on("highlightObjects", this.#onHighlightObjects.bind(this));
 	}
 
 	// Sorting within the PrimaryCanvasGroup works by the `elevation`, then by whether it is a token, then by whether it
@@ -21,6 +29,11 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 	// End result should be below drawings, tokens, overhead tiles, but above ground-level tiles.
 	get elevation() { return 0; }
 	get sort() { return Infinity; }
+
+	/** @type {number} */
+	get terrainHeightLayerVisibilityRadius() {
+		return game.settings.get(moduleName, settings.terrainHeightLayerVisibilityRadius);
+	}
 
 	/**
 	 * Redraws the graphics layer using the supplied data.
@@ -221,5 +234,71 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 				to: visible ? 1 : 0
 			}
 		], { duration: 250 });
+	}
+
+	/**
+	 * Turns on or off the mask used to only show the height around the user's cursor.
+	 * @param {boolean} active
+	 */
+	_setMaskRadiusActive(active) {
+		this._setMaskRadius(active ? this.terrainHeightLayerVisibilityRadius : 0);
+	}
+
+	/**
+	 * Sets the radius of the mask used to only show the height around the user's cursor.
+	 * @param {number} radius The radius of the height map mask. Use <=0 to disable.
+	 */
+	_setMaskRadius(radius) {
+		debug(`Updating terrain height layer graphics mask size to ${radius}`);
+
+		// Remove previous mask
+		this.mask = null;
+		if (this.cursorRadiusMask) this.removeChild(this.cursorRadiusMask);
+		game.canvas.app.renderer.plugins.interaction.off("mousemove", this.#updateCursorMaskPosition);
+
+		// Stop here if not applying a new mask
+		if (radius <= 0) return;
+
+		// Create a radial gradient texture
+		radius *= game.canvas.grid.size;
+
+		const canvas = document.createElement("canvas");
+		canvas.width = canvas.height = radius * 2;
+
+		const context = canvas.getContext("2d");
+		const gradient = context.createRadialGradient(radius, radius, 0, radius, radius, radius);
+		gradient.addColorStop(0.8, "rgba(255, 255, 255, 1)");
+		gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+		context.fillStyle = gradient;
+		context.fillRect(0, 0, radius * 2, radius * 2);
+
+		const texture = new PIXI.Texture.from(canvas);
+
+		// Create sprite
+		this.cursorRadiusMask = new PIXI.Sprite(texture);
+		this.cursorRadiusMask.anchor.set(0.5);
+		this.addChild(this.cursorRadiusMask);
+
+		// Get current mouse coordinates
+		const pos = this.toLocal(game.canvas.app.renderer.plugins.interaction.mouse.global);
+		this.cursorRadiusMask.position.set(pos.x, pos.y);
+
+		// Set mask
+		this.mask = this.cursorRadiusMask;
+		game.canvas.app.renderer.plugins.interaction.on("mousemove", this.#updateCursorMaskPosition);
+	}
+
+	#updateCursorMaskPosition = event => {
+		const pos = this.toLocal(event.data.global);
+		this.cursorRadiusMask.position.set(pos.x, pos.y);
+	}
+
+	#onHighlightObjects(active) {
+		// When using the "highlight objects" keybind, if the user has the radius option enabled and we're on the token
+		// layer, show the entire height map
+		if (game.canvas.activeLayer.name === "TokenLayer" && this.terrainHeightLayerVisibilityRadius > 0) {
+			this._setMaskRadiusActive(active);
+		}
 	}
 }

@@ -1,13 +1,18 @@
 {
 	"CONTROLS": {
 		"GroupTerrainHeightTools": "Terrain Height Tools",
-		"TerrainHeightToolsClear": "Clear Height Markers",
+		"TerrainHeightToolsClear": "Clear Height Map",
 		"TerrainHeightToolsErase": "Erase",
 		"TerrainHeightToolsFill": "Fill",
-		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Markers",
+		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Map",
 		"TerrainHeightToolsPaint": "Paint"
 	},
+	"KEYBINDINGS": {
+		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
+	},
 	"SETTINGS": {
-		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height on Token Layer"
+		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
+		"TerrainHeightLayerVisibilityRadius.Name": "Terrain Height Map Visibility Radius",
+		"TerrainHeightLayerVisibilityRadius.Hint": "How far around the mouse cursor the terrain height map is visible. Use 0 to show the entire map."
 	}
 }

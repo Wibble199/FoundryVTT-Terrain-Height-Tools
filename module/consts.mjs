@@ -9,5 +9,11 @@ export const tools = /** @type {const} */ ({
 
 /** @enum {keyof typeof settings} */
 export const settings = /** @type {const} */ ({
-	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer"
+	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer",
+	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius"
+});
+
+/** @enum {keyof typeof keybindings} */
+export const keybindings = /** @type {const} */ ({
+	toggleTerrainHeightMapOnTokenLayer: "toggleTerrainHeightMapOnTokenLayer"
 });

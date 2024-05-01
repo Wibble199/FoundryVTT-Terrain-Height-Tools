@@ -68,12 +68,14 @@ export default class TerrainHeightLayer extends InteractionLayer {
 	_activate() {
 		// When this layer is activated (via the menu sidebar), always show the height map
 		this.graphics.setVisible(true);
+		this.graphics._setMaskRadiusActive(false);
 	}
 
 	/** @override */
 	_deactivate() {
 		// When this layer is deactivated (via the menu sidebar), hide the height map unless configured to show
 		this.graphics.setVisible(game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer));
+		this.graphics._setMaskRadiusActive(true);
 	}
 
 	/** @override */

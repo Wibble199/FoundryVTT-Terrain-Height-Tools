@@ -1,12 +1,17 @@
 import { moduleName, settings, tools } from "../consts.mjs";
 
+export const sceneControls = {
+	/** @type {SceneControlTool} */
+	terrainHeightToolsLayerToggleControlButton: undefined
+};
+
 /**
  * Registers the scene menu controls.
  * @param {SceneControl[]} controls
  */
 export function registerSceneControls(controls) {
 	// Add a Toggle button in the token controls
-	controls.find(grp => grp.name === "token").tools.push({
+	controls.find(grp => grp.name === "token").tools.push(sceneControls.terrainHeightToolsLayerToggleControlButton = {
 		name: "terrainHeightLayerToggle",
 		title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerToggle"),
 		icon: "fas fa-chart-simple",
