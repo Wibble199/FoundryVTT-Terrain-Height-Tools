@@ -1,4 +1,6 @@
+import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
 import { moduleName, settings } from "../consts.mjs";
+import { sceneControls } from "./controls.mjs";
 
 export function registerSettings() {
 	game.settings.register(moduleName, settings.showTerrainHeightOnTokenLayer, {
@@ -19,5 +21,26 @@ export function registerSettings() {
 		config: true,
 		default: 0,
 		onChange: value => game.canvas.terrainHeightLayer.graphics._setMaskRadius(value)
+	});
+
+	game.settings.registerMenu(moduleName, settings.terrainTypes, {
+		name: "SETTINGS.TerrainTypes.Name",
+		label: "SETTINGS.TerrainTypes.Button",
+		hint: "SETTINGS.TerrainTypes.Hint",
+		icon: "fas fa-paintbrush",
+		type: TerrainTypesConfig,
+		restricted: true
+	});
+
+	game.settings.register(moduleName, settings.terrainTypes, {
+		name: "SETTINGS.TerrainTypes.Name",
+		scope: "world",
+		default: [],
+		type: Array,
+		config: false,
+		onChange: () => {
+			sceneControls.terrainHeightPicker?.render(false);
+			game.canvas.terrainHeightLayer._updateGraphics();
+		}
 	});
 }

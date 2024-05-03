@@ -16,13 +16,3 @@ export function groupBy(items, func) {
 	});
 	return groups;
 }
-
-/**
- * Checks if the given cell exists within the array.
- * @param {[number, number][]} cells
- * @param {number} row
- * @param {number} col
- */
-export function cellExists(cells, row, col) {
-	return cells.some(cell => cell[0] === row && cell[1] === col);
-}

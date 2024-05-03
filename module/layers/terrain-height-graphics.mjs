@@ -6,7 +6,7 @@ import { debug } from "../utils/log.mjs";
 /**
  * Specialised PIXI.Graphics instance for rendering a scene's terrain height data to the canvas.
  */
-export default class TerrainHeightGraphics extends PIXI.Graphics {
+export class TerrainHeightGraphics extends PIXI.Graphics {
 
 	/** @type {PIXI.Texture} */
 	cursorRadiusMaskTexture;
@@ -36,25 +36,32 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 	}
 
 	/**
-	 * Redraws the graphics layer using the supplied data.
-	 * @param {HeightMap} data
+	 * Redraws the graphics layer using the supplied height map data.
+	 * @param {HeightMap} heightMap
 	 */
-	update(data) {
-		TokenLayer
+	update(heightMap) {
 		this.clear();
+
+		/** @type {import("../_types.mjs").TerrainType[]} */
+		const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
 
 		const t1 = performance.now();
 
-		const polys = data.gridCoordinates.map(([x, y]) => this.#getPolyPoints(x, y));
-		const mergedPolys = TerrainHeightGraphics.#combinePolygons(polys);
-		mergedPolys.forEach(({ poly, holes }) => {
-			this.drawPolygonLt(poly);
+		groupBy(heightMap.data, x => `${x.terrainTypeId}.${x.height}`).forEach(cells => {
+			const terrainStyle = terrainTypes.find(t => t.id === cells[0].terrainTypeId);
+			if (!terrainStyle) return;
 
-			for (const hole of holes) {
-				this.beginHole();
-				this.drawPolygonLt(hole);
-				this.endHole();
-			}
+			const polys = cells.map(({ position }) => this.#getPolyPoints(...position));
+			const mergedPolys = TerrainHeightGraphics.#combinePolygons(polys);
+			mergedPolys.forEach(({ poly, holes }) => {
+				this.drawTerrainPolygon(poly, terrainStyle);
+
+				for (const hole of holes) {
+					this.beginHole();
+					this.drawTerrainPolygon(hole);
+					this.endHole();
+				}
+			});
 		});
 
 		const t2 = performance.now();
@@ -62,12 +69,18 @@ export default class TerrainHeightGraphics extends PIXI.Graphics {
 	}
 
 	/**
-	 * Draws a polygon using moveTo/lineTo.
+	 * Draws a terrain polygon for the given (pixel) coordinates and the given terrain style.
 	 * @param {Polygon} polygon
+	 * @param {import("../_types.mjs").TerrainType} terrainStyle
 	 */
-	drawPolygonLt(polygon) {
-		this.beginFill(0xFF0000, 0.4);
-		this.lineStyle({ width: 8, color: 0xFF0000, alpha: 0.8, alignment: 0 });
+	drawTerrainPolygon(polygon, terrainStyle) {
+		this.beginFill(Color.from(terrainStyle.fillColor), terrainStyle.fillOpacity);
+		this.lineStyle({
+			width: terrainStyle.lineWidth,
+			color: Color.from(terrainStyle.lineColor),
+			alpha: terrainStyle.lineOpacity,
+			alignment: 0
+		});
 
 		this.moveTo(polygon.points[0]);
 		for (let i = 1; i < polygon.points.length; i++) {

@@ -1,12 +1,12 @@
-import TerrainHeightLayer from "./layers/terrain-height-layer.mjs";
-import { log } from "./utils/log.mjs";
-import { registerSceneControls } from "./config/controls.mjs";
-import { registerSettings } from "./config/settings.mjs";
-import { moduleName, settings } from "./consts.mjs";
+import { registerSceneControls, renderTerrainHeightPicker } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
+import { registerSettings } from "./config/settings.mjs";
+import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
+import { log } from "./utils/log.mjs";
 
 Hooks.on("init", init);
 Hooks.on("getSceneControlButtons", registerSceneControls);
+Hooks.on("renderSceneControls", renderTerrainHeightPicker);
 
 function init() {
 	log("Initialising");
@@ -16,6 +16,4 @@ function init() {
 	registerKeybindings();
 
 	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightLayer };
-
-	//CONFIG.debug.terrainHeightLayer = true;
 }

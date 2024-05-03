@@ -1,4 +1,4 @@
-export default class GridHighlightGraphics extends GridHighlight {
+export class GridHighlightGraphics extends GridHighlight {
 
 	/** Colour to highlight new cells with. */
 	color = 0xFF0000;

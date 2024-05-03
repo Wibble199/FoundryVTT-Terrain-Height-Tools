@@ -11,8 +11,10 @@ export function registerKeybindings() {
 			game.settings.set(moduleName, settings.showTerrainHeightOnTokenLayer, isActive);
 
 			// Update the controls UI status
-			sceneControls.terrainHeightToolsLayerToggleControlButton.active = isActive;
-			ui.controls.render();
+			if (ui.controls) {
+				sceneControls.terrainHeightToolsLayerToggleControlButton.active = isActive;
+				ui.controls.render();
+			}
 		}
 	});
 }

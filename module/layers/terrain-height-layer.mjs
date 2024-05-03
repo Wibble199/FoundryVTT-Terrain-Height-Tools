@@ -1,14 +1,14 @@
+import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
-import { cellExists } from "../utils/array-utils.mjs";
-import GridHighlightGraphics from "./grid-highlight-graphics.mjs";
-import TerrainHeightGraphics from "./terrain-height-graphics.mjs";
+import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
+import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
 
 /**
  * Layer for handling interaction with the terrain height data.
  * E.G. shows overlay previews and handles click events for painting/clearing.
  */
-export default class TerrainHeightLayer extends InteractionLayer {
+export class TerrainHeightLayer extends InteractionLayer {
 
 	/** @type {HeightMap | undefined} */
 	#heightMap;
@@ -46,7 +46,7 @@ export default class TerrainHeightLayer extends InteractionLayer {
 
 		if (this.graphics) {
 			// TODO: is it sensible to redraw graphics on _draw? When exactly does _draw get called?
-			this.#updateGraphics();
+			this._updateGraphics();
 		} else {
 			this.graphics = new TerrainHeightGraphics();
 			game.canvas.primary.addChild(this.graphics);
@@ -97,13 +97,13 @@ export default class TerrainHeightLayer extends InteractionLayer {
 		if (scene.id !== game.canvas.scene.id) return;
 
 		this.#heightMap.reload();
-		this.#updateGraphics();
+		this._updateGraphics();
 	}
 
 	// ---- //
 	// Data //
 	// ---- //
-	#updateGraphics() {
+	_updateGraphics() {
 		this.debugGraphics.clear();
 		this.graphics.update(this.#heightMap);
 	}
@@ -139,7 +139,12 @@ export default class TerrainHeightLayer extends InteractionLayer {
 
 		switch (tool ?? game.activeTool) {
 			case tools.paint:
-				if (!cellExists(this.pendingChanges, row, col) && !this.#heightMap.has(row, col)) {
+				const existing = this.#heightMap.get(row, col);
+				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPicker ?? {};
+
+				if (!this.#cellIsPending(row, col)
+					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight)
+					&& sceneControls.terrainHeightPicker?.selectedTerrainId) {
 					this.pendingChanges.push([row, col]);
 					this.highlightGraphics.color = 0xFF0000;
 					this.highlightGraphics.highlight(row, col);
@@ -147,7 +152,7 @@ export default class TerrainHeightLayer extends InteractionLayer {
 				break;
 
 			case tools.erase:
-				if (!cellExists(this.pendingChanges, row, col) && this.#heightMap.has(row, col)) {
+				if (!this.#cellIsPending(row, col) && this.#heightMap.get(row, col)) {
 					this.pendingChanges.push([row, col]);
 					this.highlightGraphics.color = 0x000000;
 					this.highlightGraphics.highlight(row, col);
@@ -166,20 +171,31 @@ export default class TerrainHeightLayer extends InteractionLayer {
 
 		switch (tool ?? game.activeTool) {
 			case tools.paint:
-				if (await this.#heightMap.paintCells(pendingChanges))
-					this.#updateGraphics();
+				const terrainId = sceneControls.terrainHeightPicker?.selectedTerrainId;
+				const height = sceneControls.terrainHeightPicker?.selectedHeight;
+				if (terrainId && await this.#heightMap.paintCells(pendingChanges, terrainId, height))
+					this._updateGraphics();
 				break;
 
 			case tools.erase:
 				if (await this.#heightMap.eraseCells(pendingChanges))
-					this.#updateGraphics();
+					this._updateGraphics();
 				break;
 		}
 	}
 
 	async clear() {
 		if (await this.#heightMap.clear())
-			this.#updateGraphics(this.#heightMap);
+			this._updateGraphics(this.#heightMap);
+	}
+
+	/**
+	 * Returns whether or not the given cell is in the pending changes list.
+	 * @param {number} row
+	 * @param {number} col
+	 */
+	#cellIsPending(row, col) {
+		return this.pendingChanges.some(cell => cell[0] === row && cell[1] === col);
 	}
 
 	// ------------------ //
