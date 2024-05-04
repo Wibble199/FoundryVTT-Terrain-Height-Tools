@@ -32,6 +32,7 @@
 		"LabelFormatHint": "Use <u>%h%</u> for the numeric height of the terrain",
 		"MoveDown": "Move down (affects picker list only)",
 		"MoveUp": "Move up (affects picker list only)",
+		"NoTerrainTypesWarn": "No terrain types configured. Click to configure.",
 		"PickerTitle": "Terrain Picker"
 	}
 }

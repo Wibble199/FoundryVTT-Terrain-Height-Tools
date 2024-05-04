@@ -1,4 +1,5 @@
 import { moduleName, settings } from "../consts.mjs";
+import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 
 export class TerrainHeightPicker extends Application {
 
@@ -22,12 +23,15 @@ export class TerrainHeightPicker extends Application {
 	}
 
 	/** @override */
-	async _render(force, options) {
-		await super._render(force, options);
-		if (this.initialPosition) {
-			this.setPosition(this.initialPosition);
-			this.initialPosition = undefined;
-		}
+	_getHeaderButtons() {
+		return [
+			{
+				label: "",
+				icon: "fas fa-cog",
+				class: "configure",
+				onclick: () => this.#configureTerrainTypes()
+			}
+		];
 	}
 
 	/** @override */
@@ -57,6 +61,7 @@ export class TerrainHeightPicker extends Application {
 		super.activateListeners(html);
 		html.find("[data-terrain-id]").on("click", this.#onTerrainSelect.bind(this))
 		html.find("[name='selectedHeight']").on("input", this.#onHeightChange.bind(this));
+		html.find("[data-action='configure-terrain-types']").on("click", this.#configureTerrainTypes.bind(this));
 	}
 
 	#onTerrainSelect(event) {
@@ -68,5 +73,9 @@ export class TerrainHeightPicker extends Application {
 
 	#onHeightChange(event) {
 		this.selectedHeight = +event.currentTarget.value;
+	}
+
+	#configureTerrainTypes() {
+		new TerrainTypesConfig().render(true);
 	}
 }

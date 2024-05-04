@@ -1,4 +1,7 @@
 <ul>
+	{{#if (eq availableTerrains.length 0)}}
+		<li><a data-action="configure-terrain-types">{{localize "TERRAINHEIGHTTOOLS.NoTerrainTypesWarn"}}</a></li>
+	{{/if}}
 	{{#each availableTerrains as |terrain|}}
 		<li {{#if (eq ../selectedTerrainId terrain.id)}}class="active"{{/if}} data-terrain-id="{{terrain.id}}">
 			<div class="preview-box" style="border-color: {{terrain.previewBorderColor}}; background: {{previewBackgroundColor}};"></div>

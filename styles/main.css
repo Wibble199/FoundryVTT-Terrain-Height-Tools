@@ -10,11 +10,6 @@
 	background: none;
 }
 
-/* Hide the picker close button as it automatically opens and closes as the relevant tools are selected */
-#tht_terrainHeightPicker .header-button.close {
-	display: none;
-}
-
 #tht_terrainHeightPicker ul,
 #tht_terrainHeightPicker input,
 #tht_terrainHeightPicker label {
