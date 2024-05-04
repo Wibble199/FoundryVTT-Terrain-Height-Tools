@@ -37,9 +37,6 @@ export class Polygon {
 		const thisBb = this.boundingBox;
 		const otherBb = other.boundingBox;
 
-		game.canvas.terrainHeightLayer._debugDrawRect(thisBb.x1, thisBb.y1, thisBb.x2, thisBb.y2);
-		game.canvas.terrainHeightLayer._debugDrawRect(otherBb.x1, otherBb.y1, otherBb.x2, otherBb.y2, 0xFF0000);
-
 		if (thisBb.x1 > otherBb.x1 || thisBb.y1 > otherBb.y1 || thisBb.x2 < otherBb.x2 || thisBb.y2 < otherBb.y2)
 			return false;
 
@@ -55,9 +52,6 @@ export class Polygon {
 		const intersections = this.edges
 			.map(e => e.intersectsYAt(testPoint.y))
 			.filter(x => !!x && x < testPoint.x);
-
-		game.canvas.terrainHeightLayer._debugDrawLine(0, testPoint.y, testPoint.x, testPoint.y);
-		intersections.forEach(x => game.canvas.terrainHeightLayer._debugDrawVertex({ x, y: testPoint.y }));
 
 		return intersections.length % 2 === 1;
 	}

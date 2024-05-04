@@ -19,9 +19,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @type {GridHighlightGraphics | undefined} */
 	highlightGraphics;
 
-	/** @type {PIXI.Graphics | undefined} */
-	debugGraphics;
-
 	/** @type {[number, number][]} */
 	pendingChanges = [];
 
@@ -54,10 +51,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 			this.highlightGraphics = new GridHighlightGraphics();
 			game.canvas.primary.addChild(this.highlightGraphics);
 
-			this.debugGraphics = new PIXI.Graphics();
-			this.debugGraphics.elevation = Infinity;
-			game.canvas.primary.addChild(this.debugGraphics);
-
 			this.#heightMap = new HeightMap(game.canvas.scene);
 
 			await this.graphics.update(this.#heightMap);
@@ -87,9 +80,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		if (this.highlightGraphics) game.canvas.primary.removeChild(this.highlightGraphics);
 		this.highlightGraphics = undefined;
-
-		if (this.debugGraphics) game.canvas.primary.removeChild(this.debugGraphics);
-		this.debugGraphics = undefined;
 	}
 
 	async _onSceneUpdate(scene, data) {
@@ -104,7 +94,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// Data //
 	// ---- //
 	async _updateGraphics() {
-		this.debugGraphics.clear();
 		await this.graphics.update(this.#heightMap);
 	}
 
@@ -196,41 +185,5 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 */
 	#cellIsPending(row, col) {
 		return this.pendingChanges.some(cell => cell[0] === row && cell[1] === col);
-	}
-
-	// ------------------ //
-	// Debug draw methods //
-	// ------------------ //
-	/** @param {Vertex} vertex */
-	_debugDrawVertex(vertex, color = 0x00FF00) {
-		if (!CONFIG.debug.terrainHeightLayer) return;
-
-		this.debugGraphics
-			.lineStyle({ width: 0 })
-			.beginFill(color)
-			.drawCircle(vertex.x, vertex.y, 5)
-			.endFill();
-	}
-
-	/** @param {Edge} edge */
-	_debugDrawEdge(edge, color = 0x00FF00) {
-		this.debugDrawLine(edge.p1.x, edge.p1.y, edge.p2.x, edge.p2.y, color);
-	}
-
-	_debugDrawLine(x1, y1, x2, y2, color = 0x00FF00) {
-		if (!CONFIG.debug.terrainHeightLayer) return;
-
-		this.debugGraphics
-			.lineStyle({ color: color, width: 2 })
-			.moveTo(x1, y1)
-			.lineTo(x2, y2);
-	}
-
-	_debugDrawRect(x1, y1, x2, y2, color = 0x00FF00) {
-		if (!CONFIG.debug.terrainHeightLayer) return;
-
-		this.debugGraphics
-			.lineStyle({ color: color, width: 2 })
-			.drawRect(x1, y1, x2 - x1, y2 - y1);
 	}
 }
