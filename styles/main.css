@@ -1,3 +1,6 @@
+/* --------------------- */
+/* Terrain Height Picker */
+/* --------------------- */
 #tht_terrainHeightPicker {
 	position: absolute;
 	margin: 0 0 0 10px;
@@ -55,12 +58,73 @@
     align-self: center;
 }
 
-.height-input {
+#tht_terrainHeightPicker .height-input {
 	margin-top: 8px;
 	padding-top: 8px;
 	border-top: 2px groove var(--color-border-dark-secondary);
 }
 
-.height-input label {
+#tht_terrainHeightPicker .height-input label {
 	align-self: center;
+}
+
+
+/* -------------------- */
+/* Terrain Types Config */
+/* -------------------- */
+#tht_terrainTypesConfig form {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+#tht_terrainTypesConfig form > p {
+	flex: 0;
+}
+
+#tht_terrainTypesConfig .terrain-type-list {
+	list-style: none;
+	padding: 0;
+	margin: 8px 0;
+	overflow-y: scroll;
+	flex: 1 1 0;
+}
+
+#tht_terrainTypesConfig .terrain-type-list li {
+	padding: 6px;
+	border: 1px solid var(--color-border-light-primary);
+	border-radius: 3px;
+	box-shadow: 0px 0px 4px -1px rgba(0, 0, 0, 0.5);
+}
+
+#tht_terrainTypesConfig .terrain-type-list li:not(:first-child) {
+	margin-top: 8px;
+}
+
+#tht_terrainTypesConfig .terrain-type-header > button {
+	flex: 0 0 30px;
+}
+
+#tht_terrainTypesConfig .terrain-type-header > input {
+	height: auto;
+    margin: 0 3px 1px;
+}
+
+#tht_terrainTypesConfig [data-action="toggleExpand"] {
+	display: none;
+}
+
+#tht_terrainTypesConfig .terrain-type-content {
+	display: grid;
+	grid-template-columns: 1fr min-content 1fr min-content 1fr;
+    grid-gap: 8px;
+	margin: 8px 0;
+}
+
+#tht_terrainTypesConfig .terrain-type-content.collapsed {
+	display: none;
+}
+
+#tht_terrainTypesConfig .terrain-type-content .vertical-separator {
+	border-left: 2px groove #FFFFFF;
 }

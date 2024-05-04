@@ -19,9 +19,14 @@
 		"TerrainTypes.Button": "Configure Terrain Types"
 	},
 	"TERRAINHEIGHTTOOLS": {
+		"AddTerrainType": "Add Terrain Type",
 		"ClearConfirmTitle": "Clear All Terrain",
 		"ClearConfirmContent": "Permanently delete all terrain data from this scene?",
 		"Height": "Height",
-		"PickerTitle": "Terrain Picker"
+		"MoveUp": "Move up (affects picker list only)",
+		"MoveDown": "Move down (affects picker list only)",
+		"PickerTitle": "Terrain Picker",
+		"LabelFormatHint": "Use <u>%h%</u> for the numeric height of the terrain",
+		"DeleteTerrainTypeHint": "<p>Edit the types of terrain that can be painted onto the scene.</p><p>Note: Removing a terrain type will clear cells that are using it from the scene on next save.</p>"
 	}
 }

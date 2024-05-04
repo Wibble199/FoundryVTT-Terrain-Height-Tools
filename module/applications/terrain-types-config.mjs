@@ -4,6 +4,9 @@ export class TerrainTypesConfig extends FormApplication {
 
 	constructor() {
 		super(game.settings.get(moduleName, settings.terrainTypes));
+
+		/** @type {{ [typeId: string]: true; }} */
+		this._expandedTypes = {};
 	}
 
 	/** @override */
@@ -14,14 +17,9 @@ export class TerrainTypesConfig extends FormApplication {
 			template: `modules/${moduleName}/templates/terrain-types-config.hbs`,
 			width: 840,
 			height: 720,
+			resizable: true,
 			closeOnSubmit: false
 		});
-	}
-
-	/** @override */
-	activateListeners(html) {
-		super.activateListeners(html);
-		html.find("[data-action='terrain-type-add']").on("click", this.#addTerrainType.bind(this));
 	}
 
 	/** @override */
@@ -32,6 +30,8 @@ export class TerrainTypesConfig extends FormApplication {
 			.map(([name, value]) => [value, `DRAWING.FillType${name.titleCase()}`]));
 
 		data.fonts = FontConfig.getAvailableFontChoices();
+
+		data.expandedTypes = this._expandedTypes;
 
 		return data;
 	}
@@ -48,6 +48,29 @@ export class TerrainTypesConfig extends FormApplication {
 			await game.settings.set(moduleName, settings.terrainTypes, terrainTypes);
 			this.close();
 		}
+	}
+
+	// -------------- //
+	// Event handlers //
+	// -------------- //
+	/** @override */
+	activateListeners(html) {
+		super.activateListeners(html);
+		html.find("[data-action='toggle-expand']").on("click", this.#toggleExpand.bind(this));
+		html.find("[data-action='move-up']").on("click", event => this.#moveTerrainType(event, -1));
+		html.find("[data-action='move-down']").on("click", event => this.#moveTerrainType(event, 1));
+		html.find("[data-action='duplicate']").on("click", this.#duplicateTerrainType.bind(this));
+		html.find("[data-action='delete']").on("click", this.#deleteTerrainType.bind(this));
+		html.find("[data-action='terrain-type-add']").on("click", this.#addTerrainType.bind(this));
+	}
+
+	#toggleExpand(event) {
+		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
+		if (this._expandedTypes[terrainTypeId])
+			delete this._expandedTypes[terrainTypeId];
+		else
+			this._expandedTypes[terrainTypeId] = true;
+		this.render();
 	}
 
 	#addTerrainType() {
@@ -70,6 +93,32 @@ export class TerrainTypesConfig extends FormApplication {
 		};
 
 		this.object.push(newTerrainType);
+		this.render();
+	}
+
+	#moveTerrainType(event, dir) {
+		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
+		const index = this.object.findIndex(t => t.id === terrainTypeId);
+
+		// Cannot move if already at the start/end
+		if ((dir > 0 && index >= this.object.length) || (dir < 0 && index <= 0)) return;
+
+		const [terrainType] = this.object.splice(index, 1);
+		this.object.splice(index + dir, 0, terrainType);
+		this.render();
+	}
+
+	#duplicateTerrainType(event) {
+		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
+		const terrainType = this.object.find(t => t.id === terrainTypeId);
+		this.object.push({ ...terrainType, id: randomID(), name: terrainType.name + " (2)" });
+		this.render();
+	}
+
+	#deleteTerrainType(event) {
+		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
+		const index = this.object.findIndex(t => t.id === terrainTypeId);
+		this.object.splice(index, 1);
 		this.render();
 	}
 }

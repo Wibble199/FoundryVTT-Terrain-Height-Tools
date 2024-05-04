@@ -1,101 +1,121 @@
 <form>
-	<p style="color:red">DevNote: all this text still needs localisation!</p>
+	{{{localize "TERRAINHEIGHTTOOLS.DeleteTerrainTypeHint"}}}
 
-	<p>Removing a terrain type will remove cells that are using it from the scene.</p>
+	<ul class="terrain-type-list">
+		{{#each object as |terrainType idx|}}
+			<li class="terrain-type" data-terrain-type-id="{{terrainType.id}}">
+				<input type="hidden" name="{{idx}}.id" value="{{terrainType.id}}">
 
-	<button type="button" data-action="terrain-type-add">Add type</button>
+				<div class="terrain-type-header flexrow">
+					<button type="button" data-action="toggle-expand">
+						<i class="fas fa-chevron-{{#if (lookup ../expandedTypes terrainType.id)}}up{{else}}down{{/if}}"></i>
+					</button>
 
-	{{#each object as |terrainType idx|}}
-		<div class="terrain-type">
-			<input type="hidden" name="{{idx}}.id" value="{{terrainType.id}}">
+					<input type="text" name="{{idx}}.name" value="{{terrainType.name}}" placeholder="{{localize "Name"}}">
 
-			<div class="form-group">
-				<label>Name</label>
-				<input type="text" name="{{idx}}.name" value="{{terrainType.name}}">
-			</div>
+					<button type="button" data-action="move-up" title="{{localize "TERRAINHEIGHTTOOLS.MoveUp"}}"><i class="fas fa-arrow-up"></i></button>
+					<button type="button" data-action="move-down" title="{{localize "TERRAINHEIGHTTOOLS.MoveDown"}}"><i class="fas fa-arrow-down"></i></button>
+					<button type="button" data-action="duplicate" title="{{localize "Duplicate"}}"><i class="fas fa-copy"></i></button>
+					<button type="button" data-action="delete" title="{{localize "Delete"}}"><i class="fas fa-trash"></i></button>
+				</div>
 
-			<div class="flexrow">
-				<div>
-					<div class="form-group-stacked">
-						<label>Line Width</label>
-						<input type="number" name="{{idx}}.lineWidth" value="{{terrainType.lineWidth}}" min="0" step="1">
+				<div class="terrain-type-content {{#unless (lookup ../expandedTypes terrainType.id)}}collapsed{{/unless}}">
+					<div>
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.LineWidth"}} <span class="hint">({{localize "Pixels"}})</span></label>
+							<input type="number" name="{{idx}}.lineWidth" value="{{terrainType.lineWidth}}" min="0" step="1">
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.StrokeColor"}}</label>
+							{{colorPicker name=(concat idx ".lineColor") value=terrainType.lineColor}}
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.LineOpacity"}}</label>
+							<div class="form-group">
+								{{rangePicker name=(concat idx ".lineOpacity") value=terrainType.lineOpacity min="0" max="1" step="0.1"}}
+							</div>
+						</div>
 					</div>
 
-					<div class="form-group-stacked">
-						<label>Line Color</label>
-						{{colorPicker name=(concat idx ".lineColor") value=terrainType.lineColor}}
+					<div class="vertical-separator"></div>
+
+					<div>
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.FillTypes"}}</label>
+							<select name="{{idx}}.fillType" data-dtype="Number">
+								{{selectOptions ../fillTypes selected=terrainType.fillType localize=true}}
+							</select>
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.FillColor"}}</label>
+							{{colorPicker name=(concat idx ".fillColor") value=terrainType.fillColor}}
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.FillOpacity"}}</label>
+							<div class="form-group">
+								{{rangePicker name=(concat idx ".fillOpacity") value=terrainType.fillOpacity min="0" max="1" step="0.1"}}
+							</div>
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.FillTexture"}}</label>
+							<div class="form-group">
+								{{filePicker target=(concat idx ".fillTexture") type="image"}}
+								<input class="image" type="text" name="{{idx}}.fillTexture" placeholder="path/image.png" value="{{terrainType.fillTexture}}"/>
+							</div>
+						</div>
 					</div>
 
-					<div class="form-group-stacked">
-						<label>Line Opacity</label>
-						<div class="form-group">
-							{{rangePicker name=(concat idx ".lineOpacity") value=terrainType.lineOpacity min="0" max="1" step="0.1"}}
+					<div class="vertical-separator"></div>
+
+					<div>
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.TextLabel"}}</label>
+							<label class="hint">{{{localize "TERRAINHEIGHTTOOLS.LabelFormatHint"}}}</label>
+							<input type="text" name="{{idx}}.textFormat" value="{{terrainType.textFormat}}">
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.FontFamily"}}</label>
+							<select name="{{idx}}.font">
+								{{selectOptions ../fonts selected=terrainType.fontFamily}}
+							</select>
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.FontSize"}}</label>
+							<input type="number" name="{{idx}}.textSize" value="{{terrainType.textSize}}" min="0" step="1">
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.TextColor"}}</label>
+							{{colorPicker name=(concat idx ".textColor") value=terrainType.textColor}}
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "DRAWING.TextOpacity"}}</label>
+							<div class="form-group">
+								{{rangePicker name=(concat idx ".textOpacity") value=terrainType.textOpacity min="0" max="1" step="0.1"}}
+							</div>
 						</div>
 					</div>
 				</div>
+			</li>
+		{{/each}}
+	</ul>
 
-				<div>
-					<div class="form-group-stacked">
-						<label>Fill Type</label>
-						<select name="{{idx}}.fillType" data-dtype="Number">
-							{{selectOptions ../fillTypes selected=terrainType.fillType localize=true}}
-						</select>
-					</div>
-
-					<div class="form-group-stacked">
-						<label>Fill Color</label>
-						{{colorPicker name=(concat idx ".fillColor") value=terrainType.fillColor}}
-					</div>
-
-					<div class="form-group-stacked">
-						<label>Fill Opacity</label>
-						<div class="form-group">
-							{{rangePicker name=(concat idx ".fillOpacity") value=terrainType.fillOpacity min="0" max="1" step="0.1"}}
-						</div>
-					</div>
-
-					<div class="form-group-stacked">
-						<label>Fill Texture</label>
-						<div class="form-group">
-							{{filePicker target=(concat idx ".fillTexture") type="image"}}
-							<input class="image" type="text" name="{{idx}}.fillTexture" placeholder="path/image.png" value="{{terrainType.fillTexture}}"/>
-						</div>
-					</div>
-				</div>
-
-				<div>
-					<div class="form-group-stacked">
-						<label>Text Format</label>
-						<input type="text" name="{{idx}}.textFormat" value="{{terrainType.textFormat}}">
-					</div>
-
-					<div class="form-group-stacked">
-						<label>Font</label>
-						<select name="{{idx}}.font">
-							{{selectOptions ../fonts selected=terrainType.fontFamily}}
-						</select>
-					</div>
-
-					<div class="form-group-stacked">
-						<label>Text Size</label>
-						<input type="number" name="{{idx}}.textSize" value="{{terrainType.textSize}}" min="0" step="1">
-					</div>
-
-					<div class="form-group-stacked">
-						<label>Text Color</label>
-						{{colorPicker name=(concat idx ".textColor") value=terrainType.textColor}}
-					</div>
-
-					<div class="form-group-stacked">
-						<label>Text Opacity</label>
-						<div class="form-group">
-							{{rangePicker name=(concat idx ".textOpacity") value=terrainType.textOpacity min="0" max="1" step="0.1"}}
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	{{/each}}
-
-	<button type="submit">Save Changes</button>
+	<div class="flexrow">
+		<button type="button" data-action="terrain-type-add">
+			<i class="fas fa-plus"></i>
+			{{localize "TERRAINHEIGHTTOOLS.AddTerrainType"}}
+		</button>
+		<button type="submit">
+			<i class="fas fa-save"></i>
+			{{localize "Save Changes"}}
+		</button>
+	</div>
 </form>
