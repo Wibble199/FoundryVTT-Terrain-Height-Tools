@@ -1,0 +1,57 @@
+name: Release
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  zip_and_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Update module.json URLs
+        run: |
+          VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
+          jq --arg MANIFEST_URL "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/$VERSION/module.json" \
+             --arg DOWNLOAD_URL "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/$VERSION/release.zip" \
+             '.manifest = $MANIFEST_URL | .download = $DOWNLOAD_URL' module.json > temp.json && mv temp.json module.json
+
+      - name: Zip module files
+        run: |
+          sudo apt-get install zip &&
+          zip -r release.zip lang/ module/ styles/ templates/ textures/ license.md module.json readme.md
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+      - name: Add module.json to release
+        id: upload_module_json
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./module.json
+          asset_name: module.json
+          asset_content_type: application/json
+
+      - name: Add release.zip to release
+        id: upload_release_zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release.zip
+          asset_name: release.zip
+          asset_content_type: application/zip
