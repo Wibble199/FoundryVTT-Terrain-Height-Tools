@@ -20,13 +20,18 @@
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",
-		"ClearConfirmTitle": "Clear All Terrain",
 		"ClearConfirmContent": "Permanently delete all terrain data from this scene?",
+		"ClearConfirmTitle": "Clear All Terrain",
+		"DeleteTerrainTypeHint": "<p>Edit the types of terrain that can be painted onto the scene.</p><p>Note: Removing a terrain type will clear cells that are using it from the scene on next save.</p>",
+		"ExportTerrainTypes": "Export Terrain Types",
 		"Height": "Height",
-		"MoveUp": "Move up (affects picker list only)",
-		"MoveDown": "Move down (affects picker list only)",
-		"PickerTitle": "Terrain Picker",
+		"ImportCombine": "Import (Combine with Existing)",
+		"ImportReplace": "Import (Replace Existing)",
+		"ImportTerrainTypes": "Import Terrain Types",
+		"ImportTextPlaceholder": "Paste your terrain type export here...",
 		"LabelFormatHint": "Use <u>%h%</u> for the numeric height of the terrain",
-		"DeleteTerrainTypeHint": "<p>Edit the types of terrain that can be painted onto the scene.</p><p>Note: Removing a terrain type will clear cells that are using it from the scene on next save.</p>"
+		"MoveDown": "Move down (affects picker list only)",
+		"MoveUp": "Move up (affects picker list only)",
+		"PickerTitle": "Terrain Picker"
 	}
 }

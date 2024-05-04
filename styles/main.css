@@ -128,3 +128,23 @@
 #tht_terrainTypesConfig .terrain-type-content .vertical-separator {
 	border-left: 2px groove #FFFFFF;
 }
+
+
+/* --------------------------- */
+/* Terrain Types Import/Export */
+/* --------------------------- */
+#tht_terrainTypesImport .dialog-buttons,
+#tht_terrainTypesExport .dialog-buttons {
+	flex: 0;
+}
+
+#tht_terrainTypesImport .dialog-content,
+#tht_terrainTypesExport .dialog-content {
+	padding-bottom: 8px;
+}
+
+#tht_terrainTypesImport textarea,
+#tht_terrainTypesExport textarea {
+	height: 100%;
+	resize: none;
+}
