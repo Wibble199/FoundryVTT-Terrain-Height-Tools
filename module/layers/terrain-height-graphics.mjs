@@ -48,7 +48,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * Redraws the graphics layer using the supplied height map data.
 	 * @param {HeightMap} heightMap
 	 */
-	update(heightMap) {
+	async update(heightMap) {
 		this.graphics.clear();
 		this.labels.removeChildren();
 
@@ -56,6 +56,11 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
 
 		const t1 = performance.now();
+
+		// Load textures
+		const textures = Object.fromEntries(await Promise.all(terrainTypes
+			.filter(type => type.fillTexture?.length)
+			.map(async type => [type.id, await loadTexture(type.fillTexture)])));
 
 		groupBy(heightMap.data, x => `${x.terrainTypeId}.${x.height}`).forEach(cells => {
 			const terrainStyle = terrainTypes.find(t => t.id === cells[0].terrainTypeId);
@@ -68,7 +73,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			const polys = cells.map(({ position }) => ({ cell: position, poly: this.#getPolyPoints(...position) }));
 			const mergedPolys = TerrainHeightGraphics.#combinePolygons(polys);
 			mergedPolys.forEach(({ poly, holes, labelPosition }) => {
-				this.#drawTerrainPolygon(poly, terrainStyle);
+				this.#drawTerrainPolygon(poly, terrainStyle, textures);
 
 				for (const hole of holes) {
 					this.graphics.beginHole();
@@ -89,9 +94,19 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * Draws a terrain polygon for the given (pixel) coordinates and the given terrain style.
 	 * @param {Polygon} polygon
 	 * @param {import("../_types.mjs").TerrainType} terrainStyle
+	 * @param {{ [terrainTypeId: string]: PIXI.Texture }} textureMap
 	 */
-	#drawTerrainPolygon(polygon, terrainStyle) {
-		this.graphics.beginFill(Color.from(terrainStyle.fillColor), terrainStyle.fillOpacity);
+	#drawTerrainPolygon(polygon, terrainStyle, textureMap) {
+		const color = Color.from(terrainStyle.fillColor);
+		if (terrainStyle.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && textureMap[terrainStyle.id])
+			this.graphics.beginTextureFill({
+				texture: textureMap[terrainStyle.id],
+				color,
+				alpha: terrainStyle.fillOpacity
+			});
+		else
+			this.graphics.beginFill(color, terrainStyle.fillOpacity);
+
 		this.graphics.lineStyle({
 			width: terrainStyle.lineWidth,
 			color: Color.from(terrainStyle.lineColor),

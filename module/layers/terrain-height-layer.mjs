@@ -46,7 +46,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		if (this.graphics) {
 			// TODO: is it sensible to redraw graphics on _draw? When exactly does _draw get called?
-			this._updateGraphics();
+			await this._updateGraphics();
 		} else {
 			this.graphics = new TerrainHeightGraphics();
 			game.canvas.primary.addChild(this.graphics);
@@ -60,7 +60,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 			this.#heightMap = new HeightMap(game.canvas.scene);
 
-			this.graphics.update(this.#heightMap);
+			await this.graphics.update(this.#heightMap);
 		}
 	}
 
@@ -97,15 +97,15 @@ export class TerrainHeightLayer extends InteractionLayer {
 		if (scene.id !== game.canvas.scene.id) return;
 
 		this.#heightMap.reload();
-		this._updateGraphics();
+		await this._updateGraphics();
 	}
 
 	// ---- //
 	// Data //
 	// ---- //
-	_updateGraphics() {
+	async _updateGraphics() {
 		this.debugGraphics.clear();
-		this.graphics.update(this.#heightMap);
+		await this.graphics.update(this.#heightMap);
 	}
 
 	// -------------------- //
@@ -174,19 +174,19 @@ export class TerrainHeightLayer extends InteractionLayer {
 				const terrainId = sceneControls.terrainHeightPicker?.selectedTerrainId;
 				const height = sceneControls.terrainHeightPicker?.selectedHeight;
 				if (terrainId && await this.#heightMap.paintCells(pendingChanges, terrainId, height))
-					this._updateGraphics();
+					await this._updateGraphics();
 				break;
 
 			case tools.erase:
 				if (await this.#heightMap.eraseCells(pendingChanges))
-					this._updateGraphics();
+					await this._updateGraphics();
 				break;
 		}
 	}
 
 	async clear() {
 		if (await this.#heightMap.clear())
-			this._updateGraphics(this.#heightMap);
+			await this._updateGraphics(this.#heightMap);
 	}
 
 	/**
