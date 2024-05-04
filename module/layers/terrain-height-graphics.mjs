@@ -93,24 +93,24 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	/**
 	 * Draws a terrain polygon for the given (pixel) coordinates and the given terrain style.
 	 * @param {Polygon} polygon
-	 * @param {import("../_types.mjs").TerrainType} terrainStyle
-	 * @param {{ [terrainTypeId: string]: PIXI.Texture }} textureMap
+	 * @param {import("../_types.mjs").TerrainType | undefined} terrainStyle
+	 * @param {{ [terrainTypeId: string]: PIXI.Texture } | undefined} textureMap
 	 */
-	#drawTerrainPolygon(polygon, terrainStyle, textureMap) {
-		const color = Color.from(terrainStyle.fillColor);
-		if (terrainStyle.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && textureMap[terrainStyle.id])
+	#drawTerrainPolygon(polygon, terrainStyle = undefined, textureMap = undefined) {
+		const color = Color.from(terrainStyle?.fillColor ?? "#000000");
+		if (terrainStyle?.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && textureMap[terrainStyle.id])
 			this.graphics.beginTextureFill({
 				texture: textureMap[terrainStyle.id],
 				color,
 				alpha: terrainStyle.fillOpacity
 			});
 		else
-			this.graphics.beginFill(color, terrainStyle.fillOpacity);
+			this.graphics.beginFill(color, terrainStyle?.fillOpacity ?? 0.4);
 
 		this.graphics.lineStyle({
-			width: terrainStyle.lineWidth,
-			color: Color.from(terrainStyle.lineColor),
-			alpha: terrainStyle.lineOpacity,
+			width: terrainStyle?.lineWidth ?? 0,
+			color: Color.from(terrainStyle?.lineColor ?? "#000000"),
+			alpha: terrainStyle?.lineOpacity ?? 1,
 			alignment: 0
 		});
 
@@ -264,18 +264,18 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// horizontal line drawn from the topmost point of the inner polygon (with a little Y offset added so that we
 		// don't have to worry about vertex collisions) to the left and find the first polygon that it intersects.
 		for (const hole of holePolygons) {
-			const containingPolygons = solidPolygons.filter(p => p.poly.contains(hole));
+			const containingPolygons = solidPolygons.filter(p => p.poly.contains(hole.poly));
 
 			if (containingPolygons.length === 0) {
-				debug("Something went wrong calculating which polygon this hole belonged to: No containing polygons found.", { hole, solidPolygons });
+				debug("Something went wrong calculating which polygon this hole belonged to: No containing polygons found.", { hole: hole.poly, solidPolygons });
 				//throw new Error("Could not find a parent polygon for this hole.");
 				continue;
 
 			} else if (containingPolygons.length === 1) {
-				containingPolygons[0].holes.push(hole);
+				containingPolygons[0].holes.push(hole.poly);
 
 			} else {
-				const testPoint = hole.points.find(p => p.y === hole.boundingBox.y1).clone();
+				const testPoint = hole.poly.points.find(p => p.y === hole.poly.boundingBox.y1).clone();
 				testPoint.y += game.canvas.grid.h * 0.05;
 				const intersectsWithEdges = containingPolygons.flatMap(poly => poly.poly.edges
 					.map(edge => ({
@@ -286,13 +286,13 @@ export class TerrainHeightGraphics extends PIXI.Container {
 				);
 
 				if (intersectsWithEdges.length === 0) {
-					debug("Something went wrong calculating which polygon this hole belonged to: No edges intersected horizontal ray.", { hole, solidPolygons });
+					debug("Something went wrong calculating which polygon this hole belonged to: No edges intersected horizontal ray.", { hole: hole.poly, solidPolygons });
 					//throw new Error("Could not find a parent polygon for this hole.");
 					continue;
 				}
 
 				intersectsWithEdges.sort((a, b) => b.intersectsAt - a.intersectsAt);
-				intersectsWithEdges[0].poly.holes.push(hole);
+				intersectsWithEdges[0].poly.holes.push(hole.poly);
 			}
 		}
 
