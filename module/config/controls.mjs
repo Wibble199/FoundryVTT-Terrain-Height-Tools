@@ -52,7 +52,11 @@ export function registerSceneControls(controls) {
 				name: "clear",
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsClear"),
 				icon: "fas fa-trash",
-				onClick: () => game.canvas.terrainHeightLayer?.clear(),
+				onClick: () => Dialog.confirm({
+					title: game.i18n.localize("TERRAINHEIGHTTOOLS.ClearConfirmTitle"),
+					content: `<p>${game.i18n.format("TERRAINHEIGHTTOOLS.ClearConfirmContent")}</p>`,
+					yes: () => game.canvas.terrainHeightLayer?.clear()
+				}),
 				button: true
 			}
 		]

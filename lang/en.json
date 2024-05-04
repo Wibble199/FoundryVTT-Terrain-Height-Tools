@@ -19,6 +19,8 @@
 		"TerrainTypes.Button": "Configure Terrain Types"
 	},
 	"TERRAINHEIGHTTOOLS": {
+		"ClearConfirmTitle": "Clear All Terrain",
+		"ClearConfirmContent": "Permanently delete all terrain data from this scene?",
 		"Height": "Height",
 		"PickerTitle": "Terrain Picker"
 	}
