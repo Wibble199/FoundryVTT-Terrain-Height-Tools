@@ -1,12 +1,12 @@
 import { moduleName, settings } from "../consts.mjs";
 import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
-import { groupBy } from "../utils/array-utils.mjs";
+import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { debug } from "../utils/log.mjs";
 
 /**
  * Specialised PIXI.Graphics instance for rendering a scene's terrain height data to the canvas.
  */
-export class TerrainHeightGraphics extends PIXI.Graphics {
+export class TerrainHeightGraphics extends PIXI.Container {
 
 	/** @type {PIXI.Texture} */
 	cursorRadiusMaskTexture;
@@ -16,6 +16,15 @@ export class TerrainHeightGraphics extends PIXI.Graphics {
 
 	constructor() {
 		super();
+
+		/** @type {PIXI.Graphics} */
+		this.graphics = new PIXI.Graphics();
+		this.addChild(this.graphics);
+
+		/** @type {PIXI.Container} */
+		this.labels = new PIXI.Container();
+		this.addChild(this.labels);
+
 		this.alpha = game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer) ? 1 : 0;
 		this._setMaskRadius(this.terrainHeightLayerVisibilityRadius);
 		Hooks.on("highlightObjects", this.#onHighlightObjects.bind(this));
@@ -40,7 +49,8 @@ export class TerrainHeightGraphics extends PIXI.Graphics {
 	 * @param {HeightMap} heightMap
 	 */
 	update(heightMap) {
-		this.clear();
+		this.graphics.clear();
+		this.labels.removeChildren();
 
 		/** @type {import("../_types.mjs").TerrainType[]} */
 		const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
@@ -51,16 +61,23 @@ export class TerrainHeightGraphics extends PIXI.Graphics {
 			const terrainStyle = terrainTypes.find(t => t.id === cells[0].terrainTypeId);
 			if (!terrainStyle) return;
 
-			const polys = cells.map(({ position }) => this.#getPolyPoints(...position));
+			const height = cells[0].height;
+			const label = terrainStyle.textFormat.replace(/\%h\%/g, height);
+			const textStyle = this.#getTextStyle(terrainStyle);
+
+			const polys = cells.map(({ position }) => ({ cell: position, poly: this.#getPolyPoints(...position) }));
 			const mergedPolys = TerrainHeightGraphics.#combinePolygons(polys);
-			mergedPolys.forEach(({ poly, holes }) => {
-				this.drawTerrainPolygon(poly, terrainStyle);
+			mergedPolys.forEach(({ poly, holes, labelPosition }) => {
+				this.#drawTerrainPolygon(poly, terrainStyle);
 
 				for (const hole of holes) {
-					this.beginHole();
-					this.drawTerrainPolygon(hole);
-					this.endHole();
+					this.graphics.beginHole();
+					this.#drawTerrainPolygon(hole);
+					this.graphics.endHole();
 				}
+
+				if (label?.length)
+					this.#drawPolygonLabel(label, textStyle, labelPosition);
 			});
 		});
 
@@ -73,47 +90,54 @@ export class TerrainHeightGraphics extends PIXI.Graphics {
 	 * @param {Polygon} polygon
 	 * @param {import("../_types.mjs").TerrainType} terrainStyle
 	 */
-	drawTerrainPolygon(polygon, terrainStyle) {
-		this.beginFill(Color.from(terrainStyle.fillColor), terrainStyle.fillOpacity);
-		this.lineStyle({
+	#drawTerrainPolygon(polygon, terrainStyle) {
+		this.graphics.beginFill(Color.from(terrainStyle.fillColor), terrainStyle.fillOpacity);
+		this.graphics.lineStyle({
 			width: terrainStyle.lineWidth,
 			color: Color.from(terrainStyle.lineColor),
 			alpha: terrainStyle.lineOpacity,
 			alignment: 0
 		});
 
-		this.moveTo(polygon.points[0]);
+		this.graphics.moveTo(polygon.points[0].x, polygon.points[0].y);
 		for (let i = 1; i < polygon.points.length; i++) {
-			this.lineTo(polygon.points[i]);
+			this.graphics.lineTo(polygon.points[i].x, polygon.points[i].y);
 		}
-		this.lineTo(polygon.points[0]);
-		this.closePath();
+		this.graphics.lineTo(polygon.points[0].x, polygon.points[0].y);
+		this.graphics.closePath();
 
-		this.endFill();
+		this.graphics.endFill();
 	}
 
 	/**
-	 * Extends the existing moveTo method to allow also taking an object with an x and y.
-	 * @param {number | { x: number; y: number }} x Either the X position, or an object with an X and Y component.
-	 * @param {number | undefined} y If X was a number, the Y position; otherwise undefined.
-	 * @override
+	 * Draws a polygon's label at the given position.
+	 * @param {string} label
+	 * @param {PIXI.TextStyle} textStyle
+	 * @param {[number, number]} position
 	 */
-	moveTo(x, y = undefined) {
-		if (typeof x === "number")
-			return super.moveTo(x, y);
-		return super.moveTo(x.x, x.y);
+	#drawPolygonLabel(label, textStyle, position) {
+		const text = new PreciseText(label, textStyle);
+		text.x = position[0] - text.width / 2;
+		text.y = position[1] - text.height / 2;
+		this.labels.addChild(text);
 	}
 
 	/**
-	 * Extends the existing lineTo method to allow also taking an object with an x and y.
-	 * @param {number | { x: number; y: number }} x Either the X position, or an object with an X and Y component.
-	 * @param {number | undefined} y If X was a number, the Y position; otherwise undefined.
-	 * @override
+	 * @param {import("../_types.mjs").TerrainType} terrainStyle
+	 * @returns {PIXI.TextStyle}
 	 */
-	lineTo(x, y = undefined) {
-		if (typeof x === "number")
-			return super.lineTo(x, y);
-		return super.lineTo(x.x, x.y);
+	#getTextStyle(terrainStyle) {
+		const style = CONFIG.canvasTextStyle.clone();
+
+		style.fontFamily = terrainStyle.font ?? CONFIG.defaultFontFamily;
+		style.fontSize = terrainStyle.textSize;
+
+		const color = Color.from(terrainStyle.textColor ?? 0xFFFFFF);
+		style.fill = color;
+		style.strokeThickness = 4;
+		style.stroke = color.hsv[2] > 0.6 ? 0x000000 : 0xFFFFFF;
+
+		return style;
 	}
 
 	/**
@@ -151,18 +175,18 @@ export class TerrainHeightGraphics extends PIXI.Graphics {
 
 	/**
 	 * Given a list of polygons, combines them together into as few polygons as possible.
-	 * @param {Polygon[]} originalPolygons An array of polygons to
-	 * @returns {{ poly: Polygon; holes: Polygon[] }[]}
+	 * @param {{ poly: Polygon; cell: [number, number] }[]} originalPolygons An array of polygons to merge
+	 * @returns {{ poly: Polygon; holes: Polygon[], labelPosition: [number, number] }[]}
 	 */
 	static #combinePolygons(originalPolygons) {
 
 		// Generate a graph of all edges in all the polygons
-		const allEdges = originalPolygons.flatMap(p => p.edges);
+		const allEdges = originalPolygons.flatMap(p => p.poly.edges.map(edge => ({ cell: p.cell, edge })));
 
 		// Remove any duplicate edges
 		for (let i = 0; i < allEdges.length; i++) {
 			for (let j = i + 1; j < allEdges.length; j++) {
-				if (allEdges[i].equals(allEdges[j])) {
+				if (allEdges[i].edge.equals(allEdges[j].edge)) {
 					allEdges.splice(j, 1);
 					allEdges.splice(i, 1);
 					i--;
@@ -174,19 +198,40 @@ export class TerrainHeightGraphics extends PIXI.Graphics {
 		// From some start edge, keep finding the next edge that joins it until we are back at the start.
 		// If there are multiple edges starting at a edge's endpoint (e.g. two squares touch by a corner), then
 		// use the one that most clockwise.
-		/** @type {Polygon[]} */
+		/** @type {{ poly: Polygon[]; labelPosition: [number, number] }} */
 		const combinedPolygons = [];
 		while (allEdges.length) {
+			// Find the next unvisited edge, and follow the edges until we join back up with the first
 			const edges = allEdges.splice(0, 1);
-			while (!edges[0].p1.equals(edges[edges.length - 1].p2)) {
+			while (!edges[0].edge.p1.equals(edges[edges.length - 1].edge.p2)) {
 				// TODO: handle corner joins
 				// TODO: in square grids, we can optimise edges by joining those that are adjacent and parallel.
-				const nextEdgeIndex = allEdges.findIndex(v => v.p1.equals(edges[edges.length - 1].p2));
+				const nextEdgeIndex = allEdges.findIndex(v => v.edge.p1.equals(edges[edges.length - 1].edge.p2));
 				if (nextEdgeIndex === -1) throw new Error("Invalid graph detected. Missing edge.");
 				const [nextEdge] = allEdges.splice(nextEdgeIndex, 1);
 				edges.push(nextEdge);
 			}
-			combinedPolygons.push(new Polygon(edges.map(v => v.p1)));
+
+			// Calculate center of mass by averaging the midpoints of all painted grid cells.
+			// Them, find the closest cell to that center of mass and use that as the label position.
+			// Finding the closest cell ensures that the label will be inside the shape (in case it convex)
+			const centerOfUsedCells = distinctBy(edges.map(e => e.cell), x => `${x[0]}.${x[1]}`)
+				.map(([x, y]) => canvas.grid.grid.getPixelsFromGridPosition(x, y))
+				.map(([x, y]) => [x + canvas.grid.w / 2, y + canvas.grid.h / 2]);
+
+			const centerOfMass = centerOfUsedCells
+				.reduce(([xAvg, yAvg, count], [x, y]) => [xAvg + (x - xAvg) / count, yAvg + (y - yAvg) / count, count + 1], [0, 0, 1])
+				.slice(0, 2);
+
+			/*const closestCell = centerOfUsedCells
+				.map(cell => ({ cell, distSq: Math.pow(cell[0] - centerOfMass[0], 2) + Math.pow(cell[1] - centerOfMass[1], 2) }))
+				.sort((a, b) => a.distSq - b.distSq)[0];*/
+
+			// Add completed polygon to the list
+			combinedPolygons.push({
+				poly: new Polygon(edges.map(v => v.edge.p1)),
+				labelPosition: centerOfMass
+			});
 		}
 
 		// To determine if a polygon is a "hole" we need to check whether it is inside another polygon.
@@ -195,8 +240,8 @@ export class TerrainHeightGraphics extends PIXI.Graphics {
 		// For each hole, we need to find which polygon it is a hole in, as the hole must be drawn immediately after.
 		// To find the hole's parent, we search back up the sorted list of polygons in reverse for the first one that
 		// contains it.
-		const polysAreHolesMap = groupBy(combinedPolygons, polygon => !new Edge(polygon.points[0], polygon.points[1]).clockwise);
-		const solidPolygons = (polysAreHolesMap.get(false) ?? []).map(poly => ({ poly, holes: /** @type {Polygon[]} */ ([]) }));
+		const polysAreHolesMap = groupBy(combinedPolygons, polygon => !new Edge(polygon.poly.points[0], polygon.poly.points[1]).clockwise);
+		const solidPolygons = (polysAreHolesMap.get(false) ?? []).map(p => ({ poly: p.poly, holes: /** @type {Polygon[]} */ ([]), labelPosition: p.labelPosition }));
 		const holePolygons = polysAreHolesMap.get(true) ?? [];
 
 		// For each hole, we need to check which non-hole poly it is inside. We gather a list of non-hole polygons that
