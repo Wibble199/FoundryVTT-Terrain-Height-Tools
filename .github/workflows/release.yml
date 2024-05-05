@@ -11,12 +11,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Update module.json URLs
+      - name: Update module.json download URL
         run: |
           VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
-          jq --arg MANIFEST_URL "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/$VERSION/module.json" \
-             --arg DOWNLOAD_URL "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/$VERSION/release.zip" \
-             '.manifest = $MANIFEST_URL | .download = $DOWNLOAD_URL' module.json > temp.json && mv temp.json module.json
+          jq --arg DOWNLOAD_URL "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/$VERSION/release.zip" \
+             '.download = $DOWNLOAD_URL' module.json > temp.json && mv temp.json module.json
 
       - name: Zip module files
         run: |
