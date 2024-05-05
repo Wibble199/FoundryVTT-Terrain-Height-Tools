@@ -219,10 +219,24 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			// Find the next unvisited edge, and follow the edges until we join back up with the first
 			const edges = allEdges.splice(0, 1);
 			while (!edges[0].edge.p1.equals(edges[edges.length - 1].edge.p2)) {
-				// TODO: handle corner joins
-				// TODO: in square grids, we can optimise edges by joining those that are adjacent and parallel.
-				const nextEdgeIndex = allEdges.findIndex(v => v.edge.p1.equals(edges[edges.length - 1].edge.p2));
-				if (nextEdgeIndex === -1) throw new Error("Invalid graph detected. Missing edge.");
+				// To find the next edge, we find edges that start where the last edge ends.
+				// For hex grids (where a max of 3 edges can meet), there will only ever be 1 other edge here (as if
+				// there were 4 edges, 2 would've overlapped and been removed) so we can just use that edge.
+				// But for square grids, there may be two edges that start here. In that case, we want to find the one
+				// that is next when rotating counter-clockwise.
+				const nextEdgeCandidates = allEdges
+					.map(({ edge }, idx) => ({ edge, idx }))
+					.filter(v => v.edge.p1.equals(edges[edges.length - 1].edge.p2));
+
+				if (nextEdgeCandidates.length === 0)
+					throw new Error("Invalid graph detected. Missing edge.");
+
+				const nextEdgeIndex = nextEdgeCandidates.length === 1
+					? nextEdgeCandidates[0].idx
+					: nextEdgeCandidates
+						.map(({ edge, idx }) => ({ angle: edge.angleBetween(edges[edges.length - 1].edge), idx }))
+						.sort((a, b) => a.angle - b.angle)[0].idx;
+
 				const [nextEdge] = allEdges.splice(nextEdgeIndex, 1);
 				edges.push(nextEdge);
 			}

@@ -83,4 +83,23 @@ export class Edge {
 			return (a > b + Number.EPSILON) ? 1 : (a + Number.EPSILON < b) ? -1 : 0;
 		}
 	}
+
+	/**
+	 * Works out the interior angle between this edge and another edge
+	 * This makes the assumption `other` starts where `this` ends and the polygon is defined clockwise.
+	 * @param {Edge} other
+	 */
+	angleBetween(other) {
+		const dx = this.p2.x - this.p1.x;
+		const dy = this.p2.y - this.p1.y;
+		const angle = Math.atan2(dy, dx);
+
+		const dxOther = other.p2.x - other.p1.x;
+		const dyOther = other.p2.y - other.p1.y;
+		const angleOther = Math.atan2(dyOther, dxOther);
+
+		let diff = angleOther - angle;
+		if (diff < 0) diff += 2 * Math.PI;
+		return Math.PI - diff;
+	}
 }
