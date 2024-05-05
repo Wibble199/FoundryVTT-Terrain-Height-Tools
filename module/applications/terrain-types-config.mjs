@@ -112,6 +112,7 @@ export class TerrainTypesConfig extends FormApplication {
 		/** @type {import("../_types.mjs").TerrainType} */
 		const newTerrainType = createDefaultTerrainType();
 		this.object.push(newTerrainType);
+		this._expandedTypes[newTerrainType.id] = true;
 		this.render();
 	}
 
@@ -131,8 +132,10 @@ export class TerrainTypesConfig extends FormApplication {
 	#duplicateTerrainType(event) {
 		this.sync();
 		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
-		const terrainType = this.object.find(t => t.id === terrainTypeId);
-		this.object.push({ ...terrainType, id: randomID(), name: terrainType.name + " (2)" });
+		const existingTerrainType = this.object.find(t => t.id === terrainTypeId);
+		const newTerrainType = { ...existingTerrainType, id: randomID(), name: existingTerrainType.name + " (2)" };
+		this.object.push(newTerrainType);
+		this._expandedTypes[newTerrainType.id] = true;
 		this.render();
 	}
 
