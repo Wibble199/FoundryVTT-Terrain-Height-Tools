@@ -166,18 +166,18 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * @param {string} [tool=undefined]
 	 */
 	async #useTool(x, y, tool = undefined) {
-		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
+		const cell = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
 
 		switch (tool ?? this._pendingTool) {
 			case tools.paint: {
-				const existing = this._heightMap.get(row, col);
+				const existing = this._heightMap.get(...cell);
 				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPalette ?? {};
 
-				if (!this.#cellIsPending(row, col)
+				if (!this.#cellIsPending(...cell)
 					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight)
 					&& selectedTerrainId) {
-					this._pendingChanges.push([row, col]);
-					this._highlightGraphics.highlight(row, col);
+					this._pendingChanges.push(cell);
+					this._highlightGraphics.highlight(...cell);
 				}
 				break;
 			}
@@ -185,23 +185,23 @@ export class TerrainHeightLayer extends InteractionLayer {
 			case tools.fill: {
 				this._pendingTool = undefined;
 				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPalette ?? {};
-				if (selectedTerrainId && await this._heightMap.fillCells([row, col], selectedTerrainId, selectedHeight))
+				if (selectedTerrainId && await this._heightMap.fillCells(cell, selectedTerrainId, selectedHeight))
 					await this._updateGraphics();
 				break;
 			}
 
 			case tools.erase: {
-				if (!this.#cellIsPending(row, col) && this._heightMap.get(row, col)) {
-					this._pendingChanges.push([row, col]);
+				if (!this.#cellIsPending(...cell) && this._heightMap.get(...cell)) {
+					this._pendingChanges.push(cell);
 					this._highlightGraphics.color = 0x000000;
-					this._highlightGraphics.highlight(row, col);
+					this._highlightGraphics.highlight(...cell);
 				}
 				break;
 			}
 
 			case tools.eraseFill: {
 				this._pendingTool = undefined;
-				if (await this._heightMap.eraseFillCells([row, col]))
+				if (await this._heightMap.eraseFillCells(cell))
 					await this._updateGraphics();
 				break;
 			}
@@ -215,11 +215,15 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * Applys any pending tool usage - e.g. finishes a paint click-drag.
 	 */
 	async #commitPendingToolUsage() {
-		// Clear pending changes so that repeated quick taps don't cause repeats
+		// Clear pending changes and tool immediately (i.e. don't wait for the asynchronous work to complete) so that
+		// repeated quick taps don't cause repeats/races
 		const pendingChanges = this._pendingChanges;
 		this._pendingChanges = [];
 
-		switch (this._pendingTool) {
+		const pendingTool = this._pendingTool;
+		this._pendingTool = undefined;
+
+		switch (pendingTool) {
 			case tools.paint:
 				const terrainId = sceneControls.terrainHeightPalette?.selectedTerrainId;
 				const height = sceneControls.terrainHeightPalette?.selectedHeight;
