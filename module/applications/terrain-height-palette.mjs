@@ -8,6 +8,8 @@ export class TerrainHeightPalette extends Application {
 
 		/** @type {string | undefined} */
 		this.selectedTerrainId = undefined;
+		/** @type {import("../_types.mjs").TerrainType | undefined} */
+		this.selectedTerrain = undefined;
 		this.selectedHeight = 1;
 	}
 

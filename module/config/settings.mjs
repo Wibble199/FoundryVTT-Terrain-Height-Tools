@@ -9,7 +9,7 @@ export function registerSettings() {
 		type: Boolean,
 		config: false,
 		default: true,
-		onChange: value => game.canvas.terrainHeightLayer.graphics.setVisible(value)
+		onChange: value => game.canvas.terrainHeightLayer._graphics.setVisible(value)
 	});
 
 	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {
@@ -20,7 +20,7 @@ export function registerSettings() {
 		range: { min: 0, max: 40, step: 1 },
 		config: true,
 		default: 0,
-		onChange: value => game.canvas.terrainHeightLayer.graphics._setMaskRadius(value)
+		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
 	});
 
 	game.settings.registerMenu(moduleName, settings.terrainTypes, {

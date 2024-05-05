@@ -1,7 +1,9 @@
+import { moduleName, settings } from "../consts.mjs";
+
 export class GridHighlightGraphics extends GridHighlight {
 
 	/** Colour to highlight new cells with. */
-	color = 0xFF0000;
+	color = 0xFFFFFF;
 
 	/** @override */
 	highlight(x, y) {
@@ -11,7 +13,7 @@ export class GridHighlightGraphics extends GridHighlight {
 	}
 
 	_drawGridCell(row, col) {
-		this.beginFill(this.color, 0.3)
+		this.beginFill(this.color, 0.4)
 			.drawPolygon(this._getGridCellPoly(row, col))
 			.endFill()
 	}
@@ -40,5 +42,31 @@ export class GridHighlightGraphics extends GridHighlight {
 			{ x: x + w, y: y + h },
 			{ x, y: y + h },
 		];
+	}
+
+	/**
+	 * Sets the highlight colour based on the given terrain type ID.
+	 * @param {string} terrainTypeId
+	 */
+	_setColorFromTerrainTypeId(terrainTypeId) {
+		/** @type {import("../_types.mjs").TerrainType[]} */
+		const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
+		const terrainType = terrainTypes.find(t => t.id === terrainTypeId);
+		if (!terrainType) return;
+
+		// If the terrain type has a fill colour, use that
+		if (terrainType.fillOpacity > 0) {
+			this.color = Color.from(terrainType.fillColor);
+			return;
+		}
+
+		// If the terrain type does not have a fill colour but has a border colour, use that
+		if (terrainType.lineWidth > 0 && terrainType.lineOpacity > 0) {
+			this.color = Color.from(terrainType.lineColor);
+			return;
+		}
+
+		// Otherwise use a default
+		this.color = 0x00FFFF;
 	}
 }

@@ -11,16 +11,19 @@ import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
 export class TerrainHeightLayer extends InteractionLayer {
 
 	/** @type {HeightMap | undefined} */
-	#heightMap;
+	_heightMap;
 
 	/** @type {TerrainHeightGraphics | undefined} */
-	graphics;
+	_graphics;
 
 	/** @type {GridHighlightGraphics | undefined} */
-	highlightGraphics;
+	_highlightGraphics;
+
+	/** @type {string | undefined} */
+	_pendingTool;
 
 	/** @type {[number, number][]} */
-	pendingChanges = [];
+	_pendingChanges = [];
 
 	constructor() {
 		super();
@@ -41,52 +44,57 @@ export class TerrainHeightLayer extends InteractionLayer {
 	async _draw(options) {
 		super._draw(options);
 
-		if (this.graphics) {
-			// TODO: is it sensible to redraw graphics on _draw? When exactly does _draw get called?
+		if (this._graphics) {
 			await this._updateGraphics();
 		} else {
-			this.graphics = new TerrainHeightGraphics();
-			game.canvas.primary.addChild(this.graphics);
+			this._graphics = new TerrainHeightGraphics();
+			game.canvas.primary.addChild(this._graphics);
 
-			this.highlightGraphics = new GridHighlightGraphics();
-			game.canvas.primary.addChild(this.highlightGraphics);
+			this._highlightGraphics = new GridHighlightGraphics();
+			game.canvas.primary.addChild(this._highlightGraphics);
 
-			this.#heightMap = new HeightMap(game.canvas.scene);
+			this._heightMap = new HeightMap(game.canvas.scene);
 
-			await this.graphics.update(this.#heightMap);
+			await this._graphics.update(this._heightMap);
 		}
 	}
 
 	/** @override */
 	_activate() {
 		// When this layer is activated (via the menu sidebar), always show the height map
-		this.graphics.setVisible(true);
-		this.graphics._setMaskRadiusActive(false);
+		this._graphics.setVisible(true);
+		this._graphics._setMaskRadiusActive(false);
+
+		// Start mouse event listeners
+		this.#setupEventListeners("on");
 	}
 
 	/** @override */
 	_deactivate() {
 		// When this layer is deactivated (via the menu sidebar), hide the height map unless configured to show
-		this.graphics.setVisible(game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer));
-		this.graphics._setMaskRadiusActive(true);
+		this._graphics.setVisible(game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer));
+		this._graphics._setMaskRadiusActive(true);
+
+		// Stop mouse event listeners
+		this.#setupEventListeners("off");
 	}
 
 	/** @override */
 	async _tearDown(options) {
 		super._tearDown(options);
 
-		if (this.graphics) game.canvas.primary.removeChild(this.graphics);
-		this.graphics = undefined;
+		if (this._graphics) game.canvas.primary.removeChild(this._graphics);
+		this._graphics = undefined;
 
-		if (this.highlightGraphics) game.canvas.primary.removeChild(this.highlightGraphics);
-		this.highlightGraphics = undefined;
+		if (this._highlightGraphics) game.canvas.primary.removeChild(this._highlightGraphics);
+		this._highlightGraphics = undefined;
 	}
 
 	async _onSceneUpdate(scene, data) {
 		// Do nothing if the updated scene is not the one the user is looking at
 		if (scene.id !== game.canvas.scene.id) return;
 
-		this.#heightMap.reload();
+		this._heightMap.reload();
 		await this._updateGraphics();
 	}
 
@@ -94,57 +102,90 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// Data //
 	// ---- //
 	async _updateGraphics() {
-		await this.graphics.update(this.#heightMap);
+		await this._graphics.update(this._heightMap);
 	}
 
 	// -------------------- //
 	// Mouse event handling //
 	// -------------------- //
-	/** @override */
-	_onClickLeft(event) {
-		const { x, y } = event.data.origin;
-		this.#useTool(x, y);
-		this.#commitPendingToolUsage();
+	/** @param {"on" | "off"} action */
+	#setupEventListeners(action) {
+		const { interaction } = game.canvas.app.renderer.plugins;
+		interaction[action]("mousedown", this.#onMouseLeftDown);
+		interaction[action]("mousemove", this.#onMouseMove);
+		interaction[action]("mouseup", this.#onMouseLeftUp);
 	}
 
-	/** @override */
-	_onDragLeftMove(event) {
-		const { x, y } = event.data.destination;
-		this.#useTool(x, y);
-	}
+	#onMouseLeftDown = event => {
+		const { x, y } = this.toLocal(event.data.global);
+		this.#beginTool(x, y);
+	};
 
-	_onDragLeftDrop(event) {
+	#onMouseMove = event => {
+		if (!this._pendingTool) return;
+		const { x, y } = this.toLocal(event.data.global);
+		this.#useTool(x, y);
+	};
+
+	#onMouseLeftUp = () => {
+		if (this._pendingTool === undefined) return;
 		this.#commitPendingToolUsage();
+		this._pendingTool = undefined;
+	};
+
+	/**
+	 * Handles initial tool usage.
+	 * @param {number} x Local X coordinate of the event trigger.
+	 * @param {number} y Local Y coordinate of the event trigger.
+	 * @param {string} [tool=undefined]
+	 */
+	#beginTool(x, y, tool) {
+		// If a tool is already in use, ignore
+		if (this._pendingTool !== undefined) return;
+
+		this._pendingTool = tool ?? game.activeTool;
+
+		// Set highlight colours depending on the tool
+		switch (this._pendingTool) {
+			case tools.paint:
+				this._highlightGraphics._setColorFromTerrainTypeId(sceneControls.terrainHeightPalette?.selectedTerrainId);
+				break;
+
+			case tools.erase:
+				this._highlightGraphics.color = 0x000000;
+				break;
+		}
+
+		this.#useTool(x, y, tool);
 	}
 
 	/**
-	 * @param {number} x
-	 * @param {number} y
-	 * @param {string} [tool]
-	 * @returns
+	 * Handles using a tool at the location. May add pending changes - e.g. if the user is clicking and dragging paint.
+	 * @param {number} x Local X coordinate of the event trigger.
+	 * @param {number} y Local Y coordinate of the event trigger.
+	 * @param {string} [tool=undefined]
 	 */
 	#useTool(x, y, tool = undefined) {
 		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
 
 		switch (tool ?? game.activeTool) {
 			case tools.paint:
-				const existing = this.#heightMap.get(row, col);
+				const existing = this._heightMap.get(row, col);
 				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPalette ?? {};
 
 				if (!this.#cellIsPending(row, col)
 					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight)
 					&& sceneControls.terrainHeightPalette?.selectedTerrainId) {
-					this.pendingChanges.push([row, col]);
-					this.highlightGraphics.color = 0xFF0000;
-					this.highlightGraphics.highlight(row, col);
+					this._pendingChanges.push([row, col]);
+					this._highlightGraphics.highlight(row, col);
 				}
 				break;
 
 			case tools.erase:
-				if (!this.#cellIsPending(row, col) && this.#heightMap.get(row, col)) {
-					this.pendingChanges.push([row, col]);
-					this.highlightGraphics.color = 0x000000;
-					this.highlightGraphics.highlight(row, col);
+				if (!this.#cellIsPending(row, col) && this._heightMap.get(row, col)) {
+					this._pendingChanges.push([row, col]);
+					this._highlightGraphics.color = 0x000000;
+					this._highlightGraphics.highlight(row, col);
 				}
 				break;
 
@@ -153,29 +194,32 @@ export class TerrainHeightLayer extends InteractionLayer {
 		}
 	}
 
-	async #commitPendingToolUsage(tool = undefined) {
-		const pendingChanges = this.pendingChanges;
-		this.pendingChanges = [];
-		this.highlightGraphics.clear();
+	/**
+	 * Applys any pending tool usage - e.g. finishes a paint click-drag.
+	 */
+	async #commitPendingToolUsage() {
+		const pendingChanges = this._pendingChanges;
+		this._pendingChanges = [];
+		this._highlightGraphics.clear();
 
-		switch (tool ?? game.activeTool) {
+		switch (this._pendingTool) {
 			case tools.paint:
 				const terrainId = sceneControls.terrainHeightPalette?.selectedTerrainId;
 				const height = sceneControls.terrainHeightPalette?.selectedHeight;
-				if (terrainId && await this.#heightMap.paintCells(pendingChanges, terrainId, height))
+				if (terrainId && await this._heightMap.paintCells(pendingChanges, terrainId, height))
 					await this._updateGraphics();
 				break;
 
 			case tools.erase:
-				if (await this.#heightMap.eraseCells(pendingChanges))
+				if (await this._heightMap.eraseCells(pendingChanges))
 					await this._updateGraphics();
 				break;
 		}
 	}
 
 	async clear() {
-		if (await this.#heightMap.clear())
-			await this._updateGraphics(this.#heightMap);
+		if (await this._heightMap.clear())
+			await this._updateGraphics(this._heightMap);
 	}
 
 	/**
@@ -184,6 +228,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * @param {number} col
 	 */
 	#cellIsPending(row, col) {
-		return this.pendingChanges.some(cell => cell[0] === row && cell[1] === col);
+		return this._pendingChanges.some(cell => cell[0] === row && cell[1] === col);
 	}
 }
