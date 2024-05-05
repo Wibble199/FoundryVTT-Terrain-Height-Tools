@@ -17,7 +17,9 @@ export class TerrainHeightPicker extends Application {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.PickerTitle"),
 			id: "tht_terrainHeightPicker",
       		template: `modules/${moduleName}/templates/terrain-height-picker.hbs`,
+			scrollY: ["ul"],
 			width: 220,
+			height: 342,
 			resizable: true
 		});
 	}

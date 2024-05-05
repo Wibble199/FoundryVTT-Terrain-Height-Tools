@@ -34,6 +34,7 @@ export class TerrainTypesConfig extends FormApplication {
 			title: game.i18n.localize("SETTINGS.TerrainTypes.Button"),
 			id: "tht_terrainTypesConfig",
 			template: `modules/${moduleName}/templates/terrain-types-config.hbs`,
+			scrollY: [".terrain-type-list"],
 			width: 840,
 			height: 720,
 			resizable: true,
