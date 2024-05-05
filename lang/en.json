@@ -3,6 +3,7 @@
 		"GroupTerrainHeightTools": "Terrain Height Tools",
 		"TerrainHeightToolsClear": "Clear Height Map",
 		"TerrainHeightToolsErase": "Erase",
+		"TerrainHeightToolsEraseFill": "Erase fill (Erase connected)",
 		"TerrainHeightToolsFill": "Fill",
 		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Map",
 		"TerrainHeightToolsPaint": "Paint"

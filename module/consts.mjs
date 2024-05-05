@@ -4,7 +4,8 @@ export const moduleName = "terrain-height-tools";
 export const tools = /** @type {const} */ ({
 	paint: "paint",
 	fill: "fill",
-	erase: "erase"
+	erase: "erase",
+	eraseFill: "eraseFill"
 });
 
 /** @enum {keyof typeof settings} */
