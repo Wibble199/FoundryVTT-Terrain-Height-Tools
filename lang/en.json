@@ -30,9 +30,9 @@
 		"ImportTerrainTypes": "Import Terrain Types",
 		"ImportTextPlaceholder": "Paste your terrain type export here...",
 		"LabelFormatHint": "Use <u>%h%</u> for the numeric height of the terrain",
-		"MoveDown": "Move down (affects picker list only)",
-		"MoveUp": "Move up (affects picker list only)",
+		"MoveDown": "Move down (affects palette list only)",
+		"MoveUp": "Move up (affects palette list only)",
 		"NoTerrainTypesWarn": "No terrain types configured. Click to configure.",
-		"PickerTitle": "Terrain Picker"
+		"PaletteTitle": "Terrain Palette"
 	}
 }

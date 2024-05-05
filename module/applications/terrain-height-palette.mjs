@@ -1,7 +1,7 @@
 import { moduleName, settings } from "../consts.mjs";
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 
-export class TerrainHeightPicker extends Application {
+export class TerrainHeightPalette extends Application {
 
 	constructor() {
 		super();
@@ -14,9 +14,9 @@ export class TerrainHeightPicker extends Application {
 	/** @override */
 	static get defaultOptions() {
 		return mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.PickerTitle"),
-			id: "tht_terrainHeightPicker",
-      		template: `modules/${moduleName}/templates/terrain-height-picker.hbs`,
+			title: game.i18n.localize("TERRAINHEIGHTTOOLS.PaletteTitle"),
+			id: "tht_terrainHeightPalette",
+      		template: `modules/${moduleName}/templates/terrain-height-palette.hbs`,
 			scrollY: ["ul"],
 			width: 220,
 			height: 342,

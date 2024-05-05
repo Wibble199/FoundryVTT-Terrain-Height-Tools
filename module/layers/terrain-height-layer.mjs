@@ -129,11 +129,11 @@ export class TerrainHeightLayer extends InteractionLayer {
 		switch (tool ?? game.activeTool) {
 			case tools.paint:
 				const existing = this.#heightMap.get(row, col);
-				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPicker ?? {};
+				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPalette ?? {};
 
 				if (!this.#cellIsPending(row, col)
 					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight)
-					&& sceneControls.terrainHeightPicker?.selectedTerrainId) {
+					&& sceneControls.terrainHeightPalette?.selectedTerrainId) {
 					this.pendingChanges.push([row, col]);
 					this.highlightGraphics.color = 0xFF0000;
 					this.highlightGraphics.highlight(row, col);
@@ -160,8 +160,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		switch (tool ?? game.activeTool) {
 			case tools.paint:
-				const terrainId = sceneControls.terrainHeightPicker?.selectedTerrainId;
-				const height = sceneControls.terrainHeightPicker?.selectedHeight;
+				const terrainId = sceneControls.terrainHeightPalette?.selectedTerrainId;
+				const height = sceneControls.terrainHeightPalette?.selectedHeight;
 				if (terrainId && await this.#heightMap.paintCells(pendingChanges, terrainId, height))
 					await this._updateGraphics();
 				break;

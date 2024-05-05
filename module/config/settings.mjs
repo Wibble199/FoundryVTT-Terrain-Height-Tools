@@ -39,7 +39,7 @@ export function registerSettings() {
 		type: Array,
 		config: false,
 		onChange: () => {
-			sceneControls.terrainHeightPicker?.render(false);
+			sceneControls.terrainHeightPalette?.render(false);
 			game.canvas.terrainHeightLayer._updateGraphics();
 		}
 	});

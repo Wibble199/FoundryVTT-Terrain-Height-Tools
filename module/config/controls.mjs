@@ -1,12 +1,12 @@
-import { TerrainHeightPicker } from "../applications/terrain-height-picker.mjs";
+import { TerrainHeightPalette } from "../applications/terrain-height-palette.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 
 export const sceneControls = {
 	/** @type {SceneControlTool | undefined} */
 	terrainHeightToolsLayerToggleControlButton: undefined,
 
-	/** @type {TerrainHeightPicker | undefined} */
-	terrainHeightPicker: undefined
+	/** @type {TerrainHeightPalette | undefined} */
+	terrainHeightPalette: undefined
 };
 
 /**
@@ -64,33 +64,33 @@ export function registerSceneControls(controls) {
 }
 
 /**
- * Renders the terrain/height picker when the paint/fill tool is selected.
+ * Renders the terrain/height palette when the paint/fill tool is selected.
  * @param {SceneControls} controls
  */
-export function renderTerrainHeightPicker(controls) {
-	// Show the picker if either the paint or fill tools are selected
+export function renderTerrainHeightPalette(controls) {
+	// Show the palette if either the paint or fill tools are selected
 	const shouldShow = controls.activeControl === moduleName && [tools.paint, tools.fill].includes(controls.activeTool);
 
-	if (!shouldShow && sceneControls.terrainHeightPicker?.rendered) {
-		// If we shouldn't show the picker, close it if it's already open
-		sceneControls.terrainHeightPicker?.close();
+	if (!shouldShow && sceneControls.terrainHeightPalette?.rendered) {
+		// If we shouldn't show the palette, close it if it's already open
+		sceneControls.terrainHeightPalette?.close();
 
-	} else if (shouldShow && !sceneControls.terrainHeightPicker) {
-		// If we should show the picker, but haven't constructed one yet, do so now
-		sceneControls.terrainHeightPicker = new TerrainHeightPicker();
-		sceneControls.terrainHeightPicker.render(true);
+	} else if (shouldShow && !sceneControls.terrainHeightPalette) {
+		// If we should show the palette, but haven't constructed one yet, do so now
+		sceneControls.terrainHeightPalette = new TerrainHeightPalette();
+		sceneControls.terrainHeightPalette.render(true);
 
 		// Only position it once so that if the user moves it, we keep it in the same place
-		Hooks.once("renderTerrainHeightPicker", () => {
+		Hooks.once("renderTerrainHeightPalette", () => {
 			const { left } = $('#ui-right').position();
-			sceneControls.terrainHeightPicker.setPosition({
+			sceneControls.terrainHeightPalette.setPosition({
 				top: 5,
-				left: left - TerrainHeightPicker.defaultOptions.width - 15
+				left: left - TerrainHeightPalette.defaultOptions.width - 15
 			});
 		});
 
-	} else if (shouldShow && !sceneControls.terrainHeightPicker.rendered) {
-		// If we should show the picker, and it's constructed but not shown, show it
-		sceneControls.terrainHeightPicker.render(true);
+	} else if (shouldShow && !sceneControls.terrainHeightPalette.rendered) {
+		// If we should show the palette, and it's constructed but not shown, show it
+		sceneControls.terrainHeightPalette.render(true);
 	}
 }
