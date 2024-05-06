@@ -16,4 +16,18 @@ function init() {
 	registerKeybindings();
 
 	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightLayer };
+
+	// Could not find a nice way of hooking into the undo functionality when the TerrainHeightLayer is not
+	// a PlaceablesLayer, so we monkey patch the static ClientKeybindings._onUndo to add our own code there.
+	const previousOnUndo = ClientKeybindings._onUndo;
+	ClientKeybindings._onUndo = (context) => {
+		if (!canvas.ready) return false;
+
+		if (canvas.activeLayer instanceof TerrainHeightLayer && canvas.activeLayer.canUndo) {
+			canvas.activeLayer.undo();
+			return true;
+		}
+
+		return previousOnUndo(context);
+	}
 }

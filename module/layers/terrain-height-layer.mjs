@@ -245,6 +245,14 @@ export class TerrainHeightLayer extends InteractionLayer {
 			await this._updateGraphics(this._heightMap);
 	}
 
+	get canUndo() {
+		return this._heightMap._history.length > 0;
+	}
+
+	async undo() {
+		return await this._heightMap.undo();
+	}
+
 	/**
 	 * Returns whether or not the given cell is in the pending changes list.
 	 * @param {number} row

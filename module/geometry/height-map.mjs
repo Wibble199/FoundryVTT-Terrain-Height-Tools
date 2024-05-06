@@ -1,9 +1,14 @@
 import { moduleName, settings } from "../consts.mjs";
 
+const maxHistoryItems = 10;
+
 export class HeightMap {
 
 	/** @type {{ position: [number, number]; terrainTypeId: string; height: number; }[]} */
 	data;
+
+	/** @type {{ position: [number, number]; terrainTypeId: string | undefined; height: number | undefined; }[][]} */
+	_history = [];
 
 	/** @param {Scene} */
 	constructor(scene) {
@@ -29,6 +34,9 @@ export class HeightMap {
 		return this.data.find(({ position }) => position[0] === row && position[1] === col);
 	}
 
+	// -------------- //
+	// Painting tools //
+	// -------------- //
 	/**
 	 * Attempts to paint multiple cells at the given position.
 	 * @param {[number, number][]} cells A list of cells to paint.
@@ -37,27 +45,33 @@ export class HeightMap {
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
 	async paintCells(cells, terrainTypeId, height = 1) {
-		let anyChanged = false;
+		/** @type {this["_history"][number]} */
+		const history = [];
+		let anyAdded = false;
+
 		for (const cell of cells) {
 			const existing = this.get(...cell);
 			if (existing && existing.terrainTypeId === terrainTypeId && existing.height === height) continue;
 
+			history.push({ position: cell, terrainTypeId: existing?.terrainTypeId, height: existing?.height });
 			if (existing) {
 				existing.height = height;
 				existing.terrainTypeId = terrainTypeId;
 			} else {
 				this.data.push({ position: cell, terrainTypeId, height });
+				anyAdded = true;
 			}
-			anyChanged = true;
 		}
 
-		if (anyChanged) {
-			// Sort top to bottom, left to right. Required for the polygon/hole calculation to work properly
-			this.data.sort(({ position: a }, { position: b }) => a[0] - b[0] || a[1] - b[1]);
+		if (anyAdded)
+			this.#sortData();
+
+		if (history.length > 0) {
+			this.#pushHistory(history);
 			await this.#saveChanges();
 		}
 
-		return anyChanged;
+		return history.length > 0;
 	}
 
 	/**
@@ -83,19 +97,23 @@ export class HeightMap {
 	 * @returns `true` if the map was updated and needs to be re-drawn, false otherwise.
 	 */
 	async eraseCells(cells) {
-		let anyChanged = false;
+		/** @type {this["_history"][number]} */
+		const history = [];
+
 		for (const cell of cells) {
 			const idx = this.data.findIndex(({ position }) => position[0] === cell[0] && position[1] === cell[1]);
 			if (idx === -1) continue;
+
+			history.push({ position: cell, terrainTypeId: this.data[idx].terrainTypeId, height: this.data[idx].height });
 			this.data.splice(idx, 1);
-			anyChanged = true;
 		}
 
-		if (anyChanged) {
+		if (history.length > 0) {
+			this.#pushHistory(history);
 			await this.#saveChanges();
 		}
 
-		return anyChanged;
+		return history.length > 0;
 	}
 
 	/**
@@ -114,6 +132,71 @@ export class HeightMap {
 		this.data = [];
 		await this.#saveChanges();
 		return true;
+	}
+
+
+	// ------- //
+	// History //
+	// ------- //
+	/**
+	 * Pushes new history data onto the stack.
+	 * @param {this["_history"][number]} historyEntry
+	 */
+	#pushHistory(historyEntry) {
+		this._history.push(historyEntry);
+
+		// Limit the number of changes we store in the history, removing old entries first
+		while (this._history.length > maxHistoryItems)
+			this._history.shift();
+	}
+
+	/**
+	 * Undoes the most-recent change made to the height map.
+	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
+	 */
+	async undo() {
+		if (this._history.length <= 0) return false;
+
+		const revertChanges = this._history.pop();
+		let anyAdded = false;
+
+		for (const revert of revertChanges) {
+			const existingIndex = this.data.findIndex(({ position }) => position[0] === revert.position[0] && position[1] === revert.position[1]);
+
+			// If the cell was un-painted before the change, and it now is painted, remove it
+			if (revert.terrainTypeId === undefined && existingIndex >= 0) {
+				this.data.splice(existingIndex, 1);
+			}
+
+			// If the cell was painted before the change, and is now painted, update it
+			else if (revert.terrainTypeId !== undefined && existingIndex >= 0) {
+				this.data[existingIndex].terrainTypeId = revert.terrainTypeId;
+				this.data[existingIndex].height = revert.height;
+			}
+
+			// If the cell was painted before the change, and is now unpainted, add it
+			else if (revert.terrainTypeId !== undefined && existingIndex === -1) {
+				this.data.push({ ...revert });
+				anyAdded = true;
+			}
+		}
+
+		if (anyAdded) this.#sortData();
+
+		this.#saveChanges();
+		return true;
+	}
+
+
+	// ----- //
+	// Utils //
+	// ----- //
+	/**
+	 * Sorts the height data top to bottom, left to right. Required for the polygon/hole calculation to work properly,
+	 * and should be done after any cells are inserted.
+	 */
+	#sortData() {
+		this.data.sort(({ position: a }, { position: b }) => a[0] - b[0] || a[1] - b[1]);
 	}
 
 	async #saveChanges() {
