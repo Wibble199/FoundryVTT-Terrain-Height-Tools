@@ -1,4 +1,4 @@
-import { moduleName } from "../consts.mjs";
+import { moduleName, settings } from "../consts.mjs";
 
 export class HeightMap {
 
@@ -117,7 +117,10 @@ export class HeightMap {
 	}
 
 	async #saveChanges() {
-		// TODO: remove any cells that do not have a valid terrain type - e.g. if the terrain type was deleted
+		// Remove any cells that do not have a valid terrain type - e.g. if the terrain type was deleted
+		/** @type {Set<string>} */
+		const availableTerrainIds = new Set(game.settings.get(moduleName, settings.terrainTypes).map(t => t.id));
+		this.data = this.data.filter(x => availableTerrainIds.has(x.terrainTypeId));
 
 		await this.scene.setFlag(moduleName, "heightData", this.data);
 	}
