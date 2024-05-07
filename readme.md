@@ -28,15 +28,17 @@ Once at least one type of terrain has been configured, you can then use the tool
 
 To add a new terrain type simply:
 1. Click the "Add Terrain Type" button in the bottom left.
-2. Give it a name (labelled 2 in the above image). Note that this is what shows in the palette window, NOT what is shown on the scene.
-3. Configure the style of the area that will be painted on the scene - these settings should be familiar if you have used the default Foundry drawing tool before.
-	- One thing to note though is that the '_Text Label_' (number 7 in the above image), which is what the area will be labelled as, allows a `%h%` placeholder to be used. This will be replaced with the height value of the painted terrain. For example, if you create a type with a label of `H%h%`, when painted on the scene at height 2, it will have a label of `H2`. If painted at height 4, it will have a label of `H4`, etc.
-4. Click '_Save Changes_' in the bottom right, and your new terrain type will show up in the palette.
+2. Give it a name (labelled 2 in the above image). Note that this is what shows in the palette window, NOT what is shown to players on the scene canvas.
+3. Select whether or not the terrain type should have a height.
+	- This is the default, however for some types (e.g. objective/control zones) it may not make sense to give them a height. This setting will disable the height option in the palette, and prevent you from accidentally having areas with different heights. Note that disabling this will NOT affect already-painted grid cells.
+4. Configure the style of the area that will be painted on the scene - these settings should be familiar if you have used the default Foundry drawing tool before.
+	- One thing to note though is that the '_Text Label_' (number 8 in the above image), which is what the area will be labelled as, allows a `%h%` placeholder to be used. This will be replaced with the height value of the painted terrain. For example, if you create a type with a label of `H%h%`, when painted on the scene at height 2, it will have a label of `H2`. If painted at height 4, it will have a label of `H4`, etc.
+5. Click '_Save Changes_' in the bottom right, and your new terrain type will show up in the palette.
 
 There are some other useful buttons:
 - Button 1 expands/collapses the terrain type configuration. Just helps keep the menu tidy!
 - Buttons 3 and 4 on the above image are to move the terrain types up and down. This only affects their order in the palette, but you can shift your most-used terrain types to the top if you wish.
 - Button 5 allows you to duplicate an existing terrain type, copying all the configuration.
 - Button 6 is to delete the terrain type.
-- '_Import Terrain Types_' button allows you to paste JSON in to import some terrain types that have been exported previously.
-- '_Export Terrain Types_' button will give you a JSON that you can share with other people, or copy to other worlds and will copy all your terrain types.
+- '_Import Terrain Types_' (button 9) allows you to paste JSON in to import some terrain types that have been exported previously.
+- '_Export Terrain Types_' (button 10) will give you a JSON that you can share with other people, or copy to other worlds and will copy all your terrain types.
