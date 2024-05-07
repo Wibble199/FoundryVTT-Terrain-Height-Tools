@@ -102,7 +102,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// Data //
 	// ---- //
 	async _updateGraphics() {
-		await this._graphics.update(this._heightMap);
+		await this._graphics?.update(this._heightMap);
 	}
 
 	// -------------------- //
