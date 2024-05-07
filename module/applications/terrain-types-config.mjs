@@ -1,28 +1,11 @@
 import { moduleName, settings } from "../consts.mjs";
 import { error } from "../utils/log.mjs";
-
-/** @type {import("../_types.mjs").TerrainType} */
-const createDefaultTerrainType = () => ({
-	id: randomID(),
-	name: "New Terrain Type",
-	lineWidth: 4,
-	lineColor: "#FF0000",
-	lineOpacity: 0.8,
-	fillType: CONST.DRAWING_FILL_TYPES.SOLID,
-	fillColor: "#FF0000",
-	fillOpacity: 0.2,
-	fillTexture: "",
-	textFormat: "",
-	font: CONFIG.defaultFontFamily,
-	textSize: 48,
-	textColor: "#FFFFFF",
-	textOpacity: 1
-});
+import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
 export class TerrainTypesConfig extends FormApplication {
 
 	constructor() {
-		super(game.settings.get(moduleName, settings.terrainTypes));
+		super(getTerrainTypes());
 
 		/** @type {{ [typeId: string]: true; }} */
 		this._expandedTypes = {};
@@ -58,7 +41,7 @@ export class TerrainTypesConfig extends FormApplication {
 
 	/**
 	 * @override
-	 * @returns {import("../_types.mjs").TerrainType[]}
+	 * @returns {import("../utils/terrain-types.mjs").TerrainType[]}
 	 */
 	_getSubmitData(updateData = {}) {
 		const formData = super._getSubmitData(updateData);
@@ -109,7 +92,7 @@ export class TerrainTypesConfig extends FormApplication {
 
 	#addTerrainType() {
 		this.sync();
-		/** @type {import("../_types.mjs").TerrainType} */
+		/** @type {import("../utils/terrain-types.mjs").TerrainType} */
 		const newTerrainType = createDefaultTerrainType();
 		this.object.push(newTerrainType);
 		this._expandedTypes[newTerrainType.id] = true;

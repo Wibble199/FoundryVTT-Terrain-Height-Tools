@@ -1,4 +1,5 @@
-import { moduleName, settings } from "../consts.mjs";
+import { moduleName } from "../consts.mjs";
+import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
 const maxHistoryItems = 10;
 
@@ -201,8 +202,7 @@ export class HeightMap {
 
 	async #saveChanges() {
 		// Remove any cells that do not have a valid terrain type - e.g. if the terrain type was deleted
-		/** @type {Set<string>} */
-		const availableTerrainIds = new Set(game.settings.get(moduleName, settings.terrainTypes).map(t => t.id));
+		const availableTerrainIds = new Set(getTerrainTypes().map(t => t.id));
 		this.data = this.data.filter(x => availableTerrainIds.has(x.terrainTypeId));
 
 		await this.scene.setFlag(moduleName, "heightData", this.data);

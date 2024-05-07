@@ -1,4 +1,4 @@
-import { moduleName, settings } from "../consts.mjs";
+import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
 export class GridHighlightGraphics extends GridHighlight {
 
@@ -49,8 +49,7 @@ export class GridHighlightGraphics extends GridHighlight {
 	 * @param {string} terrainTypeId
 	 */
 	_setColorFromTerrainTypeId(terrainTypeId) {
-		/** @type {import("../_types.mjs").TerrainType[]} */
-		const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
+		const terrainTypes = getTerrainTypes();
 		const terrainType = terrainTypes.find(t => t.id === terrainTypeId);
 		if (!terrainType) return;
 

@@ -20,6 +20,11 @@
 				</div>
 
 				<div class="terrain-type-content {{#unless (lookup ../expandedTypes terrainType.id)}}collapsed{{/unless}}">
+					<div class="uses-height-checkbox">
+						<input id="{{idx}}_usesHeight" type="checkbox" name="{{idx}}.usesHeight" {{checked terrainType.usesHeight}}>
+						<label for="{{idx}}_usesHeight">Has height</label>
+					</div>
+
 					<div>
 						<div class="form-group-stacked">
 							<label>{{localize "DRAWING.LineWidth"}} <span class="hint">({{localize "Pixels"}})</span></label>

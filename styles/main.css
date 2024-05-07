@@ -63,6 +63,11 @@
 	align-self: center;
 }
 
+#tht_terrainHeightPalette .height-input input[disabled] {
+	color: var(--color-text-light-7);
+	text-decoration-line: line-through;
+}
+
 
 /* -------------------- */
 /* Terrain Types Config */
@@ -111,6 +116,7 @@
 
 #tht_terrainTypesConfig .terrain-type-content {
 	display: grid;
+	grid-template-rows: repeat(2, min-content);
 	grid-template-columns: 1fr min-content 1fr min-content 1fr;
     grid-gap: 8px;
 	margin: 8px 0;
@@ -122,6 +128,12 @@
 
 #tht_terrainTypesConfig .terrain-type-content .vertical-separator {
 	border-left: 2px groove #FFFFFF;
+}
+
+#tht_terrainTypesConfig .terrain-type-content .uses-height-checkbox {
+	grid-column: 1 / 6;
+	display: flex;
+	align-items: center;
 }
 
 

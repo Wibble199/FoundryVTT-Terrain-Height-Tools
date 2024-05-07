@@ -2,6 +2,7 @@ import { moduleName, settings } from "../consts.mjs";
 import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
 import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { debug } from "../utils/log.mjs";
+import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
 /**
  * Specialised PIXI.Graphics instance for rendering a scene's terrain height data to the canvas.
@@ -52,8 +53,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		this.graphics.clear();
 		this.labels.removeChildren();
 
-		/** @type {import("../_types.mjs").TerrainType[]} */
-		const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
+		const terrainTypes = getTerrainTypes();
 
 		const t1 = performance.now();
 
@@ -67,7 +67,9 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			if (!terrainStyle) return;
 
 			const height = cells[0].height;
-			const label = terrainStyle.textFormat.replace(/\%h\%/g, height);
+			const label = terrainStyle.usesHeight
+				? terrainStyle.textFormat.replace(/\%h\%/g, height)
+				: terrainStyle.textFormat;
 			const textStyle = this.#getTextStyle(terrainStyle);
 
 			const polys = cells.map(({ position }) => ({ cell: position, poly: this.#getPolyPoints(...position) }));
@@ -93,7 +95,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	/**
 	 * Draws a terrain polygon for the given (pixel) coordinates and the given terrain style.
 	 * @param {Polygon} polygon
-	 * @param {import("../_types.mjs").TerrainType | undefined} terrainStyle
+	 * @param {import("../utils/terrain-types.mjs").TerrainType | undefined} terrainStyle
 	 * @param {{ [terrainTypeId: string]: PIXI.Texture } | undefined} textureMap
 	 */
 	#drawTerrainPolygon(polygon, terrainStyle = undefined, textureMap = undefined) {
@@ -138,7 +140,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	}
 
 	/**
-	 * @param {import("../_types.mjs").TerrainType} terrainStyle
+	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainStyle
 	 * @returns {PIXI.TextStyle}
 	 */
 	#getTextStyle(terrainStyle) {

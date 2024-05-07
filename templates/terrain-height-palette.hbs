@@ -13,6 +13,6 @@
 <div class="flex0">
 	<div class="height-input flexrow">
 		<label>{{localize "TERRAINHEIGHTTOOLS.Height"}}</label>
-		<input type="number" name="selectedHeight" value="{{selectedHeight}}" min="1">
+		<input type="number" name="selectedHeight" value="{{selectedHeight}}" min="1" {{#unless isHeightEnabled}}disabled{{/unless}}>
 	</div>
 </div>
