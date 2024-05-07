@@ -10,9 +10,7 @@ export class Edge {
 	 * @param {Vertex} p2
 	 */
 	constructor(p1, p2) {
-		/** @type {Vertex} */
 		this.p1 = p1;
-		/** @type {Vertex} */
 		this.p2 = p2;
 	}
 
@@ -63,25 +61,45 @@ export class Edge {
 	}
 
 	/**
-	 * Checks whether or not this edge intersects another.
+	 * Gets the X and Y position that this edge intersects another edge, as well as the relative distance along the edge
+	 * that the intersection occured.
+	 *
+	 * The returned `t` value is how far along 'this' edge the intersection point is at:
+	 * - 0 means that the intersection is at this.p1.
+	 * - 1 means that the intersection is at this.p2.
+	 * - Another value (which will be between 0-1) means it proportionally lies along the edge.
+	 *
+	 * The returned `u` value is the equivalent of `t` but for the 'other' edge.
+	 *
+	 * Returns undefined if the edges do not intersect.
+	 * Parallel lines are never considered to intersect.
 	 * @param {Edge} other
+	 * @returns {{ x: number; y: number; t: number; u: number } | undefined}
 	 */
-	intersects(other) {
-		// Adapted from: https://stackoverflow.com/a/16725715
-		// I do not understand at all :)
-		return turn(this.p1, other.p1, other.p2) !== turn(this.p2, other.p1, other.p2)
-			&& turn(this.p1, this.p2, other.p1) !== turn(this.p1, this.p2, other.p2);
+	intersectsAt(other) {
+		const { x: x1, y: y1 } = this.p1;
+		const { x: x2, y: y2 } = this.p2;
+		const { x: x3, y: y3 } = other.p1;
+		const { x: x4, y: y4 } = other.p2;
 
-		/**
-		 * @param {Vertex} p1
-		 * @param {Vertex} p2
-		 * @param {Vertex} p3
-		 */
-		function turn(p1, p2, p3) {
-			const a = (p3.y - p1.y) * (p2.x - p1.x);
-			const b = (p2.y - p1.y) * (p3.x - p1.x);
-			return (a > b + Number.EPSILON) ? 1 : (a + Number.EPSILON < b) ? -1 : 0;
-		}
+		// If denom is 0, lines are parallel and do not intersect.
+		const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+		if (denom === 0) return undefined;
+
+		// `t` is how far along `this` edge the intersection point is at: 0 means that the intersection is at p1, 1 means
+		// that the intersection is at p2, a value between 0-1 means it lies on the edge, <0 or >1 means it lies out of the
+		// edge. `u` is the same, but for the `other` edge.
+		const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+
+		// If the intersection point lies outside of either edge, then there is no intersection
+		if (t < 0 || t > 1 || u < 0 || u > 1) return undefined;
+
+		return {
+			x: x1 + t * (x2 - x1),
+			y: y1 + t * (y2 - y1),
+			t, u
+		};
 	}
 
 	/**
@@ -101,5 +119,9 @@ export class Edge {
 		let diff = angleOther - angle;
 		if (diff < 0) diff += 2 * Math.PI;
 		return Math.PI - diff;
+	}
+
+	toString() {
+		return `Edge { (${this.p1.x},${this.p1.y}) -> (${this.p2.x},${this.p2.y}) }`;
 	}
 }

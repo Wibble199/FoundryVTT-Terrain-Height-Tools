@@ -1,5 +1,19 @@
 import { moduleName } from "../consts.mjs";
+import { distinctBy, groupBy } from '../utils/array-utils.mjs';
+import { debug, error } from '../utils/log.mjs';
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
+import { Polygon } from './polygon.mjs';
+import { Vertex } from './vertex.mjs';
+
+/**
+ * @typedef {object} HeightMapShape Represents a shape that can be drawn to the map. It is a closed polygon that may
+ * have one or more holes within it.
+ * @property {Polygon} polygon The polygon that makes up the perimeter of this shape.
+ * @property {Polygon[]} holes Other additional polygons that make holes in this shape.
+ * @property {string} terrainTypeId
+ * @property {number} height
+ * @property {[number, number]} centerOfMass The center of mass of the shape, used for determining label position.
+ */
 
 const maxHistoryItems = 10;
 
@@ -11,6 +25,9 @@ export class HeightMap {
 	/** @type {{ position: [number, number]; terrainTypeId: string | undefined; height: number | undefined; }[][]} */
 	_history = [];
 
+	/** @type {HeightMapShape[]} */
+	#shapes = [];
+
 	/** @param {Scene} */
 	constructor(scene) {
 		/** @type {Scene} */
@@ -19,11 +36,21 @@ export class HeightMap {
 	}
 
 	/**
+	 * The resulting complex shapes that make up the parts of the map.
+	 * This property is calculated and the returned array should not be modified.
+	 * @type {readonly HeightMapShape[]}
+	 */
+	get shapes() {
+		return [...this.#shapes];
+	}
+
+	/**
 	 * Reloads the data from the scene.
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
 	reload() {
 		this.data = this.scene.getFlag(moduleName, "heightData") ?? [];
+		this._recalculateShapes();
 	}
 
 	/**
@@ -70,6 +97,7 @@ export class HeightMap {
 		if (history.length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
+			this._recalculateShapes();
 		}
 
 		return history.length > 0;
@@ -112,6 +140,7 @@ export class HeightMap {
 		if (history.length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
+			this._recalculateShapes();
 		}
 
 		return history.length > 0;
@@ -132,7 +161,197 @@ export class HeightMap {
 		if (this.data.length === 0) return false;
 		this.data = [];
 		await this.#saveChanges();
+		this.#shapes = [];
 		return true;
+	}
+
+
+	// -------- //
+	// Geometry //
+	// -------- //
+	_recalculateShapes() {
+		this.#shapes = [];
+
+		const t1 = performance.now();
+
+		for (const [, cells] of groupBy(this.data, x => `${x.terrainTypeId}.${x.height}`)) {
+			const { terrainTypeId, height } = cells[0];
+
+			// Get the grid-sized polygons for each cell at this terrain type and height
+			const polygons = cells.map(({ position }) => ({ cell: position, poly: HeightMap.#getPolyPoints(...position) }));
+
+			// Combine connected grid-sized polygons into larger polygons where possible
+			this.#shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height));
+		}
+
+		const t2 = performance.now();
+		debug(`Shape calculation took ${t2 - t1}ms`);
+	}
+
+	/**
+	 * For the cell at the given x and y grid coordinates, returns the points to draw a poly at that location.
+	 * The points are returned in a clockwise direction.
+	 * @param {number} cx X cordinates of the cell to get points for.
+	 * @param {number} cy Y cordinates of the cell to get points for.
+	 * @returns {Polygon}
+	 */
+	static #getPolyPoints(cx, cy) {
+		// Gridless is not supported
+		if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+
+		const [x, y] = game.canvas.grid.grid.getPixelsFromGridPosition(cx, cy);
+
+		// Can get the points for a square grid easily
+		if (game.canvas.grid.type === CONST.GRID_TYPES.SQUARE) {
+			const { w, h } = game.canvas.grid;
+			return new Polygon([
+				new Vertex(x, y),
+				new Vertex(x + w, y),
+				new Vertex(x + w, y + h),
+				new Vertex(x, y + h)
+			]);
+		}
+
+		// For hex grids, can use the getPolygon function to generate them for us
+		const pointsFlat = game.canvas.grid.grid.getPolygon(x, y)
+		const polygon = new Polygon();
+		for (let i = 0; i < pointsFlat.length; i += 2) {
+			polygon.pushPoint(new Vertex(pointsFlat[i], pointsFlat[i + 1]));
+		}
+		return polygon;
+	}
+
+	/**
+	 * Given a list of polygons, combines them together into as few polygons as possible.
+	 * @param {{ poly: Polygon; cell: [number, number] }[]} originalPolygons An array of polygons to merge
+	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
+	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
+	 * @returns {{ poly: Polygon; holes: Polygon[], centerOfMass: [number, number] }[]}
+	 */
+	static #combinePolygons(originalPolygons, terrainTypeId, height) {
+
+		// Generate a graph of all edges in all the polygons
+		const allEdges = originalPolygons.flatMap(p => p.poly.edges.map(edge => ({ cell: p.cell, edge })));
+
+		// Remove any duplicate edges
+		for (let i = 0; i < allEdges.length; i++) {
+			for (let j = i + 1; j < allEdges.length; j++) {
+				if (allEdges[i].edge.equals(allEdges[j].edge)) {
+					allEdges.splice(j, 1);
+					allEdges.splice(i, 1);
+					i--;
+					break;
+				}
+			}
+		}
+
+		// From some start edge, keep finding the next edge that joins it until we are back at the start.
+		// If there are multiple edges starting at a edge's endpoint (e.g. two squares touch by a corner), then
+		// use the one that most clockwise.
+		/** @type {{ polygon: Polygon; centerOfMass: [number, number] }} */
+		const combinedPolygons = [];
+		while (allEdges.length) {
+			// Find the next unvisited edge, and follow the edges until we join back up with the first
+			const edges = allEdges.splice(0, 1);
+			while (!edges[0].edge.p1.equals(edges[edges.length - 1].edge.p2)) {
+				// To find the next edge, we find edges that start where the last edge ends.
+				// For hex grids (where a max of 3 edges can meet), there will only ever be 1 other edge here (as if
+				// there were 4 edges, 2 would've overlapped and been removed) so we can just use that edge.
+				// But for square grids, there may be two edges that start here. In that case, we want to find the one
+				// that is next when rotating counter-clockwise.
+				const nextEdgeCandidates = allEdges
+					.map(({ edge }, idx) => ({ edge, idx }))
+					.filter(({ edge }) => edge.p1.equals(edges[edges.length - 1].edge.p2));
+
+				if (nextEdgeCandidates.length === 0)
+					throw new Error("Invalid graph detected. Missing edge.");
+
+				const nextEdgeIndex = nextEdgeCandidates.length === 1
+					? nextEdgeCandidates[0].idx
+					: nextEdgeCandidates
+						.map(({ edge, idx }) => ({ angle: edge.angleBetween(edges[edges.length - 1].edge), idx }))
+						.sort((a, b) => a.angle - b.angle)[0].idx;
+
+				const [nextEdge] = allEdges.splice(nextEdgeIndex, 1);
+				edges.push(nextEdge);
+			}
+
+			// Calculate center of mass by averaging the midpoints of all painted grid cells.
+			// Them, find the closest cell to that center of mass and use that as the label position.
+			// Finding the closest cell ensures that the label will be inside the shape (in case it convex)
+			const centerOfUsedCells = distinctBy(edges.map(e => e.cell), x => `${x[0]}.${x[1]}`)
+				.map(([x, y]) => canvas.grid.grid.getPixelsFromGridPosition(x, y))
+				.map(([x, y]) => [x + canvas.grid.w / 2, y + canvas.grid.h / 2]);
+
+			const centerOfMass = centerOfUsedCells
+				.reduce(([xAvg, yAvg, count], [x, y]) => [xAvg + (x - xAvg) / count, yAvg + (y - yAvg) / count, count + 1], [0, 0, 1])
+				.slice(0, 2);
+
+			// Add completed polygon to the list
+			combinedPolygons.push({
+				polygon: new Polygon(edges.map(v => v.edge.p1)),
+				centerOfMass
+			});
+		}
+
+		// To determine if a polygon is a "hole" we need to check whether it is inside another polygon.
+		// Since the polygon vertices are always the same direction, we can use to determine whether it is a hole: if
+		// the points are going clockwise, then it IS NOT a hole, but if they are anti-clockwise then it IS a hole.
+		// For each hole, we need to find which polygon it is a hole in, as the hole must be drawn immediately after.
+		// To find the hole's parent, we search back up the sorted list of polygons in reverse for the first one that
+		// contains it.
+		/** @type {Map<boolean, (typeof combinedPolygons)[]>} */
+		const polysAreHolesMap = groupBy(combinedPolygons, ({ polygon }) => !polygon.edges[0].clockwise);
+
+		const solidPolygons = (polysAreHolesMap.get(false) ?? [])
+			.map(p => /** @type {HeightMapShape} */ ({
+				polygon: p.polygon,
+				holes: [],
+				terrainTypeId,
+				height,
+				centerOfMass: p.centerOfMass
+			}));
+
+		const holePolygons = polysAreHolesMap.get(true) ?? [];
+
+		// For each hole, we need to check which non-hole poly it is inside. We gather a list of non-hole polygons that
+		// contains it. If there is only one, we have found which poly it is a hole of. If there are more, we imagine a
+		// horizontal line drawn from the topmost point of the inner polygon (with a little Y offset added so that we
+		// don't have to worry about vertex collisions) to the left and find the first polygon that it intersects.
+		for (const { polygon: holePolygon } of holePolygons) {
+			const containingPolygons = solidPolygons.filter(p => p.polygon.contains(holePolygon));
+
+			if (containingPolygons.length === 0) {
+				error("Something went wrong calculating which polygon this hole belonged to: No containing polygons found.", { holePolygon, solidPolygons });
+				throw new Error("Could not find a parent polygon for this hole.");
+
+			} else if (containingPolygons.length === 1) {
+				containingPolygons[0].holes.push(holePolygon);
+
+			} else {
+				const testPoint = holePolygon.vertices
+					.find(p => p.y === holePolygon.boundingBox.y1)
+					.offset({ y: game.canvas.grid.h * 0.05 });
+
+				const intersectsWithEdges = containingPolygons.flatMap(shape => shape.polygon.edges
+					.map(edge => ({
+						intersectsAt: edge.intersectsYAt(testPoint.y),
+						shape
+					}))
+					.filter(x => x.intersectsAt && x.intersectsAt < testPoint.x)
+				);
+
+				if (intersectsWithEdges.length === 0) {
+					error("Something went wrong calculating which polygon this hole belonged to: No edges intersected horizontal ray.", { holePolygon, solidPolygons });
+					throw new Error("Could not find a parent polygon for this hole.");
+				}
+
+				intersectsWithEdges.sort((a, b) => b.intersectsAt - a.intersectsAt);
+				intersectsWithEdges[0].shape.holes.push(holePolygon);
+			}
+		}
+
+		return solidPolygons;
 	}
 
 

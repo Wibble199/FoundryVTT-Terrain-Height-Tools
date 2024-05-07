@@ -2,15 +2,26 @@
  * X and Y coordinates representing a position.
  */
 export class Vertex {
+
+	// Hide X & Y and expose them as get properties so the Vertex is immutable
+	#x;
+	#y;
+
 	/**
 	 * @param {number} x
 	 * @param {number} y
 	 */
 	constructor(x, y) {
-		/** @type {number} */
-		this.x = x;
-		/** @type {number} */
-		this.y = y;
+		this.#x = x;
+		this.#y = y;
+	}
+
+	get x() {
+		return this.#x;
+	}
+
+	get y() {
+		return this.#y;
 	}
 
 	/** @param {Vertex} other */
@@ -20,7 +31,8 @@ export class Vertex {
 		return Math.abs(this.x - other.x) < 1 && Math.abs(this.y - other.y) < 1;
 	}
 
-	clone() {
-		return new Vertex(this.x, this.y);
+	/** Creates a clone of this point with the given X/Y offset. */
+	offset({ x = 0, y = 0 }) {
+		return new Vertex(this.#x + x, this.#y + y);
 	}
 }
