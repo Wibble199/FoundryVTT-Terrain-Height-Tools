@@ -42,3 +42,11 @@ There are some other useful buttons:
 - Button 6 is to delete the terrain type.
 - '_Import Terrain Types_' (button 9) allows you to paste JSON in to import some terrain types that have been exported previously.
 - '_Export Terrain Types_' (button 10) will give you a JSON that you can share with other people, or copy to other worlds and will copy all your terrain types.
+
+## Module Settings
+
+Here is a quick reference of the settings module presents in the 'Configure Settings' button of Foundry:
+
+- `Terrain Types` - GM Only - Button to open the terrain type configuration (see [above]((#configuring-terrain-types)))
+- `Terrain Height Map Above Tiles` - GM Only - This determines whether or not the terrain height map is shown above or below ground-level tiles. The height map is ALWAYS shown below overhead tiles. This can also be configured on a per-scene basis using the 'Terrain Height Map Layer' option on the 'Grid' tab of the scene config settings.
+- `Terrain Height Map Visibility Radius` - Per Player - If not zero, the terrain height map will only be shown in a radius of that many grid cells around the mouse cursor. If zero, the entire map will be visible.

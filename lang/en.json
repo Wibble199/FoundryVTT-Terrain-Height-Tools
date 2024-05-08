@@ -13,6 +13,8 @@
 	},
 	"SETTINGS": {
 		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
+		"TerrainHeightLayerRenderAboveTiles.Name": "Terrain Height Map Above Tiles",
+		"TerrainHeightLayerRenderAboveTiles.Hint": "Whether or not the terrain height map will be drawn above non-overhead tiles on the scene. This can be also be set per-scene.",
 		"TerrainHeightLayerVisibilityRadius.Name": "Terrain Height Map Visibility Radius",
 		"TerrainHeightLayerVisibilityRadius.Hint": "How far around the mouse cursor the terrain height map is visible. Use 0 to show the entire map.",
 		"TerrainTypes.Name": "Terrain Types",
@@ -34,6 +36,12 @@
 		"MoveDown": "Move down (affects palette list only)",
 		"MoveUp": "Move up (affects palette list only)",
 		"NoTerrainTypesWarn": "No terrain types configured. Click to configure.",
-		"PaletteTitle": "Terrain Palette"
+		"PaletteTitle": "Terrain Palette",
+		"SceneRenderAboveTiles": "Terrain Height Map Layer",
+		"SceneRenderAboveTilesChoice": {
+			"UseGlobal": "Inherit Global Setting",
+			"AboveTiles": "Show Height Map Above Tiles",
+			"BelowTiles": "Show Height Map Below Tiles"
+		}
 	}
 }

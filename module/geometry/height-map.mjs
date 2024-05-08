@@ -1,4 +1,4 @@
-import { moduleName } from "../consts.mjs";
+import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { debug, error } from '../utils/log.mjs';
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
@@ -49,7 +49,7 @@ export class HeightMap {
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
 	reload() {
-		this.data = this.scene.getFlag(moduleName, "heightData") ?? [];
+		this.data = this.scene.getFlag(moduleName, flags.heightData) ?? [];
 		this._recalculateShapes();
 	}
 
@@ -424,7 +424,7 @@ export class HeightMap {
 		const availableTerrainIds = new Set(getTerrainTypes().map(t => t.id));
 		this.data = this.data.filter(x => availableTerrainIds.has(x.terrainTypeId));
 
-		await this.scene.setFlag(moduleName, "heightData", this.data);
+		await this.scene.setFlag(moduleName, flags.heightData, this.data);
 	}
 
 	/**

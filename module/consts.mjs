@@ -10,6 +10,7 @@ export const tools = /** @type {const} */ ({
 
 /** @enum {keyof typeof settings} */
 export const settings = /** @type {const} */ ({
+	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
 	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
 	terrainTypes: "terrainTypes"
@@ -18,4 +19,10 @@ export const settings = /** @type {const} */ ({
 /** @enum {keyof typeof keybindings} */
 export const keybindings = /** @type {const} */ ({
 	toggleTerrainHeightMapOnTokenLayer: "toggleTerrainHeightMapOnTokenLayer"
+});
+
+/** @enum {keyof typeof flags} */
+export const flags = /** @type {const} */ ({
+	heightData: "heightData",
+	terrainLayerAboveTiles: "terrainLayerAboveTiles"
 });

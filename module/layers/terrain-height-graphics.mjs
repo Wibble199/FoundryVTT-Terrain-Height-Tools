@@ -1,4 +1,4 @@
-import { moduleName, settings } from "../consts.mjs";
+import { flags, moduleName, settings } from "../consts.mjs";
 import { HeightMap, Polygon } from "../geometry/index.mjs";
 import { debug } from "../utils/log.mjs";
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
@@ -33,11 +33,20 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	// Sorting within the PrimaryCanvasGroup works by the `elevation`, then by whether it is a token, then by whether it
 	// is a Drawing, then finally by the `sort`.
 	// Using an elevation of 0 puts it at the same level as tokens, tiles (except overhead tiles, which are 4), drawings
-	// etc. Using Infinity sort places it above the tiles, however because the PCG explicitly checks for DrawingShape
-	// and TokenMesh, changing the sort won't make it appear over those.
-	// End result should be below drawings, tokens, overhead tiles, but above ground-level tiles.
+	// etc.
+	// If the layer is to be drawn on top of tiles, use a very a high number (because the PCG explicitly checks for
+	// DrawingShape and TokenMesh it will never be drawn over these regardless of the sort)
+	// If the layer is to be drawn below tiles, use a very low number (but higher than -9999999999 which is for some other
+	// sprite mesh) so that it is always below the tiles.
 	get elevation() { return 0; }
-	get sort() { return Infinity; }
+
+	get sort() {
+		/** @type {boolean} */
+		const renderAboveTiles = game.canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
+			?? game.settings.get(moduleName, settings.terrainLayerAboveTilesDefault);
+
+		return renderAboveTiles ? 9999999999 : -9999999998;
+	}
 
 	/** @type {number} */
 	get terrainHeightLayerVisibilityRadius() {
@@ -51,6 +60,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	async update(heightMap) {
 		this.graphics.clear();
 		this.labels.removeChildren();
+		this.parent.sortChildren();
 
 		if (heightMap.shapes.length === 0) return;
 

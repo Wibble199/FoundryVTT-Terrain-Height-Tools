@@ -1,12 +1,13 @@
 import { registerSceneControls, renderTerrainHeightPalette } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
-import { registerSettings } from "./config/settings.mjs";
+import { registerSettings, addAboveTilesToSceneConfig } from "./config/settings.mjs";
 import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
 import { log } from "./utils/log.mjs";
 
 Hooks.on("init", init);
 Hooks.on("getSceneControlButtons", registerSceneControls);
 Hooks.on("renderSceneControls", renderTerrainHeightPalette);
+Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 
 function init() {
 	log("Initialising");

@@ -1,27 +1,8 @@
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
-import { moduleName, settings } from "../consts.mjs";
+import { flags, moduleName, settings } from "../consts.mjs";
 import { sceneControls } from "./controls.mjs";
 
 export function registerSettings() {
-	game.settings.register(moduleName, settings.showTerrainHeightOnTokenLayer, {
-		name: "SETTINGS.ShowTerrainHeightOnTokenLayer",
-		scope: "client",
-		type: Boolean,
-		config: false,
-		default: true,
-		onChange: value => game.canvas.terrainHeightLayer._graphics.setVisible(value)
-	});
-
-	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {
-		name: "SETTINGS.TerrainHeightLayerVisibilityRadius.Name",
-		hint: "SETTINGS.TerrainHeightLayerVisibilityRadius.Hint",
-		scope: "client",
-		type: Number,
-		range: { min: 0, max: 40, step: 1 },
-		config: true,
-		default: 0,
-		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
-	});
 
 	game.settings.registerMenu(moduleName, settings.terrainTypes, {
 		name: "SETTINGS.TerrainTypes.Name",
@@ -43,4 +24,65 @@ export function registerSettings() {
 			game.canvas.terrainHeightLayer._updateGraphics();
 		}
 	});
+
+	game.settings.register(moduleName, settings.terrainLayerAboveTilesDefault, {
+		name: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Name",
+		hint: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Hint",
+		scope: "world",
+		type: Boolean,
+		default: true,
+		config: true,
+		onChange: () => {
+			if (game.canvas?.ready)
+				game.canvas.primary.sortChildren();
+		}
+	});
+
+	game.settings.register(moduleName, settings.showTerrainHeightOnTokenLayer, {
+		name: "SETTINGS.ShowTerrainHeightOnTokenLayer",
+		scope: "client",
+		type: Boolean,
+		config: false,
+		default: true,
+		onChange: value => game.canvas.terrainHeightLayer._graphics.setVisible(value)
+	});
+
+	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {
+		name: "SETTINGS.TerrainHeightLayerVisibilityRadius.Name",
+		hint: "SETTINGS.TerrainHeightLayerVisibilityRadius.Hint",
+		scope: "client",
+		type: Number,
+		range: { min: 0, max: 40, step: 1 },
+		config: true,
+		default: 0,
+		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
+	});
+}
+
+/**
+ * When scene config is rendered, add a setting for the scene-level tile render order option.
+ * @param {SceneConfig} sceneConfig
+ * @param {jQuery} html
+ */
+export function addAboveTilesToSceneConfig(sceneConfig, html) {
+	/** @type {boolean | null | undefined} */
+	const currentValue = sceneConfig.object.getFlag(moduleName, flags.terrainLayerAboveTiles);
+
+	html.find(".tab[data-tab='grid']").append(`
+		<hr/>
+		<div class="form-group">
+			<label>${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTiles")}</label>
+			<select name="flags.${moduleName}.${flags.terrainLayerAboveTiles}" data-dtype="JSON">
+				<option value="null" ${currentValue === null || currentValue === undefined ? "selected" : ""}>
+					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.UseGlobal")}
+				</option>
+				<option value="true" ${currentValue === true ? "selected" : ""}>
+					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.AboveTiles")}
+				</option>
+				<option value="false" ${currentValue === false ? "selected" : ""}>
+					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.BelowTiles")}
+				</option>
+			</select>
+		</div>
+	`);
 }
