@@ -1,6 +1,6 @@
 import { moduleName, settings } from "../consts.mjs";
 import { error } from "../utils/log.mjs";
-import { getTerrainTypes } from '../utils/terrain-types.mjs';
+import { createDefaultTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 
 export class TerrainTypesConfig extends FormApplication {
 

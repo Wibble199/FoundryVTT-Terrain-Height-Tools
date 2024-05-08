@@ -2,7 +2,7 @@
 	"name": "terrain-height-tools",
 	"title": "Terrain Height Tools",
 	"description": "Tools for painting grid cells with terrain heights and calculating line of sight with respect to these heights.",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"compatibility": {
 		"minimum": "10",
 		"verified": "10",
