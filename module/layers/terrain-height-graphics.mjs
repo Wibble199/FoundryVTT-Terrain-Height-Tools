@@ -1,8 +1,14 @@
 import { flags, moduleName, settings } from "../consts.mjs";
-import { HeightMap, Polygon } from "../geometry/index.mjs";
+import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { debug } from "../utils/log.mjs";
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
+
+/**
+ * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.
+ * Note that the order represents the order that ties are resolved, so in this case the middle will be prefered in ties.
+ */
+const labelPositionAnchors = [0.5, 0.4, 0.6, 0.2, 0.8];
 
 /**
  * Specialised PIXI.Graphics instance for rendering a scene's terrain height data to the canvas.
@@ -93,7 +99,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			}
 
 			if (label?.length)
-				this.#drawPolygonLabel(label, textStyle, shape, smartLabelPlacement);
+				this.#drawPolygonLabel(label, textStyle, shape, { smartPlacement: smartLabelPlacement, allowRotation: terrainStyle.textRotation });
 		}
 	}
 
@@ -136,33 +142,61 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * @param {string} label
 	 * @param {PIXI.TextStyle} textStyle
 	 * @param {import("../geometry/height-map.mjs").HeightMapShape} shape
-	 * @param {boolean} [smartPlacement=true]
+	 * @param {Object} [options={}]
+	 * @param {boolean} [options.smartPlacement=true] If true and the text does not fit at the centroid of the shape, then
+	 * this function will do some additional calculations to try fit the label in at the widest point instead.
+	 * @param {boolean} [options.allowRotation=false] If both this and smartPlacement are true, the placement may also
+	 * rotate text to try get it to fit.
 	 */
-	#drawPolygonLabel(label, textStyle, shape, smartPlacement = true) {
+	#drawPolygonLabel(label, textStyle, shape, { smartPlacement = true, allowRotation = false } = {}) {
 		// Create the text - with this we can get the width and height of the label
 		const text = new PreciseText(label, textStyle);
+		text.anchor.set(0.5);
 		this.labels.addChild(text);
 
-		// Get the points that are the left middle and right middle of the text, would the text be drawn at the centroid
-		// of the shape's outer polygon.
-		const x1 = shape.polygon.centroid[0] - text.width / 2;
-		const x2 = shape.polygon.centroid[0] + text.width / 2;
-		const y = shape.polygon.centroid[1];
-		const x1Inside = shape.polygon.containsPoint(x1, y) && shape.holes.every(h => !h.containsPoint(x1, y));
-		const x2Inside = shape.polygon.containsPoint(x2, y) && shape.holes.every(h => !h.containsPoint(x2, y));
+		/** Sets the position of the text label so that it's center is at the given positions. */
+		const setTextPosition = (x, y, rotated) => {
+			text.x = x;
+			text.y = y;
+			text.rotation = rotated
+				? (x < game.canvas.dimensions.width / 2 ? -1 : 1) * Math.PI / 2
+				: 0;
+		};
 
-		// If both of these fall within the polygon, then draw it there
-		if ((x1Inside && x2Inside) || !smartPlacement) {
-			text.x = shape.polygon.centroid[0] - text.width / 2;
-			text.y = shape.polygon.centroid[1] - text.height / 2;
+		const allEdges = shape.polygon.edges.concat(shape.holes.flatMap(h => h.edges));
+
+		/** Tests that if the text was position centrally at the given point, if it fits in the shape entirely. */
+		const testTextPosition = (x, y, rotated = false) => {
+			const testEdge = rotated
+				? new Edge(new Vertex(x, y - text.width / 2), new Vertex(x, y + text.width / 2))
+				: new Edge(new Vertex(x - text.width / 2, y), new Vertex(x + text.width / 2, y));
+
+			return shape.polygon.containsPoint(x, y)
+				&& shape.holes.every(h => !h.containsPoint(x, y))
+				&& allEdges.every(e => !e.intersectsAt(testEdge));
+		};
+
+		// If the label was to be positioned at the centroid of the polygon, and it was to entirely fit there, OR smart
+		// positioning is disabled, then position it at the centroid.
+		if (!smartPlacement || testTextPosition(...shape.polygon.centroid, false)) {
+			setTextPosition(...shape.polygon.centroid);
 			return;
 		}
 
-		// If the points fall outside of the polygon, we'll pick a few rays and find the widest and place the label there
+		// If we can rotate the text, then check if rotating it 90 degrees at the centroid would allow it to fit entirely.
+		if (allowRotation && testTextPosition(...shape.polygon.centroid, true)) {
+			setTextPosition(...shape.polygon.centroid, true);
+			return;
+		}
+
+		// If the points fall outside of the polygon, we'll pick a few rays and find the widest and place the label there.
+		// On square or hex row grids, we position it to the center of the cells (hex columns have alternating Xs, so don't)
 		/** @type {number[]} */
-		const testPoints = [...new Set([0.2, 0.4, 0.5, 0.6, 0.8]
+		const testPoints = [...new Set(labelPositionAnchors
 			.map(y => y * shape.polygon.boundingBox.h + shape.polygon.boundingBox.y1)
-			.map(y => canvas.grid.grid.getCenter(shape.polygon.boundingBox.xMid, y)[1]))];
+			.map(y => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXODDR].includes(game.canvas.grid.type)
+				? canvas.grid.grid.getCenter(shape.polygon.boundingBox.xMid, y)[1]
+				: y))];
 
 		let widestPoint = { y: 0, x: 0, width: -Infinity };
 		for (const y of testPoints) {
@@ -180,8 +214,40 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			}
 		}
 
-		text.x = widestPoint.x - text.width / 2;
-		text.y = widestPoint.y - text.height / 2;
+		// If we are allowed to rotate the text, do the same thing but in the opposite axis.
+		// Then, take whichever is wider/taller and place the label there
+		if (allowRotation) {
+			// On square or hex col grids, we position it to the center of the cells (hex rows have alternating Ys, so don't)
+			/** @type {number[]} */
+			const testPoints = [...new Set(labelPositionAnchors
+				.map(x => x * shape.polygon.boundingBox.w + shape.polygon.boundingBox.x1)
+				.map(x => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(game.canvas.grid.type)
+					? canvas.grid.grid.getCenter(x, shape.polygon.boundingBox.yMid)[0]
+					: x))];
+
+			let tallestPoint = { y: 0, x: 0, height: -Infinity };
+			for (const x of testPoints) {
+				/** @type {number[]} */
+				const intersections = shape.polygon.edges
+					.map(e => e.intersectsXAt(x))
+					.concat(shape.holes.flatMap(h => h.edges.flatMap(e => e.intersectsXAt(x))))
+					.filter(Number)
+					.sort((a, b) => a - b);
+
+				for (const [y1, y2] of chunk(intersections, 2)) {
+					const height = y2 - y1;
+					if (height > tallestPoint.height)
+						tallestPoint = { x, y: (y1 + y2) / 2, height };
+				}
+			}
+
+			if (tallestPoint.height > widestPoint.width) {
+				setTextPosition(tallestPoint.x, tallestPoint.y, true);
+				return;
+			}
+		}
+
+		setTextPosition(widestPoint.x, widestPoint.y);
 	}
 
 	/**

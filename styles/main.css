@@ -136,6 +136,10 @@
 	align-items: center;
 }
 
+#tht_terrainTypesConfig .terrain-type-content .form-group input[type="checkbox"] {
+	margin-left: 0;
+}
+
 
 /* --------------------------- */
 /* Terrain Types Import/Export */

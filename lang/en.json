@@ -25,6 +25,7 @@
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",
+		"AllowTextRotation": "Allow Text Rotation",
 		"ClearConfirmContent": "Permanently delete all terrain data from this scene?",
 		"ClearConfirmTitle": "Clear All Terrain",
 		"DeleteTerrainTypeHint": "<p>Edit the types of terrain that can be painted onto the scene.</p><p>Note: Removing a terrain type will clear cells that are using it from the scene on next save.</p>",

@@ -3,6 +3,7 @@
  * @property {string} id
  * @property {string} name
  * @property {boolean} usesHeight
+ * @property {boolean} textRotation
  * @property {number} lineWidth
  * @property {string} lineColor
  * @property {number} lineOpacity
@@ -28,6 +29,7 @@ export function createDefaultTerrainType() {
 		id: randomID(),
 		name: "New Terrain Type",
 		usesHeight: true,
+		textRotation: false,
 		lineWidth: 4,
 		lineColor: "#FF0000",
 		lineOpacity: 0.8,

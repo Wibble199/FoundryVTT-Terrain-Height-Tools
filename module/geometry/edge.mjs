@@ -36,6 +36,32 @@ export class Edge {
 	}
 
 	/**
+	 * Gets the Y position that this edge intersects a vertical line at `x`. Returns undefined if this line is
+	 * vertical or does not pass the given `x` position.
+	 * @param {number} x
+	 * @returns {number | undefined}
+	 */
+	intersectsXAt(x) {
+		// If the given `x` is not between p1.x and p2.x, return undefined
+		if (x >= Math.max(this.p1.x, this.p2.x) || x <= Math.min(this.p1.x, this.p2.x))
+			return undefined;
+
+		const slope = this.slope;
+
+		// If slope is infinity, line is vertical, so does not intersect X
+		if (slope === Infinity)
+			return undefined;
+
+		// If slope is 0, line is horizontal, so it's p1.y and p2.y are the same, and it intersects there
+		if (slope === 0)
+			return this.p1.y;
+
+		// For other values, line is diagonal, so work out where it would meet the X
+		return this.p1.y + (x - this.p1.x) * slope;
+	}
+
+
+	/**
 	 * Gets the X poisition that this edge intersects a horizontal line at `y`. Returns undefined if this line is
 	 * horizontal or does not pass the given `y` position.
 	 * @param {number} y

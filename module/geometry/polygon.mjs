@@ -35,7 +35,7 @@ export class Polygon {
 		return [...this.#vertices];
 	}
 
-	/** @type {readonly Egde[]} */
+	/** @type {readonly Edge[]} */
 	get edges() {
 		return [...this.#edges];
 	}
