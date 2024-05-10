@@ -1,3 +1,4 @@
+import * as api from './api.mjs';
 import { registerSceneControls, renderTerrainHeightPalette } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { registerSettings, addAboveTilesToSceneConfig } from "./config/settings.mjs";
@@ -11,6 +12,8 @@ Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 
 function init() {
 	log("Initialising");
+
+	globalThis.terrainHeightTools = { ...api };
 
 	registerSettings();
 
