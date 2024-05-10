@@ -36,3 +36,19 @@ export function distinctBy(items, func) {
 	}
 	return distinct;
 }
+
+/**
+ * Divides the given array into arrays containing a maximum of `chunkSize` items. The last sub-array may have fewer than
+ * `chunkSize` items.
+ * @template T
+ * @param {T[]} items
+ * @param {number} chunkSize
+ * @returns {T[][]}
+ */
+export function chunk(items, chunkSize) {
+	const arrays = [];
+	for (let i = 0; i < items.length; i += chunkSize) {
+		arrays.push(items.slice(i, i + chunkSize));
+	}
+	return arrays;
+}

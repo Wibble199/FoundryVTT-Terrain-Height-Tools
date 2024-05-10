@@ -10,9 +10,10 @@ export const tools = /** @type {const} */ ({
 
 /** @enum {keyof typeof settings} */
 export const settings = /** @type {const} */ ({
-	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
 	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer",
+	smartLabelPlacement: "smartLabelPlacement",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
+	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
 	terrainTypes: "terrainTypes"
 });
 

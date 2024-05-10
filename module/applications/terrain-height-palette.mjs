@@ -17,7 +17,7 @@ export class TerrainHeightPalette extends Application {
 		return mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.PaletteTitle"),
 			id: "tht_terrainHeightPalette",
-      		template: `modules/${moduleName}/templates/terrain-height-palette.hbs`,
+			template: `modules/${moduleName}/templates/terrain-height-palette.hbs`,
 			scrollY: ["ul"],
 			width: 220,
 			height: 342,

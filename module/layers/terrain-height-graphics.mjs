@@ -1,5 +1,6 @@
 import { flags, moduleName, settings } from "../consts.mjs";
 import { HeightMap, Polygon } from "../geometry/index.mjs";
+import { chunk } from '../utils/array-utils.mjs';
 import { debug } from "../utils/log.mjs";
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
@@ -71,6 +72,9 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			.filter(type => type.fillTexture?.length)
 			.map(async type => [type.id, await loadTexture(type.fillTexture)])));
 
+		/** @type {boolean} */
+		const smartLabelPlacement = game.settings.get(moduleName, settings.smartLabelPlacement);
+
 		for (const shape of heightMap.shapes) {
 			const terrainStyle = terrainTypes.find(t => t.id === shape.terrainTypeId);
 			if (!terrainStyle) continue;
@@ -89,7 +93,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			}
 
 			if (label?.length)
-					this.#drawPolygonLabel(label, textStyle, shape.centerOfMass);
+				this.#drawPolygonLabel(label, textStyle, shape, smartLabelPlacement);
 		}
 	}
 
@@ -131,13 +135,53 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * Draws a polygon's label at the given position.
 	 * @param {string} label
 	 * @param {PIXI.TextStyle} textStyle
-	 * @param {[number, number]} position
+	 * @param {import("../geometry/height-map.mjs").HeightMapShape} shape
+	 * @param {boolean} [smartPlacement=true]
 	 */
-	#drawPolygonLabel(label, textStyle, position) {
+	#drawPolygonLabel(label, textStyle, shape, smartPlacement = true) {
+		// Create the text - with this we can get the width and height of the label
 		const text = new PreciseText(label, textStyle);
-		text.x = position[0] - text.width / 2;
-		text.y = position[1] - text.height / 2;
 		this.labels.addChild(text);
+
+		// Get the points that are the left middle and right middle of the text, would the text be drawn at the centroid
+		// of the shape's outer polygon.
+		const x1 = shape.polygon.centroid[0] - text.width / 2;
+		const x2 = shape.polygon.centroid[0] + text.width / 2;
+		const y = shape.polygon.centroid[1];
+		const x1Inside = shape.polygon.containsPoint(x1, y) && shape.holes.every(h => !h.containsPoint(x1, y));
+		const x2Inside = shape.polygon.containsPoint(x2, y) && shape.holes.every(h => !h.containsPoint(x2, y));
+
+		// If both of these fall within the polygon, then draw it there
+		if ((x1Inside && x2Inside) || !smartPlacement) {
+			text.x = shape.polygon.centroid[0] - text.width / 2;
+			text.y = shape.polygon.centroid[1] - text.height / 2;
+			return;
+		}
+
+		// If the points fall outside of the polygon, we'll pick a few rays and find the widest and place the label there
+		/** @type {number[]} */
+		const testPoints = [...new Set([0.2, 0.4, 0.5, 0.6, 0.8]
+			.map(y => y * shape.polygon.boundingBox.h + shape.polygon.boundingBox.y1)
+			.map(y => canvas.grid.grid.getCenter(shape.polygon.boundingBox.xMid, y)[1]))];
+
+		let widestPoint = { y: 0, x: 0, width: -Infinity };
+		for (const y of testPoints) {
+			/** @type {number[]} */
+			const intersections = shape.polygon.edges
+				.map(e => e.intersectsYAt(y))
+				.concat(shape.holes.flatMap(h => h.edges.flatMap(e => e.intersectsYAt(y))))
+				.filter(Number)
+				.sort((a, b) => a - b);
+
+			for (const [x1, x2] of chunk(intersections, 2)) {
+				const width = x2 - x1;
+				if (width > widestPoint.width)
+					widestPoint = { x: (x1 + x2) / 2, y, width };
+			}
+		}
+
+		text.x = widestPoint.x - text.width / 2;
+		text.y = widestPoint.y - text.height / 2;
 	}
 
 	/**

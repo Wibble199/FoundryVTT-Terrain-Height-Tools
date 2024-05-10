@@ -122,6 +122,6 @@ export class Edge {
 	}
 
 	toString() {
-		return `Edge { (${this.p1.x},${this.p1.y}) -> (${this.p2.x},${this.p2.y}) }`;
+		return `Edge { (${this.p1.x}, ${this.p1.y}) -> (${this.p2.x}, ${this.p2.y}) }`;
 	}
 }

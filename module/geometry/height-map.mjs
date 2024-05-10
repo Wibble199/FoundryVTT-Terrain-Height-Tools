@@ -12,7 +12,6 @@ import { Vertex } from './vertex.mjs';
  * @property {Polygon[]} holes Other additional polygons that make holes in this shape.
  * @property {string} terrainTypeId
  * @property {number} height
- * @property {[number, number]} centerOfMass The center of mass of the shape, used for determining label position.
  */
 
 const maxHistoryItems = 10;
@@ -226,17 +225,17 @@ export class HeightMap {
 	 * @param {{ poly: Polygon; cell: [number, number] }[]} originalPolygons An array of polygons to merge
 	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
 	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
-	 * @returns {{ poly: Polygon; holes: Polygon[], centerOfMass: [number, number] }[]}
+	 * @returns {{ poly: Polygon; holes: Polygon[] }[]}
 	 */
 	static #combinePolygons(originalPolygons, terrainTypeId, height) {
 
 		// Generate a graph of all edges in all the polygons
-		const allEdges = originalPolygons.flatMap(p => p.poly.edges.map(edge => ({ cell: p.cell, edge })));
+		const allEdges = originalPolygons.flatMap(p => p.poly.edges);
 
 		// Remove any duplicate edges
 		for (let i = 0; i < allEdges.length; i++) {
 			for (let j = i + 1; j < allEdges.length; j++) {
-				if (allEdges[i].edge.equals(allEdges[j].edge)) {
+				if (allEdges[i].equals(allEdges[j])) {
 					allEdges.splice(j, 1);
 					allEdges.splice(i, 1);
 					i--;
@@ -248,20 +247,20 @@ export class HeightMap {
 		// From some start edge, keep finding the next edge that joins it until we are back at the start.
 		// If there are multiple edges starting at a edge's endpoint (e.g. two squares touch by a corner), then
 		// use the one that most clockwise.
-		/** @type {{ polygon: Polygon; centerOfMass: [number, number] }} */
+		/** @type {Polygon[]} */
 		const combinedPolygons = [];
 		while (allEdges.length) {
 			// Find the next unvisited edge, and follow the edges until we join back up with the first
 			const edges = allEdges.splice(0, 1);
-			while (!edges[0].edge.p1.equals(edges[edges.length - 1].edge.p2)) {
+			while (!edges[0].p1.equals(edges[edges.length - 1].p2)) {
 				// To find the next edge, we find edges that start where the last edge ends.
 				// For hex grids (where a max of 3 edges can meet), there will only ever be 1 other edge here (as if
 				// there were 4 edges, 2 would've overlapped and been removed) so we can just use that edge.
 				// But for square grids, there may be two edges that start here. In that case, we want to find the one
 				// that is next when rotating counter-clockwise.
 				const nextEdgeCandidates = allEdges
-					.map(({ edge }, idx) => ({ edge, idx }))
-					.filter(({ edge }) => edge.p1.equals(edges[edges.length - 1].edge.p2));
+					.map((edge, idx) => ({ edge, idx }))
+					.filter(({ edge }) => edge.p1.equals(edges[edges.length - 1].p2));
 
 				if (nextEdgeCandidates.length === 0)
 					throw new Error("Invalid graph detected. Missing edge.");
@@ -269,29 +268,15 @@ export class HeightMap {
 				const nextEdgeIndex = nextEdgeCandidates.length === 1
 					? nextEdgeCandidates[0].idx
 					: nextEdgeCandidates
-						.map(({ edge, idx }) => ({ angle: edge.angleBetween(edges[edges.length - 1].edge), idx }))
+						.map(({ edge, idx }) => ({ angle: edge.angleBetween(edges[edges.length - 1]), idx }))
 						.sort((a, b) => a.angle - b.angle)[0].idx;
 
 				const [nextEdge] = allEdges.splice(nextEdgeIndex, 1);
 				edges.push(nextEdge);
 			}
 
-			// Calculate center of mass by averaging the midpoints of all painted grid cells.
-			// Them, find the closest cell to that center of mass and use that as the label position.
-			// Finding the closest cell ensures that the label will be inside the shape (in case it convex)
-			const centerOfUsedCells = distinctBy(edges.map(e => e.cell), x => `${x[0]}.${x[1]}`)
-				.map(([x, y]) => canvas.grid.grid.getPixelsFromGridPosition(x, y))
-				.map(([x, y]) => [x + canvas.grid.w / 2, y + canvas.grid.h / 2]);
-
-			const centerOfMass = centerOfUsedCells
-				.reduce(([xAvg, yAvg, count], [x, y]) => [xAvg + (x - xAvg) / count, yAvg + (y - yAvg) / count, count + 1], [0, 0, 1])
-				.slice(0, 2);
-
 			// Add completed polygon to the list
-			combinedPolygons.push({
-				polygon: new Polygon(edges.map(v => v.edge.p1)),
-				centerOfMass
-			});
+			combinedPolygons.push(new Polygon(edges.map(v => v.p1)));
 		}
 
 		// To determine if a polygon is a "hole" we need to check whether it is inside another polygon.
@@ -300,16 +285,15 @@ export class HeightMap {
 		// For each hole, we need to find which polygon it is a hole in, as the hole must be drawn immediately after.
 		// To find the hole's parent, we search back up the sorted list of polygons in reverse for the first one that
 		// contains it.
-		/** @type {Map<boolean, (typeof combinedPolygons)[]>} */
-		const polysAreHolesMap = groupBy(combinedPolygons, ({ polygon }) => !polygon.edges[0].clockwise);
+		/** @type {Map<boolean, typeof combinedPolygons>} */
+		const polysAreHolesMap = groupBy(combinedPolygons, polygon => !polygon.edges[0].clockwise);
 
 		const solidPolygons = (polysAreHolesMap.get(false) ?? [])
 			.map(p => /** @type {HeightMapShape} */ ({
-				polygon: p.polygon,
+				polygon: p,
 				holes: [],
 				terrainTypeId,
-				height,
-				centerOfMass: p.centerOfMass
+				height
 			}));
 
 		const holePolygons = polysAreHolesMap.get(true) ?? [];
@@ -318,8 +302,8 @@ export class HeightMap {
 		// contains it. If there is only one, we have found which poly it is a hole of. If there are more, we imagine a
 		// horizontal line drawn from the topmost point of the inner polygon (with a little Y offset added so that we
 		// don't have to worry about vertex collisions) to the left and find the first polygon that it intersects.
-		for (const { polygon: holePolygon } of holePolygons) {
-			const containingPolygons = solidPolygons.filter(p => p.polygon.contains(holePolygon));
+		for (const holePolygon of holePolygons) {
+			const containingPolygons = solidPolygons.filter(p => p.polygon.containsPolygon(holePolygon));
 
 			if (containingPolygons.length === 0) {
 				error("Something went wrong calculating which polygon this hole belonged to: No containing polygons found.", { holePolygon, solidPolygons });

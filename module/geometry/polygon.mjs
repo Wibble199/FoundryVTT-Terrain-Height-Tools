@@ -4,21 +4,30 @@ import { Vertex } from "./vertex.mjs";
 export class Polygon {
 
 	/** @type {Vertex[]} */
-	#vertices;
+	#vertices = [];
 
 	/** @type {Edge[]} */
-	#edges;
+	#edges = [];
+
+	/** @type {[number, number]} */
+	#centroid = [0, 0];
 
 	/**
 	 * @param {Vertex[]} [vertices]
 	 */
 	constructor(vertices = undefined) {
-		this.#vertices = vertices ?? [];
-		this.#edges = this.#vertices.map((v, idx) => new Edge(v, this.#vertices[(idx + 1) % this.#vertices.length]));
+		this.boundingBox = {
+			x1: Infinity, y1: Infinity,
+			x2: -Infinity, y2: -Infinity,
+			get w() { return this.x2 - this.x1; },
+			get h() { return this.y2 - this.y1; },
+			get xMid() { return (this.x1 + this.x2) / 2 },
+			get yMid() { return (this.x1 + this.x2) / 2 }
+		};
 
-		// Calculate initial bounding box
-		this.boundingBox = { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity };
-		for (const vertex of this.#vertices) this.#addToBoundingBox(vertex);
+		for (const vertex of vertices ?? []) {
+			this.pushPoint(vertex);
+		}
 	}
 
 	/** @type {readonly Vertex[]} */
@@ -29,6 +38,11 @@ export class Polygon {
 	/** @type {readonly Egde[]} */
 	get edges() {
 		return [...this.#edges];
+	}
+
+	/** @type {readonly [number, number]} */
+	get centroid() {
+		return [...this.#centroid];
 	}
 
 	/**
@@ -49,15 +63,15 @@ export class Polygon {
 		// would make an edge from this new vertex to iself, but when more vertices are added this works fine).
 		this.#edges.push(new Edge(vertex, this.#vertices[0]));
 
-		// Update bounding box if this point falls outside of it
-		this.#addToBoundingBox(vertex);
+		// Update bounding box and centroid
+		this.#updateCalculatedValues(vertex);
 	}
 
 	/**
 	 * Determines whether this polygon contains another polygon.
 	 * @param {Polygon} other
 	 */
-	contains(other) {
+	containsPolygon(other) {
 		// First we can quickly check if the bounding box of `other` entirely fits within this bounding box.
 		// If it does not, we can skip the more complex edge intersection tests as there is no way this contains other.
 		const thisBb = this.boundingBox;
@@ -74,18 +88,47 @@ export class Polygon {
 		// longer be within the polygon as all the grid shapes are convex.
 		const testPoint = other.vertices.find(p => p.y === otherBb.y1).offset({ y: game.canvas.grid.h * 0.05 });
 
-		const intersections = this.edges
+		const numberOfIntersections = this.edges
 			.map(e => e.intersectsYAt(testPoint.y))
-			.filter(x => !!x && x < testPoint.x);
+			.filter(x => !!x && x < testPoint.x)
+			.length;
 
-		return intersections.length % 2 === 1;
+		return numberOfIntersections % 2 === 1;
 	}
 
 	/**
-	 * If the given Vertex lies outside the bounding box, updates the box to contain it.
+	 * Determines if this point is within the bounds of this polygon.
+	 * @param {number} x
+	 * @param {number} y
+	 */
+	containsPoint(x, y) {
+		const { boundingBox } = this;
+
+		// If the point is not even in the bounding box, don't need to check the vertices
+		if (x < boundingBox.x1 || x > boundingBox.x2 || y < boundingBox.y1 || y > boundingBox.y2)
+			return false;
+
+		// From the point, count how many edges it intersects when a line is drawn from this point to the left edge
+		// of the canvas. If there's an odd number of intersections, it must be inside the polygon.
+		const numberOfIntersections = this.#edges
+			.map(e => e.intersectsYAt(y))
+			.filter(intersectX => !!intersectX && intersectX < x)
+			.length;
+
+		return numberOfIntersections % 2 == 1;
+	}
+
+	/**
+	 * Updates any of the calculated values for the newly added vertex.
+	 * Should be called _after_ adding the vertex to the array.
 	 * @param {Vertex} vertex
 	 */
-	#addToBoundingBox(vertex) {
+	#updateCalculatedValues(vertex) {
+		// Update the centroid (the average of all vertices)
+		this.#centroid[0] += (vertex.x - this.#centroid[0]) / this.#vertices.length;
+		this.#centroid[1] += (vertex.y - this.#centroid[1]) / this.#vertices.length;
+
+		// If the given Vertex lies outside the bounding box, updates the box to contain it.
 		if (vertex.x < this.boundingBox.x1) this.boundingBox.x1 = vertex.x;
 		if (vertex.y < this.boundingBox.y1) this.boundingBox.y1 = vertex.y;
 		if (vertex.x > this.boundingBox.x2) this.boundingBox.x2 = vertex.x;

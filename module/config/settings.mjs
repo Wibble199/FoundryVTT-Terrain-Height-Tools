@@ -57,6 +57,16 @@ export function registerSettings() {
 		default: 0,
 		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
 	});
+
+	game.settings.register(moduleName, settings.smartLabelPlacement, {
+		name: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Name",
+		hint: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Hint",
+		scope: "world",
+		type: Boolean,
+		config: true,
+		default: true,
+		onChange: () => game.canvas.terrainHeightLayer._updateGraphics()
+	});
 }
 
 /**

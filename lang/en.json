@@ -19,7 +19,9 @@
 		"TerrainHeightLayerVisibilityRadius.Hint": "How far around the mouse cursor the terrain height map is visible. Use 0 to show the entire map.",
 		"TerrainTypes.Name": "Terrain Types",
 		"TerrainTypes.Hint": "Configure what kind of terrain types are available to be drawn to a scene.",
-		"TerrainTypes.Button": "Configure Terrain Types"
+		"TerrainTypes.Button": "Configure Terrain Types",
+		"TerrainHeightLayerSmartLabelPlacement.Name": "Smart Label Placement",
+		"TerrainHeightLayerSmartLabelPlacement.Hint": "If enabled, will attempt to be smarter about where labels are placed on complex shapes. If disabled, labels will simple appear at the center of the shape, though for concave shapes or shapes with holes this may fall outside the painted area."
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",
