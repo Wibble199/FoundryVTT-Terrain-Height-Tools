@@ -171,6 +171,9 @@ export class HeightMap {
 	_recalculateShapes() {
 		this.#shapes = [];
 
+		// Gridless scenes not supported
+		if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return;
+
 		const t1 = performance.now();
 
 		for (const [, cells] of groupBy(this.data, x => `${x.terrainTypeId}.${x.height}`)) {
