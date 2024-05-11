@@ -1,4 +1,4 @@
-import { getTerrainTypes } from '../utils/terrain-types.mjs';
+import { getTerrainType } from '../utils/terrain-types.mjs';
 
 export class GridHighlightGraphics extends GridHighlight {
 
@@ -49,8 +49,7 @@ export class GridHighlightGraphics extends GridHighlight {
 	 * @param {string} terrainTypeId
 	 */
 	_setColorFromTerrainTypeId(terrainTypeId) {
-		const terrainTypes = getTerrainTypes();
-		const terrainType = terrainTypes.find(t => t.id === terrainTypeId);
+		const terrainType = getTerrainType(terrainTypeId);
 		if (!terrainType) return;
 
 		// If the terrain type has a fill colour, use that

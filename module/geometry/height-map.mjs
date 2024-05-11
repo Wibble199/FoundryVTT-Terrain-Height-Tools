@@ -1,9 +1,10 @@
 import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { debug, error } from '../utils/log.mjs';
-import { getTerrainTypes } from '../utils/terrain-types.mjs';
+import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
+import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from './polygon.mjs';
-import { Vertex } from './vertex.mjs';
+import { Point } from './point.mjs';
 
 /**
  * @typedef {object} HeightMapShape Represents a shape that can be drawn to the map. It is a closed polygon that may
@@ -207,10 +208,10 @@ export class HeightMap {
 		if (game.canvas.grid.type === CONST.GRID_TYPES.SQUARE) {
 			const { w, h } = game.canvas.grid;
 			return new Polygon([
-				new Vertex(x, y),
-				new Vertex(x + w, y),
-				new Vertex(x + w, y + h),
-				new Vertex(x, y + h)
+				new Point(x, y),
+				new Point(x + w, y),
+				new Point(x + w, y + h),
+				new Point(x, y + h)
 			]);
 		}
 
@@ -218,7 +219,7 @@ export class HeightMap {
 		const pointsFlat = game.canvas.grid.grid.getPolygon(x, y)
 		const polygon = new Polygon();
 		for (let i = 0; i < pointsFlat.length; i += 2) {
-			polygon.pushPoint(new Vertex(pointsFlat[i], pointsFlat[i + 1]));
+			polygon.pushVertex(new Point(pointsFlat[i], pointsFlat[i + 1]));
 		}
 		return polygon;
 	}
@@ -339,6 +340,135 @@ export class HeightMap {
 		}
 
 		return solidPolygons;
+	}
+
+
+	// ------------- //
+	// Line of sight //
+	// ------------- //
+	/**
+	 * Calculates the line of sight between the two given pixel coordinate points and heights.
+	 * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
+	 * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
+	 * @param {Object} [options={}] Options that change how the calculation is done.
+	 * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
+	 * height value will be included in the return list. They are treated as having infinite height.
+	 * @returns TODO: <----------------------- DOCUMENT THIS (AND THE RETURNS ON THE PUBLIC API DOCS) -------------------------------------------------!!!!
+	 */
+	calculateLineOfSight(p1, p2, { includeNoHeightTerrain = false } = {}) {
+		const [{ x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }] = [p1, p2];
+
+		/**
+		 * Calculates the height of the line-of-sight ray at a specific t value.
+		 * @param {number} t
+		 */
+		const lerpLosHeight = t => (h2 - h1) * t + h1;
+
+		/**
+		 * Calculates a lerp value for the line-of-sight ray based on the given height.
+		 * @param {number} h
+		 */
+		const inverseLerpLosHeight = h => (h - h1) / (h2 - h1);
+
+		const terrainTypes = getTerrainTypeMap();
+
+		const testLine = LineSegment.fromCoords(x1, y1, x2, y2);
+
+		/**
+		 * Offset for `t` to use to calculate whether we are inside or outside the polygons during intersections.
+		 * Aim for approximately 1/10th of the grid size
+		 */
+		const eeOffset = (game.canvas.grid.size / 10) / testLine.length;
+
+		/** @type {{ t: number; shape: HeightMapShape; usesHeight: boolean; isEntry: boolean; }[]} */
+		const intersections = [];
+
+		for (const shape of this.#shapes) {
+			// Ignore shapes of deleted terrain types
+			if (!terrainTypes.has(shape.terrainTypeId)) continue;
+
+			const { usesHeight } = terrainTypes.get(shape.terrainTypeId);
+
+			// If this shape has a no-height terrain, only test for intersections if we are includeNoHeightTerrain
+			if (!usesHeight && !includeNoHeightTerrain) continue;
+
+			// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
+			// the line of sight ray would never cross at the required height for a collision.
+			// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
+			if (usesHeight && shape.height < h1 && shape.height < h2) continue;
+
+			// Loop each edge in this shape and check for an intersection. Record height, shape and how far along the
+			// test line the intersection occured.
+			const allEdges = shape.polygon.edges
+				.map(e => /** @type {[Polygon | undefined, LineSegment]} */ ([undefined, e]))
+				.concat(shape.holes
+					.flatMap(h => h.edges.map(e => /** @type {[Polygon, LineSegment]} */ ([h, e]))));
+
+			for (const [hole, edge] of allEdges) {
+				const intersection = testLine.intersectsAt(edge);
+				if (!intersection) continue;
+
+				// Check whether this intersection happens below the height of the LOS ray.
+				// If it does, then the collision would not have occured.
+				const losHeightAtIntersection = lerpLosHeight(intersection.t)
+				if (usesHeight && losHeightAtIntersection >= shape.height) continue;
+
+				// To work out whether the collision is due to entering or leaving the shape, step forward a miniscule
+				// amount on the `t` value, work out the X,Y of that point, then test if that point is in the shape.
+				const testPoint = testLine.lerp(intersection.t + eeOffset);
+
+				// If hole undefined, the edge is part of the outer polygon so check if the polygon contains that point.
+				// If hole is not undefined, edge is part of a hole so check if the hole DOES NOT contain the point.
+				const isEntry = hole === undefined
+					? shape.polygon.containsPoint(...testPoint, true)
+					: !hole.containsPoint(...testPoint, true);
+
+				intersections.push({ t: intersection.t, shape, usesHeight, isEntry });
+			}
+		}
+
+		// Next, we need to check for leaving a shape from the top: For any shape (that uses heights) that we have
+		// intersected with, work out the `t` position where the LOS ray crosses the height of that shape.
+		// E.G. for a height 3 shape, work out the `t` value where the LOS ray has a height of 3.
+		// Then, we can lerp the X,Y position of this ray when it is at this t value.
+		// Finally, we can take that X,Y position and check whether it is inside the shape or not (counting holes also).
+		// Since this is the top of the shape, the intersection is an entry if the ray is going downwards, else an exit.
+		// Note that we only need to do this is if there is a height difference in the LOS ray.
+		if (h1 !== h2) {
+			const intersectedShapes = new Set(intersections.filter(i => i.usesHeight).map(i => i.shape));
+			const isEntry = h1 > h2;
+			for (const shape of intersectedShapes) {
+				const t = inverseLerpLosHeight(shape.height);
+				if (t < 0 || t > 1) continue;
+
+				const testLinePointAtHeight = testLine.lerp(t);
+
+				if (shape.polygon.containsPoint(...testLinePointAtHeight) && !shape.holes.some(h => h.containsPoint(...testLinePointAtHeight)))
+					intersections.push({ t, shape, usesHeight: true, isEntry });
+			}
+		}
+
+		// Sort the intersections based on `t`, with ties being sorted by exit intersections first, then entry ones.
+		intersections.sort((a, b) => {
+			if (a.t !== b.t) return a.t - b.t;
+			if (a.isEntry !== b.isEntry) return a.isEntry ? 1 : -1;
+			return 0;
+		});
+
+		// DEBUG
+		const g = canvas.terrainHeightLayer._graphics.graphics;
+
+		g.lineStyle({ color: 0xFFFF00, width: 1 });
+		g.moveTo(x1, y1);
+		g.lineTo(x2, y2);
+
+		intersections.forEach(i => {
+			debug(`Intersection detected with a h ${i.shape.height} object at ${i.t} (${i.isEntry ? "entry" : "exit"})`);
+
+			g.lineStyle({ width: 0 });
+			g.beginFill(i.isEntry ? 0x00FF00 : 0xFF0000);
+			g.drawCircle(...testLine.lerp(i.t), 3);
+		});
 	}
 
 

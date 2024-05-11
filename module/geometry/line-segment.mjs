@@ -1,20 +1,31 @@
-import { Vertex } from "./vertex.mjs";
+import { Point } from "./point.mjs";
 
 /**
- * Represents an edge on a polygon, from `p1` to `p2`.
- * Edges are considered equal regardless of 'direction'. I.E. p1 vs p2 order does not matter.
+ * Represents a line segment, from `p1` to `p2`.
+ * LineSegments are considered equal regardless of 'direction'. I.E. p1 vs p2 order does not matter.
  */
-export class Edge {
+export class LineSegment {
 	/**
-	 * @param {Vertex} p1
-	 * @param {Vertex} p2
+	 * @param {Point} p1
+	 * @param {Point} p2
 	 */
 	constructor(p1, p2) {
 		this.p1 = p1;
 		this.p2 = p2;
 	}
 
-	/** Determines if this edge is pointing in a clockwise direction. */
+	/**
+	 * Creates a LineSegment from a pair of x,y coordinates.
+	 * @param {number} x1
+	 * @param {number} y1
+	 * @param {number} x2
+	 * @param {number} y2
+	 */
+	static fromCoords(x1, y1, x2, y2) {
+		return new LineSegment(new Point(x1, y1), new Point(x2, y2));
+	}
+
+	/** Determines if this line segment is pointing in a clockwise direction. */
 	get clockwise() {
 		// If the p1.x < p2.x, then clockwise
 		// If p1.x ~= p2.x, check if p1.y > p2.y, then clockwise
@@ -29,14 +40,18 @@ export class Edge {
 			: Infinity;
 	}
 
-	/** @param {Edge} other */
+	get length() {
+		return Math.sqrt(Math.pow(this.p2.x - this.p1.x, 2) + Math.pow(this.p2.y - this.p1.y, 2));
+	}
+
+	/** @param {LineSegment} other */
 	equals(other) {
 		return (this.p1.equals(other.p1) && this.p2.equals(other.p2))
 			|| (this.p1.equals(other.p2) && this.p2.equals(other.p1));
 	}
 
 	/**
-	 * Gets the Y position that this edge intersects a vertical line at `x`. Returns undefined if this line is
+	 * Gets the Y position that this line segment intersects a vertical line at `x`. Returns undefined if this line is
 	 * vertical or does not pass the given `x` position.
 	 * @param {number} x
 	 * @returns {number | undefined}
@@ -62,8 +77,8 @@ export class Edge {
 
 
 	/**
-	 * Gets the X poisition that this edge intersects a horizontal line at `y`. Returns undefined if this line is
-	 * horizontal or does not pass the given `y` position.
+	 * Gets the X poisition that this line segmnet intersects a horizontal line at `y`. Returns undefined if this line
+	 * is horizontal or does not pass the given `y` position.
 	 * @param {number} y
 	 * @returns {number | undefined}
 	 */
@@ -87,19 +102,19 @@ export class Edge {
 	}
 
 	/**
-	 * Gets the X and Y position that this edge intersects another edge, as well as the relative distance along the edge
-	 * that the intersection occured.
+	 * Gets the X and Y position that this line segment intersects another line segment, as well as the relative
+	 * distance along each line segmnet that the intersection occured.
 	 *
-	 * The returned `t` value is how far along 'this' edge the intersection point is at:
+	 * The returned `t` value is how far along 'this' line segment the intersection point is at:
 	 * - 0 means that the intersection is at this.p1.
 	 * - 1 means that the intersection is at this.p2.
-	 * - Another value (which will be between 0-1) means it proportionally lies along the edge.
+	 * - Another value (which will be between 0-1) means it proportionally lies along the line segment.
 	 *
-	 * The returned `u` value is the equivalent of `t` but for the 'other' edge.
+	 * The returned `u` value is the equivalent of `t` but for the 'other' line segment.
 	 *
-	 * Returns undefined if the edges do not intersect.
+	 * Returns undefined if the line segments do not intersect.
 	 * Parallel lines are never considered to intersect.
-	 * @param {Edge} other
+	 * @param {LineSegment} other
 	 * @returns {{ x: number; y: number; t: number; u: number } | undefined}
 	 */
 	intersectsAt(other) {
@@ -112,13 +127,13 @@ export class Edge {
 		const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
 		if (denom === 0) return undefined;
 
-		// `t` is how far along `this` edge the intersection point is at: 0 means that the intersection is at p1, 1 means
-		// that the intersection is at p2, a value between 0-1 means it lies on the edge, <0 or >1 means it lies out of the
-		// edge. `u` is the same, but for the `other` edge.
+		// `t` is how far along `this` line the intersection point is at: 0 means that the intersection is at p1, 1 means
+		// that the intersection is at p2, a value between 0-1 means it lies on the line, <0 or >1 means it lies out of the
+		// line. `u` is the same, but for the `other` line.
 		const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
 		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 
-		// If the intersection point lies outside of either edge, then there is no intersection
+		// If the intersection point lies outside of either line, then there is no intersection
 		if (t < 0 || t > 1 || u < 0 || u > 1) return undefined;
 
 		return {
@@ -129,9 +144,21 @@ export class Edge {
 	}
 
 	/**
-	 * Works out the interior angle between this edge and another edge
+	 * Linearly interpolates the X,Y position of a point that is at `t` along the line.
+	 * @param {number} t
+	 * @returns {[number, number]}
+	 */
+	lerp(t) {
+		return [
+			(this.p2.x - this.p1.x) * t + this.p1.x,
+			(this.p2.y - this.p1.y) * t + this.p1.y
+		];
+	}
+
+	/**
+	 * Works out the interior angle between this line segment and another line segment.
 	 * This makes the assumption `other` starts where `this` ends and the polygon is defined clockwise.
-	 * @param {Edge} other
+	 * @param {LineSegment} other
 	 */
 	angleBetween(other) {
 		const dx = this.p2.x - this.p1.x;
@@ -148,6 +175,6 @@ export class Edge {
 	}
 
 	toString() {
-		return `Edge { (${this.p1.x}, ${this.p1.y}) -> (${this.p2.x}, ${this.p2.y}) }`;
+		return `LineSegment { (${this.p1.x}, ${this.p1.y}) -> (${this.p2.x}, ${this.p2.y}) }`;
 	}
 }

@@ -1,19 +1,19 @@
-import { Edge } from "./edge.mjs";
-import { Vertex } from "./vertex.mjs";
+import { LineSegment } from "./line-segment.mjs";
+import { Point } from "./point.mjs";
 
 export class Polygon {
 
-	/** @type {Vertex[]} */
+	/** @type {Point[]} */
 	#vertices = [];
 
-	/** @type {Edge[]} */
+	/** @type {LineSegment[]} */
 	#edges = [];
 
 	/** @type {[number, number]} */
 	#centroid = [0, 0];
 
 	/**
-	 * @param {Vertex[]} [vertices]
+	 * @param {Point[]} [vertices]
 	 */
 	constructor(vertices = undefined) {
 		this.boundingBox = {
@@ -26,16 +26,16 @@ export class Polygon {
 		};
 
 		for (const vertex of vertices ?? []) {
-			this.pushPoint(vertex);
+			this.pushVertex(vertex);
 		}
 	}
 
-	/** @type {readonly Vertex[]} */
+	/** @type {readonly Point[]} */
 	get vertices() {
 		return [...this.#vertices];
 	}
 
-	/** @type {readonly Edge[]} */
+	/** @type {readonly LineSegment[]} */
 	get edges() {
 		return [...this.#edges];
 	}
@@ -47,11 +47,11 @@ export class Polygon {
 
 	/**
 	 * Pushes a vertex to the end of the polygon.
-	 * @param {number | Vertex} x The X coordinate of the point or a Vertex object to add.
+	 * @param {number | Point} x The X coordinate of the point or a Point object to add.
 	 * @param {number | undefined} y The Y coordinate of the point or undefined.
 	 */
-	pushPoint(x, y = undefined) {
-		const vertex = x instanceof Vertex ? x : new Vertex(x, y);
+	pushVertex(x, y = undefined) {
+		const vertex = x instanceof Point ? x : new Point(x, y);
 
 		this.#vertices.push(vertex);
 
@@ -61,7 +61,7 @@ export class Polygon {
 
 		// Add a new edge from this new vertex to the first vertex (when there were no vertices in this polygon before, this
 		// would make an edge from this new vertex to iself, but when more vertices are added this works fine).
-		this.#edges.push(new Edge(vertex, this.#vertices[0]));
+		this.#edges.push(new LineSegment(vertex, this.#vertices[0]));
 
 		// Update bounding box and centroid
 		this.#updateCalculatedValues(vertex);
@@ -97,7 +97,7 @@ export class Polygon {
 	}
 
 	/**
-	 * Determines if this point is within the bounds of this polygon.
+	 * Determines if a point is within the bounds of this polygon.
 	 * @param {number} x
 	 * @param {number} y
 	 */
@@ -121,7 +121,7 @@ export class Polygon {
 	/**
 	 * Updates any of the calculated values for the newly added vertex.
 	 * Should be called _after_ adding the vertex to the array.
-	 * @param {Vertex} vertex
+	 * @param {Point} vertex
 	 */
 	#updateCalculatedValues(vertex) {
 		// Update the centroid (the average of all vertices)

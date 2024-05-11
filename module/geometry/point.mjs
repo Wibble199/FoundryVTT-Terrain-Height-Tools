@@ -1,7 +1,7 @@
 /**
  * X and Y coordinates representing a position.
  */
-export class Vertex {
+export class Point {
 
 	// Hide X & Y and expose them as get properties so the Vertex is immutable
 	#x;
@@ -24,7 +24,7 @@ export class Vertex {
 		return this.#y;
 	}
 
-	/** @param {Vertex} other */
+	/** @param {Point} other */
 	equals(other) {
 		// Hex grids can can get a little weird about rounding, so to make it easier we assume points are equal if there
 		// is less than 1 pixel between them.
@@ -33,6 +33,6 @@ export class Vertex {
 
 	/** Creates a clone of this point with the given X/Y offset. */
 	offset({ x = 0, y = 0 }) {
-		return new Vertex(this.#x + x, this.#y + y);
+		return new Point(this.#x + x, this.#y + y);
 	}
 }

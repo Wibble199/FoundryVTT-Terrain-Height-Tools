@@ -64,6 +64,13 @@ export function getTerrainTypes() {
 }
 
 /**
+ * Loads the TerrainTypes from the settings into a Map that is keyed by the terrain type ID.
+ */
+export function getTerrainTypeMap() {
+	return new Map(getTerrainTypes().map(t => [t.id, t]));
+}
+
+/**
  * Returns the terrain type for the given ID.
  * @param {string} terrainTypeId
  * @returns {TerrainType | undefined}

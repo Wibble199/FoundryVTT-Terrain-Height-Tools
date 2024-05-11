@@ -37,6 +37,11 @@ export function registerSceneControls(controls) {
 		visible: game.user.can("UPDATE_SCENE"),
 		tools: [
 			{
+				name: "dbg",
+				title: "DEBUG: Print cell coords",
+				icon: "fas fa-debug"
+			},
+			{
 				name: tools.paint,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaint"),
 				icon: "fas fa-paintbrush"

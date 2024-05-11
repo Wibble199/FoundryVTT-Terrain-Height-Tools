@@ -1,5 +1,5 @@
 import { flags, lineTypes, moduleName, settings } from "../consts.mjs";
-import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
+import { LineSegment, HeightMap, Polygon, Point } from "../geometry/index.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { debug } from "../utils/log.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
@@ -195,8 +195,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		/** Tests that if the text was position centrally at the given point, if it fits in the shape entirely. */
 		const testTextPosition = (x, y, rotated = false) => {
 			const testEdge = rotated
-				? new Edge(new Vertex(x, y - text.width / 2), new Vertex(x, y + text.width / 2))
-				: new Edge(new Vertex(x - text.width / 2, y), new Vertex(x + text.width / 2, y));
+				? new LineSegment(new Point(x, y - text.width / 2), new Point(x, y + text.width / 2))
+				: new LineSegment(new Point(x - text.width / 2, y), new Point(x + text.width / 2, y));
 
 			return shape.polygon.containsPoint(x, y)
 				&& shape.holes.every(h => !h.containsPoint(x, y))

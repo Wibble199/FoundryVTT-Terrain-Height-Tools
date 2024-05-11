@@ -1,6 +1,7 @@
 import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
+import { debug } from "../utils/log.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
 
@@ -166,6 +167,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * @param {string} [tool=undefined]
 	 */
 	async #useTool(x, y, tool = undefined) {
+		/** @type {[number, number]} */
 		const cell = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
 
 		switch (tool ?? this._pendingTool) {
@@ -203,6 +205,12 @@ export class TerrainHeightLayer extends InteractionLayer {
 				this._pendingTool = undefined;
 				if (await this._heightMap.eraseFillCells(cell))
 					await this._updateGraphics();
+				break;
+			}
+
+			case "dbg": {
+				this._pendingTool = this.undefined;
+				debug(`Clicked at ${x}, ${y} (cell ${cell[0]}, ${cell[1]})`);
 				break;
 			}
 
