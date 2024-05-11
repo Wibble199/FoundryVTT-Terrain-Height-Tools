@@ -199,7 +199,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 				: new LineSegment(new Point(x - text.width / 2, y), new Point(x + text.width / 2, y));
 
 			return shape.polygon.containsPoint(x, y)
-				&& shape.holes.every(h => !h.containsPoint(x, y))
+				&& shape.holes.every(h => !h.containsPoint(x, y, false))
 				&& allEdges.every(e => !e.intersectsAt(testEdge));
 		};
 

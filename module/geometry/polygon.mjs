@@ -100,8 +100,10 @@ export class Polygon {
 	 * Determines if a point is within the bounds of this polygon.
 	 * @param {number} x
 	 * @param {number} y
+	 * @param {boolean} [containsOnEdge = true] If true (default), then if the point falls exactly on an edge of this
+	 * polygon, then it will be treated as inside the polygon. If false, that point would be treated as being outside.
 	 */
-	containsPoint(x, y) {
+	containsPoint(x, y, containsOnEdge = true) {
 		const { boundingBox } = this;
 
 		// If the point is not even in the bounding box, don't need to check the vertices
@@ -110,12 +112,20 @@ export class Polygon {
 
 		// From the point, count how many edges it intersects when a line is drawn from this point to the left edge
 		// of the canvas. If there's an odd number of intersections, it must be inside the polygon.
+		// For edge cases where the point lies exactly on an edge, if `containsOnEdge`:
+		// - If the direction of the edge is upwards then we need to count an intersection if intersectX <= x.
+		// - If the direction of the edge is downwards, then we need to count an intersection if intersect < x.
+		// - If `containsOnEdge` is false, then swap this logic
+		// We could re-write to explicitly check if the point is on the edge, which would make the code more clear but
+		// it would require many additional calculations.
 		const numberOfIntersections = this.#edges
-			.map(e => e.intersectsYAt(y))
-			.filter(intersectX => !!intersectX && intersectX < x)
+			.map(e => [e.intersectsYAt(y), e.p1.y - e.p2.y])
+			.filter(([intersectX, dy]) =>
+				typeof intersectX === "number" &&
+				(dy < 0 ^ containsOnEdge ? intersectX <= x : intersectX < x))
 			.length;
 
-		return numberOfIntersections % 2 == 1;
+    	return numberOfIntersections % 2 == 1;
 	}
 
 	/**

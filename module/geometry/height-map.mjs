@@ -380,7 +380,7 @@ export class HeightMap {
 		 */
 		const eeOffset = (game.canvas.grid.size / 10) / testLine.length;
 
-		/** @type {{ t: number; shape: HeightMapShape; usesHeight: boolean; isEntry: boolean; }[]} */
+		/** @type {{ t: number; shape: HeightMapShape; usesHeight: boolean; isEntry: boolean; skimmed: boolean; }[]} */
 		const intersections = [];
 
 		for (const shape of this.#shapes) {
@@ -411,7 +411,11 @@ export class HeightMap {
 				// Check whether this intersection happens below the height of the LOS ray.
 				// If it does, then the collision would not have occured.
 				const losHeightAtIntersection = lerpLosHeight(intersection.t)
-				if (usesHeight && losHeightAtIntersection >= shape.height) continue;
+				if (usesHeight && losHeightAtIntersection > shape.height) continue;
+
+				// If the interpolated height of the LOS ray is equal to the height of the edge, then we 'skimmed' the
+				// edge.
+				const skimmed = Math.abs(losHeightAtIntersection - shape.height) < Number.EPSILON;
 
 				// To work out whether the collision is due to entering or leaving the shape, step forward a miniscule
 				// amount on the `t` value, work out the X,Y of that point, then test if that point is in the shape.
@@ -421,9 +425,9 @@ export class HeightMap {
 				// If hole is not undefined, edge is part of a hole so check if the hole DOES NOT contain the point.
 				const isEntry = hole === undefined
 					? shape.polygon.containsPoint(...testPoint, true)
-					: !hole.containsPoint(...testPoint, true);
+					: !hole.containsPoint(...testPoint, false);
 
-				intersections.push({ t: intersection.t, shape, usesHeight, isEntry });
+				intersections.push({ t: intersection.t, shape, usesHeight, isEntry, skimmed });
 			}
 		}
 
@@ -443,7 +447,7 @@ export class HeightMap {
 
 				const testLinePointAtHeight = testLine.lerp(t);
 
-				if (shape.polygon.containsPoint(...testLinePointAtHeight) && !shape.holes.some(h => h.containsPoint(...testLinePointAtHeight)))
+				if (shape.polygon.containsPoint(...testLinePointAtHeight) && !shape.holes.some(h => h.containsPoint(...testLinePointAtHeight, false)))
 					intersections.push({ t, shape, usesHeight: true, isEntry });
 			}
 		}
@@ -463,7 +467,7 @@ export class HeightMap {
 		g.lineTo(x2, y2);
 
 		intersections.forEach(i => {
-			debug(`Intersection detected with a h ${i.shape.height} object at ${i.t} (${i.isEntry ? "entry" : "exit"})`);
+			debug(`Intersection ${i.skimmed ? "skimmed" : "detected"} with a h ${i.shape.height} object at ${i.t} (${i.isEntry ? "entry" : "exit"})`);
 
 			g.lineStyle({ width: 0 });
 			g.beginFill(i.isEntry ? 0x00FF00 : 0xFF0000);
