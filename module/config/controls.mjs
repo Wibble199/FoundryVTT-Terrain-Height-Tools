@@ -15,7 +15,7 @@ export const sceneControls = {
  */
 export function registerSceneControls(controls) {
 	// Don't show the controls on gridless scenes as they are not supported
-	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return;
+	if (game.canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
 
 	// Add a Toggle button in the token controls
 	controls.find(grp => grp.name === "token").tools.push(sceneControls.terrainHeightToolsLayerToggleControlButton = {
