@@ -1,7 +1,8 @@
 import * as api from './api.mjs';
 import { registerSceneControls, renderTerrainHeightPalette } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
-import { registerSettings, addAboveTilesToSceneConfig } from "./config/settings.mjs";
+import { addAboveTilesToSceneConfig, registerSettings } from './config/settings.mjs';
+import { LineOfSightRulerLayer } from './layers/line-of-sight-ruler-layer.mjs';
 import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
 import { log } from "./utils/log.mjs";
 
@@ -20,6 +21,7 @@ function init() {
 	registerKeybindings();
 
 	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightLayer };
+	CONFIG.Canvas.layers.terrainHeightLosRulerLayer = { group: "interface", layerClass: LineOfSightRulerLayer };
 
 	// Could not find a nice way of hooking into the undo functionality when the TerrainHeightLayer is not
 	// a PlaceablesLayer, so we monkey patch the static ClientKeybindings._onUndo to add our own code there.

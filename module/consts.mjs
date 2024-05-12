@@ -5,7 +5,8 @@ export const tools = /** @type {const} */ ({
 	paint: "paint",
 	fill: "fill",
 	erase: "erase",
-	eraseFill: "eraseFill"
+	eraseFill: "eraseFill",
+	lineOfSight: "terrainHeightToolsLineOfSight"
 });
 
 /** @enum {keyof typeof settings} */

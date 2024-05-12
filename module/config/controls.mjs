@@ -17,15 +17,22 @@ export function registerSceneControls(controls) {
 	// Don't show the controls on gridless scenes as they are not supported
 	if (game.canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
 
-	// Add a Toggle button in the token controls
-	controls.find(grp => grp.name === "token").tools.push(sceneControls.terrainHeightToolsLayerToggleControlButton = {
-		name: "terrainHeightLayerToggle",
-		title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerToggle"),
-		icon: "fas fa-chart-simple",
-		onClick: isActive => game.settings.set(moduleName, settings.showTerrainHeightOnTokenLayer, isActive),
-		toggle: true,
-		active: game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer)
-	});
+	// Add a LOS ruler and toggle map button in the token controls
+	controls.find(grp => grp.name === "token").tools.push(
+		{
+			name: tools.lineOfSight,
+			title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerLineOfSightRuler"),
+			icon: "fas fa-ruler-combined"
+		},
+		sceneControls.terrainHeightToolsLayerToggleControlButton = {
+			name: "terrainHeightLayerToggle",
+			title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerToggle"),
+			icon: "fas fa-chart-simple",
+			onClick: isActive => game.settings.set(moduleName, settings.showTerrainHeightOnTokenLayer, isActive),
+			toggle: true,
+			active: game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer)
+		}
+	);
 
 	// Menu for editing the terrain
 	controls.push({
@@ -36,11 +43,6 @@ export function registerSceneControls(controls) {
 		activeTool: tools.paint,
 		visible: game.user.can("UPDATE_SCENE"),
 		tools: [
-			{
-				name: "dbg",
-				title: "DEBUG: Print cell coords",
-				icon: "fas fa-debug"
-			},
 			{
 				name: tools.paint,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaint"),
