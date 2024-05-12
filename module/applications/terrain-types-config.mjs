@@ -1,4 +1,4 @@
-import { moduleName, settings } from "../consts.mjs";
+import { lineTypes, moduleName, settings } from "../consts.mjs";
 import { error } from "../utils/log.mjs";
 import { createDefaultTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 
@@ -31,6 +31,9 @@ export class TerrainTypesConfig extends FormApplication {
 
 		data.fillTypes = Object.fromEntries(Object.entries(CONST.DRAWING_FILL_TYPES)
 			.map(([name, value]) => [value, `DRAWING.FillType${name.titleCase()}`]));
+
+		data.lineTypes = Object.fromEntries(Object.entries(lineTypes)
+			.map(([name, value]) => [value, `TERRAINHEIGHTTOOLS.LineType${name.titleCase()}`]));
 
 		data.fonts = FontConfig.getAvailableFontChoices();
 

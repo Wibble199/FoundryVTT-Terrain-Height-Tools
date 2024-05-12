@@ -1,7 +1,8 @@
-import { flags, moduleName, settings } from "../consts.mjs";
+import { flags, lineTypes, moduleName, settings } from "../consts.mjs";
 import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { debug } from "../utils/log.mjs";
+import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
 /**
@@ -90,26 +91,46 @@ export class TerrainHeightGraphics extends PIXI.Container {
 				: terrainStyle.textFormat;
 			const textStyle = this.#getTextStyle(terrainStyle);
 
+			// If the line style is dashed, don't draw the lines straight away, as the moveTo/lineTo used to draw the
+			// dashed line makes the holes not work properly.
+			// Instead, do the fill now, then the holes, THEN draw the dashed lines.
+			// If we're using solid or no lines, we don't need to worry about this.
+			this.#setGraphicsStyleFromTerrainStyle(terrainStyle, textures);
+			if (terrainStyle.lineType === lineTypes.dashed) this.graphics.lineStyle({ width: 0 });
+
 			this.#drawTerrainPolygon(shape.polygon, terrainStyle, textures);
 
 			for (const hole of shape.holes) {
 				this.graphics.beginHole();
-				this.#drawTerrainPolygon(hole);
+				this.#drawTerrainPolygon(hole, terrainStyle, textures, true);
 				this.graphics.endHole();
 			}
 
+			// After drawing fill, then do the dashed lines
+			if (terrainStyle.lineType === lineTypes.dashed) {
+				this.#setGraphicsStyleFromTerrainStyle(terrainStyle, textures);
+				const dashedLineStyle = {
+					closed: true,
+					dashSize: terrainStyle.lineDashSize ?? 15,
+					gapSize: terrainStyle.lineGapSize ?? 10
+				};
+
+				drawDashedPath(this.graphics, shape.polygon.vertices, dashedLineStyle);
+				for (const hole of shape.holes) drawDashedPath(this.graphics, hole.vertices, dashedLineStyle);
+			}
+
+			// Finally, do the label
 			if (label?.length)
 				this.#drawPolygonLabel(label, textStyle, shape, { smartPlacement: smartLabelPlacement, allowRotation: terrainStyle.textRotation });
 		}
 	}
 
 	/**
-	 * Draws a terrain polygon for the given (pixel) coordinates and the given terrain style.
-	 * @param {Polygon} polygon
+	 * Sets the line and fill styles of the graphics context based on the given terrain style.
 	 * @param {import("../utils/terrain-types.mjs").TerrainType | undefined} terrainStyle
 	 * @param {{ [terrainTypeId: string]: PIXI.Texture } | undefined} textureMap
 	 */
-	#drawTerrainPolygon(polygon, terrainStyle = undefined, textureMap = undefined) {
+	#setGraphicsStyleFromTerrainStyle(terrainStyle, textureMap) {
 		const color = Color.from(terrainStyle?.fillColor ?? "#000000");
 		if (terrainStyle?.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && textureMap[terrainStyle.id])
 			this.graphics.beginTextureFill({
@@ -121,12 +142,18 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			this.graphics.beginFill(color, terrainStyle?.fillOpacity ?? 0.4);
 
 		this.graphics.lineStyle({
-			width: terrainStyle?.lineWidth ?? 0,
+			width: terrainStyle?.lineType === lineTypes.none ? 0 : terrainStyle?.lineWidth ?? 0,
 			color: Color.from(terrainStyle?.lineColor ?? "#000000"),
 			alpha: terrainStyle?.lineOpacity ?? 1,
 			alignment: 0
 		});
+	}
 
+	/**
+	 * Draws a terrain polygon for the given (pixel) coordinates and the given terrain style.
+	 * @param {Polygon} polygon
+	 */
+	#drawTerrainPolygon(polygon) {
 		this.graphics.moveTo(polygon.vertices[0].x, polygon.vertices[0].y);
 		for (let i = 1; i < polygon.vertices.length; i++) {
 			this.graphics.lineTo(polygon.vertices[i].x, polygon.vertices[i].y);

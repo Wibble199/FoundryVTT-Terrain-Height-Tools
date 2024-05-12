@@ -27,3 +27,10 @@ export const flags = /** @type {const} */ ({
 	heightData: "heightData",
 	terrainLayerAboveTiles: "terrainLayerAboveTiles"
 });
+
+/** @enum {number} */
+export const lineTypes = ({
+	none: 0,
+	solid: 1,
+	dashed: 2
+});
