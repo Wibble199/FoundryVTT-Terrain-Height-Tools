@@ -123,13 +123,16 @@ export class LineSegment {
 		const { x: x3, y: y3 } = other.p1;
 		const { x: x4, y: y4 } = other.p2;
 
-		// If denom is 0, lines are parallel and do not intersect.
-		const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-		if (denom === 0) return undefined;
+		// If slopes are equal (or very close) then the lines are parallel, so we treat as no intersection
+		const slope1 = (y2 - y1) / (x2 - x1);
+		const slope2 = (y4 - y3) / (x4 - x3);
+		if (Math.abs(slope1 - slope2) < 0.005) return undefined; // 0.005 = 1px variance in y axis per 200px in x axis.
+
 
 		// `t` is how far along `this` line the intersection point is at: 0 means that the intersection is at p1, 1 means
 		// that the intersection is at p2, a value between 0-1 means it lies on the line, <0 or >1 means it lies out of the
 		// line. `u` is the same, but for the `other` line.
+		const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
 		const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
 		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 

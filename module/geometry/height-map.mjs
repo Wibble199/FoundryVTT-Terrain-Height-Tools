@@ -4,7 +4,7 @@ import { debug, error } from '../utils/log.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from './polygon.mjs';
-import { Point } from './point.mjs';
+import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 
 /**
  * @typedef {object} HeightMapShape Represents a shape that can be drawn to the map. It is a closed polygon that may
@@ -192,7 +192,7 @@ export class HeightMap {
 			const { terrainTypeId, height } = cells[0];
 
 			// Get the grid-sized polygons for each cell at this terrain type and height
-			const polygons = cells.map(({ position }) => ({ cell: position, poly: HeightMap.#getPolyPoints(...position) }));
+			const polygons = cells.map(({ position }) => ({ cell: position, poly: new Polygon(getGridCellPolygon(...position)) }));
 
 			// Combine connected grid-sized polygons into larger polygons where possible
 			this.#shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height));
@@ -200,39 +200,6 @@ export class HeightMap {
 
 		const t2 = performance.now();
 		debug(`Shape calculation took ${t2 - t1}ms`);
-	}
-
-	/**
-	 * For the cell at the given x and y grid coordinates, returns the points to draw a poly at that location.
-	 * The points are returned in a clockwise direction.
-	 * @param {number} cx X cordinates of the cell to get points for.
-	 * @param {number} cy Y cordinates of the cell to get points for.
-	 * @returns {Polygon}
-	 */
-	static #getPolyPoints(cx, cy) {
-		// Gridless is not supported
-		if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
-
-		const [x, y] = game.canvas.grid.grid.getPixelsFromGridPosition(cx, cy);
-
-		// Can get the points for a square grid easily
-		if (game.canvas.grid.type === CONST.GRID_TYPES.SQUARE) {
-			const { w, h } = game.canvas.grid;
-			return new Polygon([
-				new Point(x, y),
-				new Point(x + w, y),
-				new Point(x + w, y + h),
-				new Point(x, y + h)
-			]);
-		}
-
-		// For hex grids, can use the getPolygon function to generate them for us
-		const pointsFlat = game.canvas.grid.grid.getPolygon(x, y)
-		const polygon = new Polygon();
-		for (let i = 0; i < pointsFlat.length; i += 2) {
-			polygon.pushVertex(new Point(pointsFlat[i], pointsFlat[i + 1]));
-		}
-		return polygon;
 	}
 
 	/**

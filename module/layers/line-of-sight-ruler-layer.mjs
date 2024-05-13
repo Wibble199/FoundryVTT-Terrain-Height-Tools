@@ -1,4 +1,6 @@
 import { tools } from "../consts.mjs";
+import { getGridCellPolygon } from "../utils/grid-utils.mjs";
+import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
 /**
@@ -31,12 +33,14 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/** @override */
 	async _draw() {
-		this.#setupEventListeners("on");
+		if (game.canvas.grid?.type !== CONST.GRID_TYPES.GRIDLESS)
+			this.#setupEventListeners("on");
 	}
 
 	/** @override */
 	async _tearDown() {
 		await super._tearDown();
+		this.#setupEventListeners("off");
 	}
 
 	// ----------------------- //
@@ -83,8 +87,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			// Draw the intersection region (in the color of the intersected terrain)
 			const terrainColor = getTerrainColor(terrainTypes.get(r.terrainTypeId) ?? {});
 			ruler.lineStyle({ color: terrainColor, width: 4 });
-			ruler.moveTo(r.start.x, r.start.y);
-			ruler.lineTo(r.end.x, r.end.y);
+			drawDashedPath(ruler, [r.start, r.end], { dashSize: 4 });
 			lastPosition = r.end;
 		}
 
@@ -143,11 +146,28 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/** @returns {[number, number]} */
 	#getDragPosition(event) {
-		let { x, y } = this.toLocal(event.data.global);
+		/** @type {{ x: number; y: number }} */
+		const { x, y } = this.toLocal(event.data.global);
+
+		// Holding shift disabling snapping
 		const snap = !game.keyboard.isModifierActive(KeyboardManager.MODIFIER_KEYS.SHIFT);
 		if (!snap) return [x, y];
 
-		// TODO: snap to nearest cell center or cell corner
-		return [x, y];
+		// Otherwise, snap to nearest cell center OR cell corner (whichever is closer):
+
+		// Work out the center of the hovered cell and the points of the hex/square around the cell
+		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
+		/** @type {[number, number][]} */
+		const snapPoints = [
+			game.canvas.grid.grid.getCenter(x, y),
+			...getGridCellPolygon(row, col).map(({ x, y }) => [x, y])
+		];
+
+		// Of all these points, find the one closest to the mouse
+		const nearestSnapPoint = snapPoints
+			.map(([x2, y2]) => [x2, y2, Math.pow(x2 - x, 2) + Math.pow(y2 - y, 2)])
+			.sort((a, b) => a[2] - b[2])[0];
+
+		return [Math.round(nearestSnapPoint[0]), Math.round(nearestSnapPoint[1])];
 	}
 }

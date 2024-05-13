@@ -13,7 +13,7 @@ export class Polygon {
 	#centroid = [0, 0];
 
 	/**
-	 * @param {Point[]} [vertices]
+	 * @param {({ x: number; y: number } | Point)[]} [vertices]
 	 */
 	constructor(vertices = undefined) {
 		this.boundingBox = {
@@ -47,11 +47,13 @@ export class Polygon {
 
 	/**
 	 * Pushes a vertex to the end of the polygon.
-	 * @param {number | Point} x The X coordinate of the point or a Point object to add.
+	 * @param {number | Point | { x: number; y: number }} x The X coordinate of the point or a Point object to add.
 	 * @param {number | undefined} y The Y coordinate of the point or undefined.
 	 */
 	pushVertex(x, y = undefined) {
-		const vertex = x instanceof Point ? x : new Point(x, y);
+		const vertex = x instanceof Point ? x
+			: typeof x === "object" ? new Point(x.x, x.y)
+			: new Point(x, y);
 
 		this.#vertices.push(vertex);
 
