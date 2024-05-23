@@ -25,11 +25,12 @@ import { lineTypes, moduleName, settings } from '../consts.mjs';
 
 /**
  * Creates a new TerrainType object with the default options.
+ * @param {TerrainType["id"]} id
  * @returns {TerrainType}
  */
-export function createDefaultTerrainType() {
+export function createDefaultTerrainType(id = undefined) {
 	return {
-		id: randomID(),
+		id: id ?? randomID(),
 		name: "New Terrain Type",
 		usesHeight: true,
 		textRotation: false,
@@ -60,7 +61,7 @@ export function getTerrainTypes() {
 	const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
 
 	// Merge with the default terrain type so that any new properties get their default values.
-	return terrainTypes.map(t => ({ ...createDefaultTerrainType(), ...t }));
+	return terrainTypes.map(t => ({ ...createDefaultTerrainType(t.id), ...t }));
 }
 
 /**

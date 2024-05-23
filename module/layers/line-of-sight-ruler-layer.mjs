@@ -41,6 +41,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	async _tearDown() {
 		await super._tearDown();
 		this.#setupEventListeners("off");
+		this.#rulers.clear();
 	}
 
 	// ----------------------- //
@@ -74,21 +75,26 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		let { h: _, ...lastPosition } = p1;
 		for (let i = 0; i < intersectionRegions.length; i++) {
-			const r = intersectionRegions[i];
+			const region = intersectionRegions[i];
 
 			// If there is a gap between this region's start and the previous region's end (or the start of the ray if
 			// this is the first region), draw a default ruler line.
-			if (lastPosition.x !== r.start.x || lastPosition.y !== r.start.y) {
+			if (lastPosition.x !== region.start.x || lastPosition.y !== region.start.y) {
 				ruler.lineStyle({ color: 0xFFFFFF, width: 4 });
 				ruler.moveTo(lastPosition.x, lastPosition.y);
-				ruler.lineTo(r.start.x, r.start.y);
+				ruler.lineTo(region.start.x, region.start.y);
 			}
 
 			// Draw the intersection region (in the color of the intersected terrain)
-			const terrainColor = getTerrainColor(terrainTypes.get(r.terrainTypeId) ?? {});
+			const terrainColor = getTerrainColor(terrainTypes.get(region.terrainTypeId) ?? {});
 			ruler.lineStyle({ color: terrainColor, width: 4 });
-			drawDashedPath(ruler, [r.start, r.end], { dashSize: 4 });
-			lastPosition = r.end;
+			if (region.skimmed) {
+				ruler.moveTo(region.start.x, region.start.y);
+				ruler.lineTo(region.end.x, region.end.y);
+			} else {
+				drawDashedPath(ruler, [region.start, region.end], { dashSize: 4 });
+			}
+			lastPosition = region.end;
 		}
 
 		// If there is a gap between the last region's end point (or the start of the ray if there are no regions) and
@@ -139,9 +145,18 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		this._drawLineOfSightRay(this.#dragStartPoint, { x, y, h: this.#cursorHeight });
 	};
 
-	#onMouseLeftUp = () => {
+	#onMouseLeftUp = event => {
+		if (!this.#dragStartPoint) return;
+
+		// DEBUG
+		const [x, y] = this.#getDragPosition(event);
+		/** @type {import("../geometry/height-map.mjs").HeightMap} */
+		const hm = game.canvas.terrainHeightLayer._heightMap;
+		const intersectionRegions = hm.calculateLineOfSight(this.#dragStartPoint, { x, y, h: this.#cursorHeight }, { dbg: true });
+		console.log(intersectionRegions);
+
 		this.#dragStartPoint = undefined;
-		this._clearLineOfSightRay();
+		//this._clearLineOfSightRay();
 	};
 
 	/** @returns {[number, number]} */

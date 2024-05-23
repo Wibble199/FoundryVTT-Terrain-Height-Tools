@@ -52,3 +52,21 @@ export function chunk(items, chunkSize) {
 	}
 	return arrays;
 }
+
+/**
+ * Splits the array into two sub-arrays: one containing items that are truthy and items that are falsey according to the
+ * given predicate function.
+ * @template T
+ * @param {T[]} items
+ * @param {(item: T, index: number) => boolean} predicate
+ * @returns {{ t: T[]; f: T[] }}
+ * @example
+ * const { t: even, f: odd } = filterSplit([1, 2, 3, 4], n => n % 2 === 0);
+ */
+export function filterSplit(items, predicate) {
+	const truthy = [];
+	const falsey = [];
+	for (let i = 0; i < items.length; i++)
+		(predicate(items[i], i) ? truthy : falsey).push(items[i]);
+	return { t: truthy, f: falsey };
+}

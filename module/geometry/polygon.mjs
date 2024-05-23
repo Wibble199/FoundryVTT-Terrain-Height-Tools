@@ -102,10 +102,11 @@ export class Polygon {
 	 * Determines if a point is within the bounds of this polygon.
 	 * @param {number} x
 	 * @param {number} y
-	 * @param {boolean} [containsOnEdge = true] If true (default), then if the point falls exactly on an edge of this
-	 * polygon, then it will be treated as inside the polygon. If false, that point would be treated as being outside.
+	 * @param {Object} [options]
+	 * @param {boolean} [options.containsOnEdge=true] When true (default), a point that falls exactly on an edge of this
+	 * polygon will be treated as inside the polygon. If false, that point would be treated as being outside.
 	 */
-	containsPoint(x, y, containsOnEdge = true) {
+	containsPoint(x, y, { containsOnEdge = true } = {}) {
 		const { boundingBox } = this;
 
 		// If the point is not even in the bounding box, don't need to check the vertices

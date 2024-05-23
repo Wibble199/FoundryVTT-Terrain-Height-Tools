@@ -40,8 +40,14 @@ export class LineSegment {
 			: Infinity;
 	}
 
-	get length() {
-		return Math.sqrt(Math.pow(this.p2.x - this.p1.x, 2) + Math.pow(this.p2.y - this.p1.y, 2));
+	get angle() {
+		const dx = this.p2.x - this.p1.x;
+		const dy = this.p2.y - this.p1.y;
+		return Math.atan2(dy, dx);
+	}
+
+	get lengthSquared() {
+		return Math.pow(this.p2.x - this.p1.x, 2) + Math.pow(this.p2.y - this.p1.y, 2);
 	}
 
 	/** @param {LineSegment} other */
@@ -84,7 +90,7 @@ export class LineSegment {
 	 */
 	intersectsYAt(y) {
 		// If the given `y` is not between p1.y and p2.y, return undefined
-		if (y >= Math.max(this.p1.y, this.p2.y) || y <= Math.min(this.p1.y, this.p2.y))
+		if (y > Math.max(this.p1.y, this.p2.y) || y < Math.min(this.p1.y, this.p2.y))
 			return undefined;
 
 		const slope = this.slope;
@@ -118,6 +124,8 @@ export class LineSegment {
 	 * @returns {{ x: number; y: number; t: number; u: number } | undefined}
 	 */
 	intersectsAt(other) {
+		if (this.lengthSquared <= 0 || other.lengthSquared <= 0) return undefined;
+
 		const { x: x1, y: y1 } = this.p1;
 		const { x: x2, y: y2 } = this.p2;
 		const { x: x3, y: y3 } = other.p1;
@@ -126,7 +134,9 @@ export class LineSegment {
 		// If slopes are equal (or very close) then the lines are parallel, so we treat as no intersection
 		const slope1 = (y2 - y1) / (x2 - x1);
 		const slope2 = (y4 - y3) / (x4 - x3);
-		if (Math.abs(slope1 - slope2) < 0.005) return undefined; // 0.005 = 1px variance in y axis per 200px in x axis.
+		if (Math.abs(slope1 - slope2) < 0.005 || // 0.005 = 1px variance in y axis per 200px in x axis.
+			([Infinity, -Infinity].includes(slope1) && [Infinity, -Infinity].includes(slope2)))
+			return undefined;
 
 
 		// `t` is how far along `this` line the intersection point is at: 0 means that the intersection is at p1, 1 means
@@ -164,17 +174,19 @@ export class LineSegment {
 	 * @param {LineSegment} other
 	 */
 	angleBetween(other) {
-		const dx = this.p2.x - this.p1.x;
-		const dy = this.p2.y - this.p1.y;
-		const angle = Math.atan2(dy, dx);
-
-		const dxOther = other.p2.x - other.p1.x;
-		const dyOther = other.p2.y - other.p1.y;
-		const angleOther = Math.atan2(dyOther, dxOther);
+		const angle = this.angle;
+		const angleOther = other.angle;
 
 		let diff = angleOther - angle;
 		if (diff < 0) diff += 2 * Math.PI;
 		return Math.PI - diff;
+	}
+
+	/**
+	 * Creates the LineSegment that represents this inverse of this LineSegment.
+	 */
+	inverse() {
+		return new LineSegment(this.p2, this.p1);
 	}
 
 	toString() {
