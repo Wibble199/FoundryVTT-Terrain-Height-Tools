@@ -18,6 +18,26 @@ export function groupBy(items, func) {
 }
 
 /**
+ * Returns distinct items in the array according to the given function.
+ * The value returned from the function will be used in a Set, so ensure it implements value equality.
+ * @template T
+ * @param {T[]} items
+ * @param {(item: T) => any} func
+ * @returns {T[]}
+ */
+export function distinctBy(items, func) {
+	const seen = new Set();
+	const distinct = [];
+	for (const item of items) {
+		const key = func(item);
+		if (seen.has(key)) continue;
+		distinct.push(item);
+		seen.add(key);
+	}
+	return distinct;
+}
+
+/**
  * Divides the given array into arrays containing a maximum of `chunkSize` items. The last sub-array may have fewer than
  * `chunkSize` items.
  * @template T
