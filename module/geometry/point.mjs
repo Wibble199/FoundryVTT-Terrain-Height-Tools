@@ -24,11 +24,15 @@ export class Point {
 		return this.#y;
 	}
 
-	/** @param {Point} other */
-	equals(other) {
+	/**
+	 * @param {Point} other
+	 * @param {Object} [options={}]
+	 * @param {number} [options.precision=1] The amount of variance allowed between points in BOTH the X and Y coordinates
+	 * for them to be considered equal. */
+	equals(other, { precision = 1 } = {}) {
 		// Hex grids can can get a little weird about rounding, so to make it easier we assume points are equal if there
 		// is less than 1 pixel between them.
-		return Math.abs(this.x - other.x) < 1 && Math.abs(this.y - other.y) < 1;
+		return Math.abs(this.x - other.x) <= precision && Math.abs(this.y - other.y) <= precision;
 	}
 
 	/** Creates a clone of this point with the given X/Y offset. */

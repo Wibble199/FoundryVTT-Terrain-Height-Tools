@@ -1,12 +1,18 @@
 /**
- * Checks if the `check` number is between `a` and `b`.
- * `a` and `b` do not have to be sorted (`a` can be bigger or smaller than `b`).
+ * Determines if two numbers are equal within the given precision.
  * @param {number} a
  * @param {number} b
- * @param {number} check
- * @param {boolean} [inclusive=true] If `true`, allows equals.
+ * @param {number} precision
  */
-export function between(a, b, check, inclusive = true) {
-  if (inclusive && (a === check || b === check)) return true;
-  return Math.min(a, b) < check && Math.max(a, b) > check;
+export function roughlyEqual(a, b, precision) {
+  return Math.abs(a - b) <= precision;
+}
+
+/**
+ * Rounds the value to the nearest multiple of the given precision.
+ * @param {number} value
+ * @param {number} precision
+ */
+export function roundTo(value, precision) {
+  return Math.round(value / precision) * precision;
 }

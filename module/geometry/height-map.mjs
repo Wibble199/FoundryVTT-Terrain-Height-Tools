@@ -1,11 +1,11 @@
 import { flags, moduleName } from "../consts.mjs";
-import { distinctBy, filterSplit, groupBy } from '../utils/array-utils.mjs';
+import { groupBy } from '../utils/array-utils.mjs';
 import { debug, error, warn } from '../utils/log.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from './polygon.mjs';
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
-import { between } from '../utils/misc-utils.mjs';
+import { roughlyEqual, roundTo } from '../utils/misc-utils.mjs';
 
 /**
  * @typedef {object} HeightMapShape Represents a shape that can be drawn to the map. It is a closed polygon that may
@@ -17,10 +17,19 @@ import { between } from '../utils/misc-utils.mjs';
  */
 
 /**
+ * @typedef {object} LineOfSightIntersection
+ * @property {number} x
+ * @property {number} y
+ * @property {number} t
+ * @property {number} u
+ * @property {HeightMapShape} shape
+ * @property {LineSegment} edge
+ * @property {Polygon | undefined} hole
+ */
+
+/**
  * @typedef {object} LineOfSightIntersectionRegion An object detailing the region of an intersection of a line of sight
  * ray and a shape on the height map.
- * @property {string} terrainTypeId The ID of the terrain type that was intersected.
- * @property {number} height The height of the object that was intersected, or undefined if the type does not use height
  * @property {{ x: number; y: number; h: number; t: number; }} start The start position of the intersection region.
  * @property {{ x: number; y: number; h: number; t: number; }} end The end position of the intersection region.
  * @property {boolean} skimmed Did this intersection region "skim" the shape - i.e. just barely touched the edge of the
@@ -251,7 +260,7 @@ export class HeightMap {
 				const nextEdgeIndex = nextEdgeCandidates.length === 1
 					? nextEdgeCandidates[0].idx
 					: nextEdgeCandidates
-						.map(({ edge, idx }) => ({ angle: edge.angleBetween(edges[edges.length - 1]), idx }))
+						.map(({ edge, idx }) => ({ angle: edges[edges.length - 1].angleBetween(edge), idx }))
 						.sort((a, b) => a.angle - b.angle)[0].idx;
 
 				const [nextEdge] = allEdges.splice(nextEdgeIndex, 1);
@@ -327,12 +336,13 @@ export class HeightMap {
 	// ------------- //
 	/**
 	 * Calculates the line of sight between the two given pixel coordinate points and heights.
+	 * Returns an array of all shapes that were intersected, along with the regions where those shapes were intersected.
 	 * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
 	 * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
 	 * @param {Object} [options={}] Options that change how the calculation is done.
 	 * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
 	 * height value will be included in the return list. They are treated as having infinite height.
-	 * @returns {LineOfSightIntersectionRegion[]}
+	 * @returns {{ shape: HeightMapShape; regions: LineOfSightIntersectionRegion[] }[]}
 	 */
 	calculateLineOfSight(p1, p2, { includeNoHeightTerrain = false, dbg = false } = {}) {
 		const [{ x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }] = [p1, p2];
@@ -354,7 +364,7 @@ export class HeightMap {
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
 		const inverseTestRay = testRay.inverse();
 
-		/** @type {(ReturnType<LineSegment["intersectsAt"]> & { shape: HeightMapShape; edge: LineSegment; usesHeight: boolean; isEntry: boolean; skimmed: boolean; hole: Polygon | undefined; })[]} */
+		/** @type {LineOfSightIntersection[]} */
 		const intersections = [];
 
 		for (const shape of this.#shapes) {
@@ -387,21 +397,7 @@ export class HeightMap {
 				const losHeightAtIntersection = lerpLosHeight(intersection.t)
 				if (usesHeight && losHeightAtIntersection > shape.height) continue;
 
-				// If the interpolated height of the LOS ray is equal to the height of the edge, then we 'skimmed' the
-				// edge.
-				const skimmed = Math.abs(losHeightAtIntersection - shape.height) < Number.EPSILON;
-
-				// To work out whether the collision is due to entering or leaving the shape, step forward a miniscule
-				// amount on the `t` value, work out the X,Y of that point, then test if that point is in the shape.
-				const testPoint = testRay.lerp(intersection.t + 1e-10);
-
-				// If hole undefined, the edge is part of the outer polygon so check if the polygon contains that point.
-				// If hole is not undefined, edge is part of a hole so check if the hole DOES NOT contain the point.
-				const isEntry = hole === undefined
-					? shape.polygon.containsPoint(...testPoint, { containsOnEdge: true })
-					: !hole.containsPoint(...testPoint, { containsOnEdge: false });
-
-				intersections.push({ ...intersection, shape, edge, usesHeight, isEntry, skimmed, hole });
+				intersections.push({ ...intersection, shape, edge, hole });
 			}
 		}
 
@@ -414,7 +410,6 @@ export class HeightMap {
 		// Note that we only need to do this is if there is a height difference in the LOS ray.
 		if (h1 !== h2) {
 			const intersectedShapes = new Set(intersections.filter(i => i.usesHeight).map(i => i.shape));
-			const isEntry = h1 > h2;
 			for (const shape of intersectedShapes) {
 				const t = inverseLerpLosHeight(shape.height);
 				if (t < 0 || t > 1) continue;
@@ -422,159 +417,165 @@ export class HeightMap {
 				const testLinePointAtHeight = testRay.lerp(t);
 
 				if (shape.polygon.containsPoint(...testLinePointAtHeight) && !shape.holes.some(h => h.containsPoint(...testLinePointAtHeight, { containsOnEdge: false })))
-					intersections.push({ t, shape, edge: undefined, usesHeight: true, isEntry });
+					intersections.push({ t, shape, edge: undefined, usesHeight: true });
 			}
 		}
 
-		if (dbg) console.log("all intersections", intersections);
+		if (dbg) {
+			console.table(intersections);
+			const g = canvas.terrainHeightLayer._graphics.graphics;
+			g.lineStyle({ color: 0x00FF00, width: 2 });
+			for (const i of intersections) {
+				g.moveTo(i.edge.p1.x, i.edge.p1.y);
+				g.lineTo(i.edge.p2.x, i.edge.p2.y);
+			}
+		}
 
 		// Group intersections by the intersected shape. Then, iterate over each shape's edge intersections and find the
 		// start/end region. Finally, sort again by the `t` (then by length, so 0-length "skims" show in the correct place).
 		const intersectionsByShape = groupBy(intersections, i => i.shape);
-		return [...intersectionsByShape.values()]
-			.flatMap(intersectionsOfShape => {
-				const { terrainTypeId, height } = intersectionsOfShape[0].shape;
+		return [...intersectionsByShape.entries()]
+			.map(([shape, intersectionsOfShape]) => {
+				const { terrainTypeId, height } = shape;
+				const { usesHeight } = terrainTypes.get(terrainTypeId);
 
 				/** @type {LineOfSightIntersectionRegion[]} */
 				const regions = [];
 
-				const { t: vertexIntersections, f: edgeIntersections } = filterSplit(
-					intersectionsOfShape,
-					i => Math.abs(i.u) < Number.EPSILON || Math.abs(i.u - 1) < Number.EPSILON);
+				// There may be multiple intersections at an equal point along the test ray (t) - for example when
+				// touching a vertex of a shape - it'll intersect both edges of the vertex. These are a special case and
+				// need to be handled differently, so group everything by t.
+				const intersectionsOfShapeByT = [...groupBy(intersectionsOfShape, i => roundTo(i.t, 0.005)).entries()]
+					.sort(([a], [b]) => a - b) // sort by t
+					.map(([, intersections]) => intersections);
 
-				// Intersections exactly on a vertex can be a bit awkward. There will be two intersections generated - one for
-				// each edge at the vertex.
-				// For any intersection exactly on a vertex (where u = 0 or 1), find other intersections with the same shape at
-				// same point (t). Most vertex intersections will have two edge intersections, however in very rare cases on a
-				// square grid it would be possible to have four.
-				// We need to determine if a vertex intersection is a 'skim' (i.e. it touches the corner but does not enter the
-				// shape) or whether it is an entry/exit.
-				for (const vertexIntersectionGroup of [...groupBy(vertexIntersections, i => i.t).values()]) {
-					switch (vertexIntersectionGroup.length) {
-						// If there is only one intersection in an edge intersection group, then the test ray was parallel with one
-						// of the edges (parallel line segments do not intersect). In this case, we can treat this intersection as
-						// an edge intersection instead, so add it to that array for processing.
-						case 1:
-							edgeIntersections.push(vertexIntersectionGroup[0]);
+				// Determine if the start point of the test ray is inside or outside the shape.
+				let isInside = (!usesHeight || p1.h <= height)
+					&& shape.polygon.containsPoint(p1.x, p1.y, { containsOnEdge: true })
+					&& !shape.holes.some(h => h.containsPoint(p1.x, p1.y, { containsOnEdge: false }));
+
+				// TODO: how to determine if we've started off skimming the shape? Maybe check that it lies exactly on
+				// an edge and if that edge has the same angle as the ray?
+				let isSkimming = false;
+
+				let lastIntersectionPosition = { x: p1.x, y: p1.y, h: p1.h, t: 0 };
+
+				/** @param {{ x: number; y: number; t: number; allowZeroLength: boolean }} param0 */
+				const pushRegion = ({ x, y, t, allowZeroLength = false }) => {
+					if (!allowZeroLength && t === lastIntersectionPosition.t) return;
+					const position = { x, y, t, h: lerpLosHeight(t) };
+					if (isInside || isSkimming) {
+						regions.push({
+							start: lastIntersectionPosition,
+							end: position,
+							skimmed: isSkimming
+						});
+					}
+					lastIntersectionPosition = position;
+				};
+
+				/** @param {LineOfSightIntersection} param0 */
+				const handleEdgeIntersection = ({ edge, x, y, t, u }) => {
+					pushRegion({ x, y, t });
+
+					switch (roundTo(u, 0.005)) {
+						// If we've intersected at the start of the shape's edge, check the angle of the previous edge.
+						// This edge will be parallel to the test ray (else it would have also caused an intersection).
+						// If the angle is the same as the test ray (i.e. the edge is going the same direction), then we
+						// have entered a skimming section.
+						case 0:
+							const previousEdge = shape.polygon.previousEdge(edge)
+								?? shape.holes.map(h => h.previousEdge(edge)).find(Boolean);
+
+							isSkimming = roughlyEqual(edge.angle, testRay.angle, 0.05) || roughlyEqual(previousEdge.angle, inverseTestRay.angle, 0.05);
+
+							// Get the angle between previous and current edge, and between the previous edge and the test ray. If the
+							// ray angle is between that angle, then it has entered. This is similar to the logic we use for vertex
+							// intersections.
+							isInside = !isSkimming && previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 							break;
 
-						// If there are two intersections, check whether the test ray's angle or the inverse of the test ray's angle
-						// is between the angles of the two edges. If so, then treat it as one edge intersection, and handle it like
-						// we do those. If not, then add it as a zero-length 'skim' intersection region.
-						case 2:
-							const { shape, x, y, t, hole } = vertexIntersectionGroup[0];
+						// If we've intersected at the end of the shape's edge, check the angle for the next edge, similar to how we
+						// do for when u ~= 0.
+						case 1:
+							const nextEdge = shape.polygon.nextEdge(edge)
+								?? shape.holes.map(h => h.nextEdge(edge)).find(Boolean);
 
+							isSkimming = roughlyEqual(nextEdge.angle, testRay.angle, 0.05) || roughlyEqual(edge.angle, inverseTestRay.angle, 0.05);
+							isInside = !isSkimming && edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
+							break;
+
+						// For any other values of u, this was a clean intersection, so just toggle isInside
+						default:
+							isInside = !isInside;
+							break;
+					}
+				};
+
+				for (const intersectionsOfShapeOfT of intersectionsOfShapeByT) {
+					switch (intersectionsOfShapeOfT.length) {
+						// In the case of a single intersection, then we have either crossed an edge cleanly, or we have
+						// hit a vertex where one of the edges is parallel to the test ray.
+						case 1: {
+							handleEdgeIntersection(intersectionsOfShapeOfT[0]);
+							break;
+						}
+
+						// In the case of two intersections, we have hit a vertex where neither edge are parallel to the
+						// test ray.
+						case 2: {
 							// In most cases, edge2 will start where edge1 ends. So when working out the angle between
 							// it works fine. However, in cases where the first and last edges defined on a shape are
 							// intersected, edge1 will actually be the one that begins where edge2 ends. In this case
 							// we need to swap them round for the calculations to work properly.
-							let [{ edge: edge1 }, { edge: edge2 }] = vertexIntersectionGroup;
+							let [{ edge: edge1 }, { edge: edge2 }] = intersectionsOfShapeOfT;
 							if (edge1.p1.equals(edge2.p2)) [edge1, edge2] = [edge2, edge1];
 
+							// To determine if we we can treat this is an edge intersection, either: the ray's angle must be between
+							// the angle between edge1 and edge2 and the inverse ray's angle must not, or vice versa. If the ray and
+							// the inverse angles are both outside or both inside, then we have a 'skimming' vertex intersection.
 							const angleInside = edge1.angleBetween(edge2);
-							const testRayAngle = edge1.angleBetween(testRay);
-							const inverseTestRayAngle = edge1.angleBetween(inverseTestRay);
+							const rayInside = edge1.angleBetween(testRay) < angleInside;
+							const inverseRayInside = edge1.angleBetween(inverseTestRay) < angleInside;
+							const treatAsEdgeIntersection = rayInside !== inverseRayInside;
 
-							let isEntry = between(0, angleInside, testRayAngle);
-							let isExit = between(0, angleInside, inverseTestRayAngle);
-
-							// If the ray is entering a hole, then it's actually leaving the shape
-							if (!!hole) [isEntry, isExit] = [isExit, isEntry];
-
-							if (dbg) console.log("e", { edge1, edge2, x, y, t, hole });
-
-							if (isEntry || isExit) {
-								vertexIntersectionGroup[0].isEntry = isEntry;
-								edgeIntersections.push(vertexIntersectionGroup[0]);
+							// If so, then we can treat it as if it was an edge intersection.
+							// If not, then we skimmed the shape at a corner, so add a zero-length skim region.
+							if (treatAsEdgeIntersection) {
+								handleEdgeIntersection(intersectionsOfShapeOfT[0]);
 							} else {
-								const h = lerpLosHeight(t);
-								regions.push({
-									start: { x, y, h, t },
-									end: { x, y, h, t },
-									height: h,
-									skimmed: true,
-									terrainTypeId: shape.terrainTypeId
-								});
+								pushRegion({ ...intersectionsOfShapeOfT[0], allowZeroLength: true })
 							}
+
 							break;
-
-						// In the rare square-grid 4-intersection point, erm.. dunno what to do for now. Can maybe figure out which
-						// edges are relevant as there should be two edges which are directly followed in the edge array by another
-						// one that recorded an intersection??
-						case 4:
-							// TODO:
-							warn('Edge case occured when performing line of sight calculation: the line of sight ray met a shape at a 4-way vertex. This rare case is not currently supported and may give strange line of sight calculation results.');
-							break;
-					}
-				}
-
-				// For non-vertex intersections, we can iterate through the intersections sorted in `t` order and to find
-				// the entry and exit points of each intersection region.
-				/** @type {LineOfSightIntersectionRegion} */
-				let nextRegion = { terrainTypeId, height };
-
-				let bothSkimmed = true;
-
-				// Sort the intersections based on `t`, resolving ties with the entry going first
-				edgeIntersections.sort((a, b) => {
-					if (a.t !== b.t) return a.t - b.t;
-					if (a.isEntry !== b.isEntry) return a.isEntry ? 1 : -1;
-					return 0;
-				});
-
-				if (dbg) console.log("edgeIntersections", edgeIntersections);
-
-				for (const edgeIntersection of edgeIntersections) {
-					bothSkimmed = bothSkimmed && edgeIntersection.skimmed;
-
-					const { t } = edgeIntersection;
-					const [x, y] = testRay.lerp(t);
-					const h = lerpLosHeight(t);
-
-					if (edgeIntersection.isEntry) {
-						// If this is an "entry" intersection, just record the start position
-						nextRegion.start = { x, y, t, h };
-					} else {
-						// If this is an "exit" intersection, add this region to the list. If there was no "entry" point
-						// (i.e. the ray started in this shape), then set it to the t=0 position.
-						nextRegion.end = { x, y, t, h };
-						nextRegion.start ??= { ...p1, t: 0 };
-
-						// Edge case, if the start and end are both t=0 or both t=1, then ignore this region as it means
-						//that the ray just touched but stopped. We DO however want to add it if start.t=end.t, because
-						// this was skimming a vertex
-						const isZeroLengthAtStartOrEnd =
-							(nextRegion.start.t === 0 && nextRegion.end.t === 0) ||
-							(nextRegion.start.t === 1 && nextRegion.end.t === 1);
-
-						if (!isZeroLengthAtStartOrEnd) {
-							nextRegion.skimmed = bothSkimmed || nextRegion.start.t === nextRegion.end.t;
-							regions.push(nextRegion);
 						}
 
-						// Reset for next region
-						nextRegion = { terrainTypeId, height };
-						bothSkimmed = true;
+						// In any other case we don't know what to do. These should be very rare so for now I think it's
+						// fine to leave as just a warning and ignore it.
+						// This can happen for example on a square grid when the shape has two vertices touching one
+						// another and the line crosses at this vertex.
+						// Shouldn't be possible on a hex grid?
+						default:
+							warn(`Edge case occured when performing line of sight calculation: the line of sight ray met a shape and caused ${intersectionsOfShapeOfT.length} intersections at the same point. This rare case is not currently supported and will likely give incorrect line of sight calculation results.`);
+							break;
 					}
 				}
 
-				// If when we exit the loop, a start point is present but there was no end point, then the ray ended
-				// inside the shape, so add a t=1 end position.
-				// Edge case: Unless the start point was t=1, in which case it touched but didn't go into it, ignore.
-				if (nextRegion.start && nextRegion.start.t < 1) {
-					nextRegion.end = { ...p2, t: 1 };
-					nextRegion.skimmed = intersectionsOfShape[intersectionsOfShape.length - 1].skimmed;
-					regions.push(nextRegion);
-				}
+				// In case the last intersection was not at the end, ensure we close the region
+				pushRegion({ x: p2.x, y: p2.y, t: 1 });
 
-				return regions;
-			})
-			.sort((a, b) => {
-				if (a.start.t !== b.start.t) return a.start.t - b.start.t;
-				const aLen = a.end.t - a.start.t, bLen = b.end.t - b.start.t;
-				if (aLen !== bLen) return aLen - bLen;
-				return 0;
+				return { shape, regions };
 			});
+	}
+
+	/**
+	 * Flattens an array of line of sight intersection regions into a single collection of regions.
+	 * @param {{ shape: HeightMapShape; regions: LineOfSightIntersectionRegion[] }[]} regions
+	 */
+	static flattenLineOfSightIntersectionRegions(regions) {
+		// TODO: if a region is skimming multiple shapes, then the line of sight ray is going along the edge between
+		// two shapes. In this case, it will only be skimming if the line of sight ray is above one of the shapes.
+		// If it is below the height of BOTH shapes, then this is actually effectively a solid object.
 	}
 
 

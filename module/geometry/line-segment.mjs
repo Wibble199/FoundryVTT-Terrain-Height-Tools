@@ -5,6 +5,12 @@ import { Point } from "./point.mjs";
  * LineSegments are considered equal regardless of 'direction'. I.E. p1 vs p2 order does not matter.
  */
 export class LineSegment {
+	/** @type {number | undefined} */
+	#length;
+
+	/** @type {number | undefined} */
+	#angle;
+
 	/**
 	 * @param {Point} p1
 	 * @param {Point} p2
@@ -29,31 +35,64 @@ export class LineSegment {
 	get clockwise() {
 		// If the p1.x < p2.x, then clockwise
 		// If p1.x ~= p2.x, check if p1.y > p2.y, then clockwise
-		if (Math.abs(this.p1.x - this.p2.x) < 1)
+		if (Math.abs(this.dx) < 1)
 			return this.p1.y > this.p2.y;
 		return this.p1.x < this.p2.x;
 	}
 
+	get dx() {
+		return this.p2.x - this.p1.x;
+	}
+
+	get dy() {
+		return this.p2.y - this.p1.y;
+	}
+
 	get slope() {
 		return this.p1.x !== this.p2.x
-			? (this.p2.y - this.p1.y) / (this.p2.x - this.p1.x)
+			? this.dy / this.dx
 			: Infinity;
 	}
 
 	get angle() {
-		const dx = this.p2.x - this.p1.x;
-		const dy = this.p2.y - this.p1.y;
-		return Math.atan2(dy, dx);
+		// Lazily evaluated + cached angle
+		return this.#angle ??= Math.atan2(this.dy, this.dx);
 	}
 
 	get lengthSquared() {
-		return Math.pow(this.p2.x - this.p1.x, 2) + Math.pow(this.p2.y - this.p1.y, 2);
+		return Math.pow(this.dx, 2) + Math.pow(this.dy, 2);
+	}
+
+	get length() {
+		// Lazily evaluated + cached length
+		return this.#length ??= Math.hypot(this.dx, this.dy);
 	}
 
 	/** @param {LineSegment} other */
 	equals(other) {
 		return (this.p1.equals(other.p1) && this.p2.equals(other.p2))
 			|| (this.p1.equals(other.p2) && this.p2.equals(other.p1));
+	}
+
+	/**
+	 * Determines if this LineSegment is parallel to another LineSegment, ignoring the direction of the lines.
+	 * @param {LineSegment} other
+	 * @param {Object} [options]
+	 * @param {number} [options.tolerance] The tolerance in radians for lines that aren't quite perfectly parallel.
+	 * The default of 0.05 radians is almost equivalent to 3 degrees.
+	 */
+	isParallelTo(other, { tolerance = 0.05 } = {}) {
+		let diff = Math.abs(this.angle - other.angle);
+
+		// Adjust to handle cases where the angles are near different extremes
+		if (diff > Math.PI)
+			diff = Math.PI * 2 - diff;
+
+		// Adjust to handle cases where the angles are in opposite directions
+		if (diff > Math.PI / 2)
+			diff = Math.PI - diff;
+
+		return diff <= tolerance;
 	}
 
 	/**
@@ -121,9 +160,12 @@ export class LineSegment {
 	 * Returns undefined if the line segments do not intersect.
 	 * Parallel lines are never considered to intersect.
 	 * @param {LineSegment} other
+	 * @param {Object} [options]
+	 * @param {number} [options.tolerance] How far from the ends of a line a collision can be counted. E.G. with a
+	 * tolerance of 5, the intersection point can be up to 5px away from the ends of either line.
 	 * @returns {{ x: number; y: number; t: number; u: number } | undefined}
 	 */
-	intersectsAt(other) {
+	intersectsAt(other, { tolerance = 1 } = {}) {
 		if (this.lengthSquared <= 0 || other.lengthSquared <= 0) return undefined;
 
 		const { x: x1, y: y1 } = this.p1;
@@ -132,12 +174,7 @@ export class LineSegment {
 		const { x: x4, y: y4 } = other.p2;
 
 		// If slopes are equal (or very close) then the lines are parallel, so we treat as no intersection
-		const slope1 = (y2 - y1) / (x2 - x1);
-		const slope2 = (y4 - y3) / (x4 - x3);
-		if (Math.abs(slope1 - slope2) < 0.005 || // 0.005 = 1px variance in y axis per 200px in x axis.
-			([Infinity, -Infinity].includes(slope1) && [Infinity, -Infinity].includes(slope2)))
-			return undefined;
-
+		if (this.isParallelTo(other)) return undefined;
 
 		// `t` is how far along `this` line the intersection point is at: 0 means that the intersection is at p1, 1 means
 		// that the intersection is at p2, a value between 0-1 means it lies on the line, <0 or >1 means it lies out of the
@@ -147,12 +184,15 @@ export class LineSegment {
 		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 
 		// If the intersection point lies outside of either line, then there is no intersection
-		if (t < 0 || t > 1 || u < 0 || u > 1) return undefined;
+		const toleranceT = tolerance / this.length;
+		const toleranceU = tolerance / other.length;
+		if (t < -toleranceT || t > 1 + toleranceT || u < -toleranceU || u > 1 + toleranceU) return undefined;
 
 		return {
 			x: x1 + t * (x2 - x1),
 			y: y1 + t * (y2 - y1),
-			t, u
+			t: Math.max(Math.min(t, 1), 0),
+			u: Math.max(Math.min(u, 1), 0)
 		};
 	}
 
@@ -163,8 +203,8 @@ export class LineSegment {
 	 */
 	lerp(t) {
 		return [
-			(this.p2.x - this.p1.x) * t + this.p1.x,
-			(this.p2.y - this.p1.y) * t + this.p1.y
+			this.dx * t + this.p1.x,
+			this.dy * t + this.p1.y
 		];
 	}
 
@@ -172,14 +212,16 @@ export class LineSegment {
 	 * Works out the interior angle between this line segment and another line segment.
 	 * This makes the assumption `other` starts where `this` ends and the polygon is defined clockwise.
 	 * @param {LineSegment} other
+	 * @returns A value in range [0, 2PI)
 	 */
 	angleBetween(other) {
 		const angle = this.angle;
 		const angleOther = other.angle;
 
-		let diff = angleOther - angle;
-		if (diff < 0) diff += 2 * Math.PI;
-		return Math.PI - diff;
+		let diff = angle - angleOther + Math.PI;
+		while (diff < 0) diff += 2 * Math.PI;
+		while (diff >= Math.PI * 2) diff -= 2 * Math.PI;
+		return diff;
 	}
 
 	/**

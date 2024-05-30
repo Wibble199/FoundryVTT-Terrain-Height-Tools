@@ -70,39 +70,47 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		const hm = game.canvas.terrainHeightLayer._heightMap;
 		const intersectionRegions = hm.calculateLineOfSight(p1, p2);
 
+
+		// -----------------------------------------------------------------------
+		// TODO: this will need re-writing because of the datastructure change
+		// -----------------------------------------------------------------------
+
 		// Render line of sight
 		const terrainTypes = getTerrainTypeMap();
 
-		let { h: _, ...lastPosition } = p1;
-		for (let i = 0; i < intersectionRegions.length; i++) {
-			const region = intersectionRegions[i];
+		for (const shapeRegions of intersectionRegions) {
+			let { h: _, ...lastPosition } = p1;
+			const { shape, regions } = shapeRegions;
+			for (let i = 0; i < regions.length; i++) {
+				const region = regions[i];
 
-			// If there is a gap between this region's start and the previous region's end (or the start of the ray if
-			// this is the first region), draw a default ruler line.
-			if (lastPosition.x !== region.start.x || lastPosition.y !== region.start.y) {
+				// If there is a gap between this region's start and the previous region's end (or the start of the ray if
+				// this is the first region), draw a default ruler line.
+				if (lastPosition.x !== region.start.x || lastPosition.y !== region.start.y) {
+					ruler.lineStyle({ color: 0xFFFFFF, width: 4 });
+					ruler.moveTo(lastPosition.x, lastPosition.y);
+					ruler.lineTo(region.start.x, region.start.y);
+				}
+
+				// Draw the intersection region (in the color of the intersected terrain)
+				const terrainColor = getTerrainColor(terrainTypes.get(shape.terrainTypeId) ?? {});
+				ruler.lineStyle({ color: terrainColor, width: 4 });
+				if (region.skimmed) {
+					ruler.moveTo(region.start.x, region.start.y);
+					ruler.lineTo(region.end.x, region.end.y);
+				} else {
+					drawDashedPath(ruler, [region.start, region.end], { dashSize: 4 });
+				}
+				lastPosition = region.end;
+			}
+
+			// If there is a gap between the last region's end point (or the start of the ray if there are no regions) and
+			// the end point of the ray, draw a default line between these two points
+			if (lastPosition.x !== p2.x || lastPosition.y !== p2.y) {
 				ruler.lineStyle({ color: 0xFFFFFF, width: 4 });
 				ruler.moveTo(lastPosition.x, lastPosition.y);
-				ruler.lineTo(region.start.x, region.start.y);
+				ruler.lineTo(p2.x, p2.y);
 			}
-
-			// Draw the intersection region (in the color of the intersected terrain)
-			const terrainColor = getTerrainColor(terrainTypes.get(region.terrainTypeId) ?? {});
-			ruler.lineStyle({ color: terrainColor, width: 4 });
-			if (region.skimmed) {
-				ruler.moveTo(region.start.x, region.start.y);
-				ruler.lineTo(region.end.x, region.end.y);
-			} else {
-				drawDashedPath(ruler, [region.start, region.end], { dashSize: 4 });
-			}
-			lastPosition = region.end;
-		}
-
-		// If there is a gap between the last region's end point (or the start of the ray if there are no regions) and
-		// the end point of the ray, draw a default line between these two points
-		if (lastPosition.x !== p2.x || lastPosition.y !== p2.y) {
-			ruler.lineStyle({ color: 0xFFFFFF, width: 4 });
-			ruler.moveTo(lastPosition.x, lastPosition.y);
-			ruler.lineTo(p2.x, p2.y);
 		}
 	}
 

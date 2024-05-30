@@ -147,4 +147,32 @@ export class Polygon {
 		if (vertex.x > this.boundingBox.x2) this.boundingBox.x2 = vertex.x;
 		if (vertex.y > this.boundingBox.y2) this.boundingBox.y2 = vertex.y;
 	}
+
+	/**
+	 * Finds the edge that comes before the given edge. If the given edge is the first edge, will return the last edge.
+	 * If the given edge does not exist in this polygon, returns `undefined`.
+	 * @param {LineSegment} edge
+	 */
+	previousEdge(edge) {
+		const idx = this.#edges.indexOf(edge);
+		switch (idx) {
+			case -1: return undefined;
+			case 0: return this.#edges[this.#edges.length	- 1];
+			default: return this.#edges[idx - 1];
+		}
+	}
+
+	/**
+	 * Finds the edge that comes after the given edge. If the given edge is the last edge, will return the first edge.
+	 * If the given edge does not exist in this polygon, returns `undefined`.
+	 * @param {LineSegment} edge
+	 */
+	nextEdge(edge) {
+		const idx = this.#edges.indexOf(edge);
+		switch (idx) {
+			case -1: return undefined;
+			case this.#edges.length - 1: return this.#edges[0];
+			default: return this.#edges[idx + 1];
+		}
+	}
 }
