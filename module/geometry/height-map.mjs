@@ -1,4 +1,4 @@
-import { flags, moduleName } from "../consts.mjs";
+import { anglePrecision, edgeIntersectionTolerance, flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { debug, error, warn } from '../utils/log.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
@@ -466,37 +466,37 @@ export class HeightMap {
 		const handleEdgeIntersection = ({ edge, x, y, t, u }) => {
 			pushRegion({ x, y, t });
 
-			switch (roundTo(u, 0.005)) {
+			// Since u is relative to the cell's edge, the tolerance is approximately 0.04 x grid size (4px on 100px grid)
+
+			if (u < edgeIntersectionTolerance) {
 				// If we've intersected at the start of the shape's edge, check the angle of the previous edge.
 				// This edge will be parallel to the test ray (else it would have also caused an intersection).
 				// If the angle is the same as the test ray (i.e. the edge is going the same direction), then we
 				// have entered a skimming section.
-				case 0:
-					const previousEdge = shape.polygon.previousEdge(edge)
-						?? shape.holes.map(h => h.previousEdge(edge)).find(Boolean);
+				const previousEdge = shape.polygon.previousEdge(edge)
+					?? shape.holes.map(h => h.previousEdge(edge)).find(Boolean);
 
-					isSkimming = roughlyEqual(edge.angle, testRay.angle, 0.05) || roughlyEqual(previousEdge.angle, inverseTestRay.angle, 0.05);
+				isSkimming = roughlyEqual(edge.angle, testRay.angle, anglePrecision)
+					|| roughlyEqual(previousEdge.angle, inverseTestRay.angle, anglePrecision);
 
-					// Get the angle between previous and current edge, and between the previous edge and the test ray. If the
-					// ray angle is between that angle, then it has entered. This is similar to the logic we use for vertex
-					// intersections.
-					isInside = !isSkimming && previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
-					break;
+				// Get the angle between previous and current edge, and between the previous edge and the test ray. If the
+				// ray angle is between that angle, then it has entered. This is similar to the logic we use for vertex
+				// intersections.
+				isInside = !isSkimming && previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 
+			} else if (u > (1 - edgeIntersectionTolerance)) {
 				// If we've intersected at the end of the shape's edge, check the angle for the next edge, similar to how we
 				// do for when u ~= 0.
-				case 1:
-					const nextEdge = shape.polygon.nextEdge(edge)
-						?? shape.holes.map(h => h.nextEdge(edge)).find(Boolean);
+				const nextEdge = shape.polygon.nextEdge(edge)
+					?? shape.holes.map(h => h.nextEdge(edge)).find(Boolean);
 
-					isSkimming = roughlyEqual(nextEdge.angle, testRay.angle, 0.05) || roughlyEqual(edge.angle, inverseTestRay.angle, 0.05);
-					isInside = !isSkimming && edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
-					break;
+				isSkimming = roughlyEqual(nextEdge.angle, testRay.angle, anglePrecision)
+					|| roughlyEqual(edge.angle, inverseTestRay.angle, anglePrecision);
+				isInside = !isSkimming && edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 
+			} else {
 				// For any other values of u, this was a clean intersection, so just toggle isInside
-				default:
-					isInside = !isInside;
-					break;
+				isInside = !isInside;
 			}
 		};
 

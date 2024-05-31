@@ -1,5 +1,12 @@
 export const moduleName = "terrain-height-tools";
 
+/** The allowable tolerance of angles of lines to treat them as parallel. */
+export const anglePrecision = 0.06;
+
+/** The allowable tolerance of edges for determining if an intersection was an edge or vertex intersection.
+ * This is measured as a proportion of a grid cells's edge, which is approximately equal to grid size. */
+export const edgeIntersectionTolerance = 0.04;
+
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
 	paint: "paint",

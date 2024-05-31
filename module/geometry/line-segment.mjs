@@ -1,3 +1,4 @@
+import { anglePrecision } from '../consts.mjs';
 import { Point } from "./point.mjs";
 
 /**
@@ -81,7 +82,7 @@ export class LineSegment {
 	 * @param {number} [options.tolerance] The tolerance in radians for lines that aren't quite perfectly parallel.
 	 * The default of 0.05 radians is almost equivalent to 3 degrees.
 	 */
-	isParallelTo(other, { tolerance = 0.05 } = {}) {
+	isParallelTo(other, { tolerance = anglePrecision } = {}) {
 		let diff = Math.abs(this.angle - other.angle);
 
 		// Adjust to handle cases where the angles are near different extremes
