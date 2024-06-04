@@ -24,6 +24,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 	constructor() {
 		super();
+		this.eventMode = "static";
+		this.interactive = true;
 
 		/** @type {PIXI.Graphics} */
 		this.graphics = new PIXI.Graphics();
@@ -323,7 +325,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// Remove previous mask
 		this.mask = null;
 		if (this.cursorRadiusMask) this.removeChild(this.cursorRadiusMask);
-		game.canvas.app.renderer.plugins.interaction.off("mousemove", this.#updateCursorMaskPosition);
+		this.off("globalmousemove", this.#updateCursorMaskPosition);
 
 		// Stop here if not applying a new mask
 		if (radius <= 0) return;
@@ -342,7 +344,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		context.fillStyle = gradient;
 		context.fillRect(0, 0, radius * 2, radius * 2);
 
-		const texture = new PIXI.Texture.from(canvas);
+		const texture = PIXI.Texture.from(canvas);
 
 		// Create sprite
 		this.cursorRadiusMask = new PIXI.Sprite(texture);
@@ -350,12 +352,12 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		this.addChild(this.cursorRadiusMask);
 
 		// Get current mouse coordinates
-		const pos = this.toLocal(game.canvas.app.renderer.plugins.interaction.mouse.global);
+		const pos = game.canvas.mousePosition;
 		this.cursorRadiusMask.position.set(pos.x, pos.y);
 
 		// Set mask
 		this.mask = this.cursorRadiusMask;
-		game.canvas.app.renderer.plugins.interaction.on("mousemove", this.#updateCursorMaskPosition);
+		this.on("globalmousemove", this.#updateCursorMaskPosition);
 	}
 
 	#updateCursorMaskPosition = event => {
@@ -367,7 +369,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// When using the "highlight objects" keybind, if the user has the radius option enabled and we're on the token
 		// layer, show the entire height map
 		if (game.canvas.activeLayer.name === "TokenLayer" && this.terrainHeightLayerVisibilityRadius > 0) {
-			this._setMaskRadiusActive(active);
+			this._setMaskRadiusActive(!active);
 		}
 	}
 }

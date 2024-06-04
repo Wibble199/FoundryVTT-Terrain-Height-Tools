@@ -1,4 +1,4 @@
-# Terrain Height Tools (Foundry v10)
+# Terrain Height Tools (Foundry v11)
 
 Tools for painting grid cells with terrain heights and calculating line of sight with respect to these heights.
 
@@ -10,7 +10,10 @@ Designed for LANCER, _Terrain Height Tools_ takes inspiration from the way paint
 
 Paste this URL into the 'Manifest URL' field of the 'Install Module' dialog in the Foundry configuration: `https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/latest/download/module.json`, then enable the module in your world.
 
-Note that this module currently only supports Foundry v10.x.
+> [!IMPORTANT]
+> Note that the latest version this module currently only supports Foundry v11.x.
+>
+> The latest version that supports Foundry v10.x is [v0.1.4](https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/tag/v0.1.4)
 
 ## Usage
 
@@ -22,7 +25,7 @@ See [below](#configuring-terrain-types) for more details about configuring terra
 
 Once at least one type of terrain has been configured, you can then use the tools in the '_Terrain Height Tools_' menu to paint terrain onto the map. To do this, you need to click the type of terrain you want to paint in the '_Terrain Palette_' window and choose a height for the terrain. Adjacent grid cells will merge together if both their terrain types and their heights are the same.
 
-## Configuring Terrain Types
+### Configuring Terrain Types
 
 ![Terrain Types configuration window](docs/terrain-types-config.webp)
 
@@ -43,7 +46,7 @@ There are some other useful buttons:
 - '_Import Terrain Types_' (button 9) allows you to paste JSON in to import some terrain types that have been exported previously.
 - '_Export Terrain Types_' (button 10) will give you a JSON that you can share with other people, or copy to other worlds and will copy all your terrain types.
 
-## Module Settings
+### Module Settings
 
 Here is a quick reference of the settings module presents in the 'Configure Settings' button of Foundry:
 
