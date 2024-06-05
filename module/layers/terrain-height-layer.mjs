@@ -112,9 +112,9 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// -------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
-		this[action]("mousedown", this.#onMouseLeftDown);
-		this[action]("mousemove", this.#onMouseMove);
-		this[action]("mouseup", this.#onMouseLeftUp);
+		this[action]("pointerdown", this.#onMouseLeftDown);
+		this[action]("pointermove", this.#onMouseMove);
+		this[action]("pointerup", this.#onMouseLeftUp);
 	}
 
 	#onMouseLeftDown = async event => {

@@ -21,6 +21,11 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/** @type {Map<string, PIXI.Graphics>} */
 	#rulers = new Map();
 
+	constructor() {
+		super();
+		this.eventMode = "static";
+	}
+
 	/** @override */
 	static get layerOptions() {
 		return mergeObject(super.layerOptions, {
@@ -34,6 +39,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/** @override */
 	async _draw() {
+		this.hitArea = canvas.dimensions.rect;
 		if (game.canvas.grid?.type !== CONST.GRID_TYPES.GRIDLESS)
 			this.#setupEventListeners("on");
 	}
@@ -126,10 +132,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	// -------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
-		const { interaction } = game.canvas.app.renderer.plugins;
-		interaction[action]("mousedown", this.#onMouseLeftDown);
-		interaction[action]("mousemove", this.#onMouseMove);
-		interaction[action]("mouseup", this.#onMouseLeftUp);
+		this[action]("pointerdown", this.#onMouseLeftDown);
+		this[action]("pointermove", this.#onMouseMove);
+		this[action]("pointerup", this.#onMouseLeftUp);
 	}
 
 	#onMouseLeftDown = event => {
