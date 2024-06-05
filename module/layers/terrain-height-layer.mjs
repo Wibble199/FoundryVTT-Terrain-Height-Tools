@@ -34,6 +34,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @override */
 	static get layerOptions() {
 		return mergeObject(super.layerOptions, {
+			baseClass: InteractionLayer,
 			zIndex: 300
 		});
 	}
@@ -49,10 +50,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 			await this._updateGraphics();
 		} else {
 			this._graphics = new TerrainHeightGraphics();
-			game.canvas.primary.addChild(this._graphics);
+			game.canvas.interface.addChild(this._graphics);
 
 			this._highlightGraphics = new GridHighlightGraphics();
-			game.canvas.primary.addChild(this._highlightGraphics);
+			game.canvas.interface.addChild(this._highlightGraphics);
 
 			this._heightMap = new HeightMap(game.canvas.scene);
 
@@ -111,10 +112,9 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// -------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
-		const { interaction } = game.canvas.app.renderer.plugins;
-		interaction[action]("mousedown", this.#onMouseLeftDown);
-		interaction[action]("mousemove", this.#onMouseMove);
-		interaction[action]("mouseup", this.#onMouseLeftUp);
+		this[action]("mousedown", this.#onMouseLeftDown);
+		this[action]("mousemove", this.#onMouseMove);
+		this[action]("mouseup", this.#onMouseLeftUp);
 	}
 
 	#onMouseLeftDown = async event => {
