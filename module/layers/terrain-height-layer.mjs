@@ -111,12 +111,13 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// -------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
-		this[action]("mousedown", this.#onMouseLeftDown);
+		this[action]("mousedown", this.#onMouseDown);
 		this[action]("mousemove", this.#onMouseMove);
-		this[action]("mouseup", this.#onMouseLeftUp);
+		this[action]("mouseup", this.#onMouseUp);
 	}
 
-	#onMouseLeftDown = async event => {
+	#onMouseDown = async event => {
+		if (event.button !== 0) return;
 		const { x, y } = this.toLocal(event.data.global);
 		await this.#beginTool(x, y);
 	};
@@ -127,8 +128,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 		await this.#useTool(x, y);
 	};
 
-	#onMouseLeftUp = async () => {
-		if (this._pendingTool === undefined) return;
+	#onMouseUp = async event => {
+		if (this._pendingTool === undefined || event.button !== 0) return;
 		await this.#commitPendingToolUsage();
 		this._pendingTool = undefined;
 	};
