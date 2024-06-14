@@ -49,7 +49,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 			await this._updateGraphics();
 		} else {
 			this._graphics = new TerrainHeightGraphics();
-			game.canvas.interface.addChild(this._graphics);
+			game.canvas.primary.addChild(this._graphics);
 
 			this._highlightGraphics = new GridHighlightGraphics();
 			game.canvas.interface.addChild(this._highlightGraphics);
