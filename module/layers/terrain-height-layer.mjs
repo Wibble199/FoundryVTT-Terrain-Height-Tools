@@ -13,6 +13,18 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @type {HeightMap | undefined} */
 	_heightMap;
 
+	/**
+	 * The sole purpose of this PIXI object is to allow other THT layers listen for events that they might not ordinarily
+	 * be able to, for example the masking effect for the height map vision radius:
+	 * - The vision radius needs to always be able to receive the mousemove event to update the position of the mask, but
+	 *   the parent object of the terrain height graphics does not always have its events turned on.
+	 * - We also can't add listeners to the game.canvas.stage instance, because some part of core Foundry functionality
+	 *   calls `removeAllListeners` sometimes, which then causes the event to get unbound.
+	 * Having a dedicated object that THT controls that will always have events turn on seems like an easy, reliable fix.
+	 * @type {PIXI.Container | undefined}
+	 */
+	_eventListenerObj;
+
 	/** @type {TerrainHeightGraphics | undefined} */
 	_graphics;
 
@@ -48,6 +60,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 		if (this._graphics) {
 			await this._updateGraphics();
 		} else {
+			this._eventListenerObj = new PIXI.Container();
+			this._eventListenerObj.eventMode = "static";
+			game.canvas.interface.addChild(this._eventListenerObj);
+
 			this._graphics = new TerrainHeightGraphics();
 			game.canvas.primary.addChild(this._graphics);
 
@@ -84,10 +100,13 @@ export class TerrainHeightLayer extends InteractionLayer {
 	async _tearDown(options) {
 		super._tearDown(options);
 
-		if (this._graphics) game.canvas.primary.removeChild(this._graphics);
+		if (this._eventListenerObj) this._eventListenerObj.parent.removeChild(this._eventListenerObj);
+		this._eventListenerObj = undefined;
+
+		if (this._graphics) this._graphics.parent.removeChild(this._graphics);
 		this._graphics = undefined;
 
-		if (this._highlightGraphics) game.canvas.primary.removeChild(this._highlightGraphics);
+		if (this._highlightGraphics) this._highlightGraphics.parent.removeChild(this._highlightGraphics);
 		this._highlightGraphics = undefined;
 	}
 

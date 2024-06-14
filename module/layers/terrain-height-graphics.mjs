@@ -325,7 +325,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// Remove previous mask
 		this.mask = null;
 		if (this.cursorRadiusMask) this.removeChild(this.cursorRadiusMask);
-		this.off("globalmousemove", this.#updateCursorMaskPosition);
+		game.canvas.terrainHeightLayer._eventListenerObj.off("globalmousemove", this.#updateCursorMaskPosition);
 
 		// Stop here if not applying a new mask
 		if (radius <= 0) return;
@@ -357,7 +357,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 		// Set mask
 		this.mask = this.cursorRadiusMask;
-		this.on("globalmousemove", this.#updateCursorMaskPosition);
+		game.canvas.terrainHeightLayer._eventListenerObj.on("globalmousemove", this.#updateCursorMaskPosition);
 	}
 
 	#updateCursorMaskPosition = event => {
