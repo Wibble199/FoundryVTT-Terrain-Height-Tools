@@ -1,4 +1,3 @@
-import { anglePrecision } from '../consts.mjs';
 import { Point } from "./point.mjs";
 
 /**
@@ -13,12 +12,12 @@ export class LineSegment {
 	#angle;
 
 	/**
-	 * @param {Point} p1
-	 * @param {Point} p2
+	 * @param {Point | { x: number; y: number; }} p1
+	 * @param {Point | { x: number; y: number; }} p2
 	 */
 	constructor(p1, p2) {
-		this.p1 = p1;
-		this.p2 = p2;
+		this.p1 = p1 instanceof Point ? p1 : new Point(p1.x, p1.y);
+		this.p2 = p2 instanceof Point ? p2 : new Point(p2.x, p2.y);
 	}
 
 	/**
@@ -79,10 +78,8 @@ export class LineSegment {
 	 * Determines if this LineSegment is parallel to another LineSegment, ignoring the direction of the lines.
 	 * @param {LineSegment} other
 	 * @param {Object} [options]
-	 * @param {number} [options.tolerance] The tolerance in radians for lines that aren't quite perfectly parallel.
-	 * The default of 0.05 radians is almost equivalent to 3 degrees.
 	 */
-	isParallelTo(other, { tolerance = anglePrecision } = {}) {
+	isParallelTo(other) {
 		let diff = Math.abs(this.angle - other.angle);
 
 		// Adjust to handle cases where the angles are near different extremes
@@ -93,7 +90,7 @@ export class LineSegment {
 		if (diff > Math.PI / 2)
 			diff = Math.PI - diff;
 
-		return diff <= tolerance;
+		return diff <= Number.EPSILON;
 	}
 
 	/**
@@ -161,12 +158,9 @@ export class LineSegment {
 	 * Returns undefined if the line segments do not intersect.
 	 * Parallel lines are never considered to intersect.
 	 * @param {LineSegment} other
-	 * @param {Object} [options]
-	 * @param {number} [options.tolerance] How far from the ends of a line a collision can be counted. E.G. with a
-	 * tolerance of 5, the intersection point can be up to 5px away from the ends of either line.
 	 * @returns {{ x: number; y: number; t: number; u: number } | undefined}
 	 */
-	intersectsAt(other, { tolerance = 1 } = {}) {
+	intersectsAt(other) {
 		if (this.lengthSquared <= 0 || other.lengthSquared <= 0) return undefined;
 
 		const { x: x1, y: y1 } = this.p1;
@@ -185,9 +179,7 @@ export class LineSegment {
 		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 
 		// If the intersection point lies outside of either line, then there is no intersection
-		const toleranceT = tolerance / this.length;
-		const toleranceU = tolerance / other.length;
-		if (t < -toleranceT || t > 1 + toleranceT || u < -toleranceU || u > 1 + toleranceU) return undefined;
+		if (t < 0 || t > 1 || u < 0 || u > 1) return undefined;
 
 		return {
 			x: x1 + t * (x2 - x1),

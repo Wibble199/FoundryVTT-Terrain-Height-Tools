@@ -1,6 +1,7 @@
 import { tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
-import { getGridCellPolygon } from "../utils/grid-utils.mjs";
+import { LineSegment } from '../geometry/line-segment.mjs';
+import { getGridCellPolygon, getGridCenter } from "../utils/grid-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
@@ -132,13 +133,13 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	// -------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
-		this[action]("pointerdown", this.#onMouseLeftDown);
+		this[action]("pointerdown", this.#onMouseDown);
 		this[action]("pointermove", this.#onMouseMove);
-		this[action]("pointerup", this.#onMouseLeftUp);
+		this[action]("pointerup", this.#onMouseUp);
 	}
 
-	#onMouseLeftDown = event => {
-		if (!this.isToolSelected) return;
+	#onMouseDown = event => {
+		if (!this.isToolSelected || event.button !== 0) return;
 
 		const [x, y] = this.#getDragPosition(event);
 		this.#dragStartPoint = { x, y, h: this.#cursorHeight };
@@ -151,15 +152,19 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		this._drawLineOfSightRay(this.#dragStartPoint, { x, y, h: this.#cursorHeight });
 	};
 
-	#onMouseLeftUp = event => {
-		if (!this.#dragStartPoint) return;
+	#onMouseUp = event => {
+		if (!this.#dragStartPoint || event.button !== 0) return;
 
 		// DEBUG
 		const [x, y] = this.#getDragPosition(event);
 		/** @type {import("../geometry/height-map.mjs").HeightMap} */
+		window.dbg = true;
 		const hm = game.canvas.terrainHeightLayer._heightMap;
 		const intersectionRegions = hm.calculateLineOfSight(this.#dragStartPoint, { x, y, h: this.#cursorHeight }, { dbg: true });
 		console.log(intersectionRegions);
+		console.log("Test ray", new LineSegment(this.#dragStartPoint, { x, y }))
+		window.dbg = false;
+		// DEBUG END
 
 		this.#dragStartPoint = undefined;
 		//this._clearLineOfSightRay();
@@ -178,17 +183,17 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// Work out the center of the hovered cell and the points of the hex/square around the cell
 		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
-		/** @type {[number, number][]} */
+
 		const snapPoints = [
-			game.canvas.grid.grid.getCenter(x, y),
-			...getGridCellPolygon(row, col).map(({ x, y }) => [x, y])
+			getGridCenter(row, col),
+			...getGridCellPolygon(row, col)
 		];
 
 		// Of all these points, find the one closest to the mouse
 		const nearestSnapPoint = snapPoints
-			.map(([x2, y2]) => [x2, y2, Math.pow(x2 - x, 2) + Math.pow(y2 - y, 2)])
+			.map(({ x: x2, y: y2 }) => [x2, y2, Math.pow(x2 - x, 2) + Math.pow(y2 - y, 2)])
 			.sort((a, b) => a[2] - b[2])[0];
 
-		return [Math.round(nearestSnapPoint[0]), Math.round(nearestSnapPoint[1])];
+		return [nearestSnapPoint[0], nearestSnapPoint[1]];
 	}
 }

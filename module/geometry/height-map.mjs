@@ -1,11 +1,11 @@
-import { anglePrecision, edgeIntersectionTolerance, flags, moduleName } from "../consts.mjs";
+import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { debug, error, warn } from '../utils/log.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from './polygon.mjs';
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
-import { roughlyEqual, roundTo } from '../utils/misc-utils.mjs';
+import { roundTo } from '../utils/misc-utils.mjs';
 
 /**
  * @typedef {object} HeightMapShape Represents a shape that can be drawn to the map. It is a closed polygon that may
@@ -22,7 +22,6 @@ import { roughlyEqual, roundTo } from '../utils/misc-utils.mjs';
  * @property {number} y
  * @property {number} t
  * @property {number} u
- * @property {HeightMapShape} shape
  * @property {LineSegment} edge
  * @property {Polygon | undefined} hole
  */
@@ -407,7 +406,7 @@ export class HeightMap {
 			const losHeightAtIntersection = lerpLosHeight(intersection.t)
 			if (usesHeight && losHeightAtIntersection > shape.height) continue;
 
-			intersections.push({ ...intersection, shape, edge, hole });
+			intersections.push({ ...intersection, edge, hole });
 		}
 
 		// Next, we need to check for leaving the shape from the top: work out the `t` position where the LOS ray crosses
@@ -420,7 +419,7 @@ export class HeightMap {
 			if (t >= 0 && t <= 1) {
 				const testLinePointAtHeight = testRay.lerp(t);
 				if (shape.polygon.containsPoint(...testLinePointAtHeight) && !shape.holes.some(h => h.containsPoint(...testLinePointAtHeight, { containsOnEdge: false })))
-					intersections.push({ t, shape, edge: undefined, usesHeight: true });
+					intersections.push({ t, edge: undefined, usesHeight: true });
 			}
 		}
 
@@ -433,7 +432,7 @@ export class HeightMap {
 		// There may be multiple intersections at an equal point along the test ray (t) - for example when
 		// touching a vertex of a shape - it'll intersect both edges of the vertex. These are a special case and
 		// need to be handled differently, so group everything by t.
-		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, 0.005)).entries()]
+		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries()]
 			.sort(([a], [b]) => a - b) // sort by t
 			.map(([, intersections]) => intersections);
 
@@ -466,9 +465,7 @@ export class HeightMap {
 		const handleEdgeIntersection = ({ edge, x, y, t, u }) => {
 			pushRegion({ x, y, t });
 
-			// Since u is relative to the cell's edge, the tolerance is approximately 0.04 x grid size (4px on 100px grid)
-
-			if (u < edgeIntersectionTolerance) {
+			if (u < Number.EPSILON) {
 				// If we've intersected at the start of the shape's edge, check the angle of the previous edge.
 				// This edge will be parallel to the test ray (else it would have also caused an intersection).
 				// If the angle is the same as the test ray (i.e. the edge is going the same direction), then we
@@ -476,22 +473,22 @@ export class HeightMap {
 				const previousEdge = shape.polygon.previousEdge(edge)
 					?? shape.holes.map(h => h.previousEdge(edge)).find(Boolean);
 
-				isSkimming = roughlyEqual(edge.angle, testRay.angle, anglePrecision)
-					|| roughlyEqual(previousEdge.angle, inverseTestRay.angle, anglePrecision);
+				isSkimming = edge.angle === testRay.angle
+					|| previousEdge.angle === inverseTestRay.angle;
 
 				// Get the angle between previous and current edge, and between the previous edge and the test ray. If the
 				// ray angle is between that angle, then it has entered. This is similar to the logic we use for vertex
 				// intersections.
 				isInside = !isSkimming && previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 
-			} else if (u > (1 - edgeIntersectionTolerance)) {
+			} else if (u > 1 - Number.EPSILON) {
 				// If we've intersected at the end of the shape's edge, check the angle for the next edge, similar to how we
-				// do for when u ~= 0.
+				// do for when u = 0.
 				const nextEdge = shape.polygon.nextEdge(edge)
 					?? shape.holes.map(h => h.nextEdge(edge)).find(Boolean);
 
-				isSkimming = roughlyEqual(nextEdge.angle, testRay.angle, anglePrecision)
-					|| roughlyEqual(edge.angle, inverseTestRay.angle, anglePrecision);
+				isSkimming = nextEdge.angle === testRay.angle
+					|| edge.angle === inverseTestRay.angle;
 				isInside = !isSkimming && edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 
 			} else {
