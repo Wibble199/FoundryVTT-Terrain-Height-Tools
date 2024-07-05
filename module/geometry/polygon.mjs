@@ -1,3 +1,4 @@
+import { distinctBy } from '../utils/array-utils.mjs';
 import { LineSegment } from "./line-segment.mjs";
 import { Point } from "./point.mjs";
 
@@ -121,11 +122,14 @@ export class Polygon {
 		// - If `containsOnEdge` is false, then swap this logic
 		// We could re-write to explicitly check if the point is on the edge, which would make the code more clear but
 		// it would require many additional calculations.
-		const numberOfIntersections = this.#edges
-			.map(e => [e.intersectsYAt(y), e.p1.y - e.p2.y])
-			.filter(([intersectX, dy]) =>
-				typeof intersectX === "number" &&
-				(dy < 0 ^ containsOnEdge ? intersectX <= x : intersectX < x))
+		// We distinct them by the X position of the intersection so that corners don't count multiple times
+		const numberOfIntersections = distinctBy(
+				this.#edges
+					.map(e => [e.intersectsYAt(y), e.p1.y - e.p2.y])
+					.filter(([intersectX, dy]) =>
+						typeof intersectX === "number" &&
+						(dy < 0 ^ containsOnEdge ? intersectX <= x : intersectX < x)),
+				([intersectX]) => intersectX)
 			.length;
 
     	return numberOfIntersections % 2 == 1;

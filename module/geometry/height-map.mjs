@@ -436,14 +436,18 @@ export class HeightMap {
 			.sort(([a], [b]) => a - b) // sort by t
 			.map(([, intersections]) => intersections);
 
-		// Determine if the start point of the test ray is inside or outside the shape.
+		// Determine if the start point of the test ray is inside or outside the shape, taking height into account.
 		let isInside = (!usesHeight || p1.h <= shape.height)
-			&& shape.polygon.containsPoint(p1.x, p1.y, { containsOnEdge: true })
-			&& !shape.holes.some(h => h.containsPoint(p1.x, p1.y, { containsOnEdge: false }));
+			&& shape.polygon.containsPoint(p1.x, p1.y, { containsOnEdge: false })
+			&& !shape.holes.some(h => h.containsPoint(p1.x, p1.y, { containsOnEdge: true }));
+		// TODO: does the above handle cases where the ray starts on an edge and enters the shape?
 
-		// TODO: how to determine if we've started off skimming the shape? Maybe check that it lies exactly on
-		// an edge and if that edge has the same angle as the ray?
-		let isSkimming = false;
+		// Determine if the start point of the test ray is skimming an edge
+		let isSkimmingEdge = p1.h <= shape.height && allEdges.some(([, e]) => e.isParallelTo(testRay) && e.pointOnLine(p1.x, p1.y));
+
+		// If the test ray is flat in the height direction and this shape's height = the test ray height, then whenever we
+		// 'enter' the shape, we're actually going to be skimming the top.
+		const willSkimTop = usesHeight && p1.h === p2.h && p1.h === shape.height;
 
 		let lastIntersectionPosition = { x: p1.x, y: p1.y, h: p1.h, t: 0 };
 
@@ -451,11 +455,11 @@ export class HeightMap {
 		const pushRegion = ({ x, y, t, allowZeroLength = false }) => {
 			if (!allowZeroLength && t === lastIntersectionPosition.t) return;
 			const position = { x, y, t, h: lerpLosHeight(t) };
-			if (isInside || isSkimming) {
+			if (isInside || isSkimmingEdge) {
 				regions.push({
 					start: lastIntersectionPosition,
 					end: position,
-					skimmed: isSkimming
+					skimmed: isSkimmingEdge || (isInside && willSkimTop)
 				});
 			}
 			lastIntersectionPosition = position;
@@ -473,23 +477,21 @@ export class HeightMap {
 				const previousEdge = shape.polygon.previousEdge(edge)
 					?? shape.holes.map(h => h.previousEdge(edge)).find(Boolean);
 
-				isSkimming = edge.angle === testRay.angle
-					|| previousEdge.angle === inverseTestRay.angle;
+				isSkimmingEdge = edge.angle === testRay.angle || previousEdge.angle === inverseTestRay.angle;
 
-				// Get the angle between previous and current edge, and between the previous edge and the test ray. If the
-				// ray angle is between that angle, then it has entered. This is similar to the logic we use for vertex
-				// intersections.
-				isInside = !isSkimming && previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
+				// Get the angle between previous and current edge, and between the previous edge and the test ray. If
+				// the ray angle is between that angle, then it has entered. This is similar to the logic we use for
+				// vertex intersections.
+				isInside = !isSkimmingEdge && previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 
 			} else if (u > 1 - Number.EPSILON) {
-				// If we've intersected at the end of the shape's edge, check the angle for the next edge, similar to how we
-				// do for when u = 0.
+				// If we've intersected at the end of the shape's edge, check the angle for the next edge, similar to
+				// how we do for when u = 0.
 				const nextEdge = shape.polygon.nextEdge(edge)
 					?? shape.holes.map(h => h.nextEdge(edge)).find(Boolean);
 
-				isSkimming = nextEdge.angle === testRay.angle
-					|| edge.angle === inverseTestRay.angle;
-				isInside = !isSkimming && edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
+				isSkimmingEdge = nextEdge.angle === testRay.angle || edge.angle === inverseTestRay.angle;
+				isInside = !isSkimmingEdge && edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 
 			} else {
 				// For any other values of u, this was a clean intersection, so just toggle isInside

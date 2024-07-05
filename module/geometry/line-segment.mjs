@@ -94,6 +94,21 @@ export class LineSegment {
 	}
 
 	/**
+	 * Determines if the given point lies on this LineSegment.
+	 * @param {number} x
+	 * @param {number} y
+	 */
+	pointOnLine(x, y) {
+		// Cross product checks if the point lies on the line (must be ~0)
+		const cross = (y - this.p1.y) * this.dx - (x - this.p1.x) * this.dy;
+		if (Math.abs(cross) > Number.EPSILON) return false;
+
+		// Dot product checks if point lies between p1 and p2 (must be between 0 and length^2).
+		const dot = (x - this.p1.x) * (this.p2.x - this.p1.x) + (y - this.p1.y) * (this.p2.y - this.p1.y);
+		return dot >= 0 && dot <= this.lengthSquared;
+	}
+
+	/**
 	 * Gets the Y position that this line segment intersects a vertical line at `x`. Returns undefined if this line is
 	 * vertical or does not pass the given `x` position.
 	 * @param {number} x
@@ -117,7 +132,6 @@ export class LineSegment {
 		// For other values, line is diagonal, so work out where it would meet the X
 		return this.p1.y + (x - this.p1.x) * slope;
 	}
-
 
 	/**
 	 * Gets the X poisition that this line segmnet intersects a horizontal line at `y`. Returns undefined if this line
