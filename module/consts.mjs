@@ -21,6 +21,8 @@ export const settings = /** @type {const} */ ({
 
 /** @enum {keyof typeof keybindings} */
 export const keybindings = /** @type {const} */ ({
+	decreaseLosRulerHeight: "decreaseLosRulerHeight",
+	increaseLosRulerHeight: "increaseLosRulerHeight",
 	toggleTerrainHeightMapOnTokenLayer: "toggleTerrainHeightMapOnTokenLayer"
 });
 

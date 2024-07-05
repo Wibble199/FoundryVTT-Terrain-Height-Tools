@@ -22,7 +22,7 @@ import { roundTo } from '../utils/misc-utils.mjs';
  * @property {number} y
  * @property {number} t
  * @property {number} u
- * @property {LineSegment} edge
+ * @property {LineSegment | undefined} edge
  * @property {Polygon | undefined} hole
  */
 
@@ -390,6 +390,9 @@ export class HeightMap {
 		/** @type {LineOfSightIntersection[]} */
 		const intersections = [];
 
+		/** @type {LineOfSightIntersection} */
+		let verticalIntersection = undefined;
+
 		// Loop each edge in this shape and check for an intersection. Record height, shape and how far along the
 		// test line the intersection occured.
 		const allEdges = shape.polygon.edges
@@ -414,12 +417,19 @@ export class HeightMap {
 		// Then, we can lerp the X,Y position of this ray when it is at this t value.
 		// Finally, we can take that X,Y position and check whether it is inside the shape or not (counting holes also).
 		// Note that we only need to do this is if there is a height difference in the LOS ray.
-		if (h1 !== h2) {
+		if (h1 !== h2 && usesHeight) {
 			const t = inverseLerpLosHeight(shape.height);
 			if (t >= 0 && t <= 1) {
 				const testLinePointAtHeight = testRay.lerp(t);
-				if (shape.polygon.containsPoint(...testLinePointAtHeight) && !shape.holes.some(h => h.containsPoint(...testLinePointAtHeight, { containsOnEdge: false })))
-					intersections.push({ t, edge: undefined, usesHeight: true });
+				if (shape.polygon.containsPoint(...testLinePointAtHeight) && !shape.holes.some(h => h.containsPoint(...testLinePointAtHeight)))
+					verticalIntersection = {
+						x: testLinePointAtHeight[0],
+						y: testLinePointAtHeight[1],
+						t,
+						u: undefined,
+						edge: undefined,
+						hole: undefined
+					};
 			}
 		}
 
@@ -427,12 +437,21 @@ export class HeightMap {
 		/** @type {LineOfSightIntersectionRegion[]} */
 		const regions = [];
 
-		// TODO: none of this handles top collisions yet!!!!
-
-		// There may be multiple intersections at an equal point along the test ray (t) - for example when
-		// touching a vertex of a shape - it'll intersect both edges of the vertex. These are a special case and
-		// need to be handled differently, so group everything by t.
-		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries()]
+		// There may be multiple intersections at an equal point along the test ray (t) - for example when touching a vertex
+		// of a shape - it'll intersect both edges of the vertex. These are a special case and need to be handled
+		// differently, so group everything by t.
+		// We also include the vertical intersection (if there is one) in this list to get processed also (needs to get
+		// sorted with the rest before being processed), however we don't want to include it in the group as we don't ever
+		// want a case where the vertical and an edge intersection happen at the same time and get treated as a two-edge
+		// intersection.
+		/** @type {[number, LineOfSightIntersection[]] | undefined} */
+		const verticalIntersectionGroup = verticalIntersection
+			? [roundTo(verticalIntersection.t, Number.EPSILON), [verticalIntersection]]
+			: undefined;
+		const intersectionsByT = [
+				...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries(),
+				...[verticalIntersectionGroup].filter(Boolean)
+			]
 			.sort(([a], [b]) => a - b) // sort by t
 			.map(([, intersections]) => intersections);
 

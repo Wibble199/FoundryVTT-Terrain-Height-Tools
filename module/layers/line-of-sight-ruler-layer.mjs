@@ -16,10 +16,21 @@ const rulerLineWidth = 4;
 
 export class LineOfSightRulerLayer extends CanvasLayer {
 
-	#cursorHeight = 1;
+	// Track the start and end heights separately so that when the user is using it, it remembers their start and end
+	// values allowing them to quickly repeat the same measurement at the same height.
+	/** @type {number} */
+	#cursorStartHeight = 1;
+
+	// If the end height is undefined, then it should use the start height value. Only if the user explicitly changes the
+	// height of the end of the ruler should this become non-undefined.
+	/** @type {number | undefined} */
+	#_cursorEndHeight = undefined;
 
 	/** @type {Point3D | undefined} */
 	#dragStartPoint = undefined;
+
+/** @type {Point3D | undefined} */
+	#dragEndPoint = undefined;
 
 	/** @type {Map<string, PIXI.Graphics>} */
 	#rulers = new Map();
@@ -38,6 +49,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	get isToolSelected() {
 		return game.activeTool === tools.lineOfSight;
+	}
+
+	get #cursorEndHeight() {
+		return this.#_cursorEndHeight ?? this.#cursorStartHeight;
 	}
 
 	/** @override */
@@ -130,9 +145,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		}
 	}
 
-	// -------------------- //
-	// Mouse event handling //
-	// -------------------- //
+	// ----------------------------- //
+	// Mouse/keyboard event handling //
+	// ----------------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
 		this[action]("pointerdown", this.#onMouseDown);
@@ -144,14 +159,17 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (!this.isToolSelected || event.button !== 0) return;
 
 		const [x, y] = this.#getDragPosition(event);
-		this.#dragStartPoint = { x, y, h: this.#cursorHeight };
+		this.#dragStartPoint = { x, y, h: this.#cursorStartHeight };
+		this.#dragEndPoint = { ...this.#dragStartPoint };
 	};
 
 	#onMouseMove = event => {
 		if (!this.#dragStartPoint) return;
 
-		const [x, y] = this.#getDragPosition(event);
-		this._drawLineOfSightRay(this.#dragStartPoint, { x, y, h: this.#cursorHeight });
+		// If dragging a measurement, use the snapped x and y position of the mouse cursor
+		const [xSnapped, ySnapped] = this.#getDragPosition(event);
+		this.#dragEndPoint = { x: xSnapped, y: ySnapped, h: this.#cursorEndHeight };
+		this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
 	};
 
 	#onMouseUp = event => {
@@ -159,16 +177,16 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// DEBUG
 		const [x, y] = this.#getDragPosition(event);
-		/** @type {import("../geometry/height-map.mjs").HeightMap} */
 		window.dbg = true;
+		/** @type {import("../geometry/height-map.mjs").HeightMap} */
 		const hm = game.canvas.terrainHeightLayer._heightMap;
-		const intersectionRegions = hm.calculateLineOfSight(this.#dragStartPoint, { x, y, h: this.#cursorHeight }, { dbg: true });
+		const intersectionRegions = hm.calculateLineOfSight(this.#dragStartPoint, { x, y, h: this.#cursorEndHeight });
 		console.log(intersectionRegions);
 		console.log("Test ray", new LineSegment(this.#dragStartPoint, { x, y }))
 		window.dbg = false;
 		// DEBUG END
 
-		this.#dragStartPoint = undefined;
+		this.#dragStartPoint = this.#dragEndPoint = undefined;
 		//this._clearLineOfSightRay();
 	};
 
@@ -197,5 +215,37 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			.sort((a, b) => a[2] - b[2])[0];
 
 		return [nearestSnapPoint[0], nearestSnapPoint[1]];
+	}
+
+	/** @param {number} delta  */
+	_handleHeightChangeKeybinding(delta) {
+		if (!this.isToolSelected) return;
+
+		// When increasing or decreasing the height, snap to the nearest whole number.
+		// Special case: we also want to snap to 0.5 height.
+		// E.G. if height = 0, and we incease it should go to 0.5, then 1, then 2 etc.
+		// TODO: do we want to allow the snapping values to be configurable?
+		const change = (/** @type {number} */ current) => {
+			if (delta < 0 && current > 0.5 && current <= 1)
+				return 0.5;
+
+			if (delta > 0 && current >= 0 && current < 0.5)
+				return 0.5;
+
+			if (current % 1 === 0)
+				return Math.max(current + Math.sign(delta), 0);
+
+			return delta < 0 ? Math.floor(current) : Math.ceil(current);
+		};
+
+		// If there is dragEndPoint defined, then we want to change the end height and re-draw the ruler.
+		// Otherwise, just change the start height, no re-draw required.
+		if (this.#dragEndPoint) {
+			this.#_cursorEndHeight = change(this.#cursorEndHeight);
+			this.#dragEndPoint.h = this.#cursorEndHeight;
+			this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
+		} else {
+			this.#cursorStartHeight = change(this.#cursorStartHeight);
+		}
 	}
 }

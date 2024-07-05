@@ -9,6 +9,8 @@
 		"TerrainHeightToolsPaint": "Paint"
 	},
 	"KEYBINDINGS": {
+		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Height",
+		"IncreaseLosRulerHeight": "Increase Line of Sight Ruler Height",
 		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
 	},
 	"SETTINGS": {
