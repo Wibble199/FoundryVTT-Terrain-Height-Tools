@@ -13,6 +13,8 @@ import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
  */
 
 const rulerLineWidth = 4;
+const heightIndicatorXOffset = 10;
+const getHeightIndicatorLabel = (/** @type {number} */ h) => `H${h}`;
 
 export class LineOfSightRulerLayer extends CanvasLayer {
 
@@ -29,11 +31,14 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/** @type {Point3D | undefined} */
 	#dragStartPoint = undefined;
 
-/** @type {Point3D | undefined} */
+	/** @type {Point3D | undefined} */
 	#dragEndPoint = undefined;
 
-	/** @type {Map<string, PIXI.Graphics>} */
+	/** @type {Map<string, LineOfSightRuler>} */
 	#rulers = new Map();
+
+	/** @type {PreciseText} */
+	#heightIndicator = undefined;
 
 	constructor() {
 		super();
@@ -58,8 +63,15 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/** @override */
 	async _draw() {
 		this.hitArea = canvas.dimensions.rect;
-		if (game.canvas.grid?.type !== CONST.GRID_TYPES.GRIDLESS)
+
+		if (game.canvas.grid?.type !== CONST.GRID_TYPES.GRIDLESS) {
 			this.#setupEventListeners("on");
+
+			this.#heightIndicator = new PreciseText("", CONFIG.canvasTextStyle);
+			this.#heightIndicator.anchor.set(0, 0.5);
+			this.#heightIndicator.visible = false;
+			this.addChild(this.#heightIndicator);
+		}
 	}
 
 	/** @override */
@@ -67,6 +79,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		await super._tearDown();
 		this.#setupEventListeners("off");
 		this.#rulers.clear();
+		this.removeChild(this.#heightIndicator);
 	}
 
 	// ----------------------- //
@@ -83,52 +96,12 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		let ruler = this.#rulers.get(userId);
 		if (!ruler) {
-			ruler = new PIXI.Graphics();
+			ruler = new LineOfSightRuler();
 			this.addChild(ruler);
 			this.#rulers.set(userId, ruler);
-		} else {
-			ruler.clear();
 		}
 
-		// Calculate line of sight
-		/** @type {import("../geometry/height-map.mjs").HeightMap} */
-		const hm = game.canvas.terrainHeightLayer._heightMap;
-		const intersectionRegions = hm.calculateLineOfSight(p1, p2);
-		const intersectionRegionsFlat = HeightMap.flattenLineOfSightIntersectionRegions(intersectionRegions);
-
-		// Render line of sight
-		const terrainTypes = getTerrainTypeMap();
-
-		let { h: _, ...lastPosition } = p1;
-		for (const region of intersectionRegionsFlat) {
-
-			// If there is a gap between this region's start and the previous region's end (or the start of the ray if
-			// this is the first region), draw a default ruler line.
-			if (lastPosition.x !== region.start.x || lastPosition.y !== region.start.y) {
-				ruler.lineStyle({ color: 0xFFFFFF, width: rulerLineWidth });
-				ruler.moveTo(lastPosition.x, lastPosition.y);
-				ruler.lineTo(region.start.x, region.start.y);
-			}
-
-			// Draw the intersection region (in the color of the intersected terrain)
-			const terrainColor = getTerrainColor(terrainTypes.get(region.terrainTypeId) ?? {});
-			ruler.lineStyle({ color: terrainColor, width: rulerLineWidth });
-			if (region.skimmed) {
-				ruler.moveTo(region.start.x, region.start.y);
-				ruler.lineTo(region.end.x, region.end.y);
-			} else {
-				drawDashedPath(ruler, [region.start, region.end], { dashSize: 4 });
-			}
-			lastPosition = region.end;
-		}
-
-		// If there is a gap between the last region's end point (or the start of the ray if there are no regions) and
-		// the end point of the ray, draw a default line between these two points
-		if (lastPosition.x !== p2.x || lastPosition.y !== p2.y) {
-			ruler.lineStyle({ color: 0xFFFFFF, width: rulerLineWidth });
-			ruler.moveTo(lastPosition.x, lastPosition.y);
-			ruler.lineTo(p2.x, p2.y);
-		}
+		ruler.setEndpoints(p1, p2);
 	}
 
 	/**
@@ -164,6 +137,18 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	};
 
 	#onMouseMove = event => {
+		// Update height indicator visibility
+		// TODO: can this be moved to a hook?
+		this.#heightIndicator.visible = this.isToolSelected && !this.#dragStartPoint;
+
+		if (this.#heightIndicator.visible) {
+			// Position the height indicator and update the text
+			/** @type {{ x: number; y: number }} */
+			const { x, y } = this.toLocal(event.data.global);
+			this.#heightIndicator.position.set(x + heightIndicatorXOffset, y);
+			this.#heightIndicator.text = getHeightIndicatorLabel(this.#cursorStartHeight);
+		}
+
 		if (!this.#dragStartPoint) return;
 
 		// If dragging a measurement, use the snapped x and y position of the mouse cursor
@@ -175,19 +160,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	#onMouseUp = event => {
 		if (!this.#dragStartPoint || event.button !== 0) return;
 
-		// DEBUG
-		const [x, y] = this.#getDragPosition(event);
-		window.dbg = true;
-		/** @type {import("../geometry/height-map.mjs").HeightMap} */
-		const hm = game.canvas.terrainHeightLayer._heightMap;
-		const intersectionRegions = hm.calculateLineOfSight(this.#dragStartPoint, { x, y, h: this.#cursorEndHeight });
-		console.log(intersectionRegions);
-		console.log("Test ray", new LineSegment(this.#dragStartPoint, { x, y }))
-		window.dbg = false;
-		// DEBUG END
-
 		this.#dragStartPoint = this.#dragEndPoint = undefined;
-		//this._clearLineOfSightRay();
+		this._clearLineOfSightRay();
 	};
 
 	/** @returns {[number, number]} */
@@ -246,6 +220,110 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
 		} else {
 			this.#cursorStartHeight = change(this.#cursorStartHeight);
+			this.#heightIndicator.text = getHeightIndicatorLabel(this.#cursorStartHeight);
 		}
+	}
+}
+
+class LineOfSightRuler extends PIXI.Container {
+
+	/** @type {Point3D | undefined} */
+	#p1;
+
+	/** @type {Point3D | undefined} */
+	#p2;
+
+	/** @type {ReturnType<typeof HeightMap.flattenLineOfSightIntersectionRegions>} */
+	#intersectionRegions = [];
+
+	constructor() {
+		super();
+
+		/** @type {PIXI.Graphics} */
+		this.line = this.addChild(new PIXI.Graphics());
+
+		/** @type {PreciseText} */
+		this.startHeightLabel = this.addChild(new PreciseText("", CONFIG.canvasTextStyle));
+		this.startHeightLabel.anchor.set(0, 0.5);
+
+		/** @type {PreciseText} */
+		this.endHeightLabel = this.addChild(new PreciseText("", CONFIG.canvasTextStyle));
+		this.endHeightLabel.anchor.set(0, 0.5);
+	}
+
+	/**
+	 * @param {Point3D} p1
+	 * @param {Point3D} p2
+	 */
+	setEndpoints(p1, p2) {
+		// If the points haven't actually changed, don't need to do any recalculations/redraws
+		let hasChanged = false;
+
+		if (p1.x !== this.#p1?.x || p1.y !== this.#p1?.y || p1.h !== this.#p1?.h) {
+			this.#p1 = { ...p1 };
+			hasChanged = true;
+		}
+
+		if (p2.x !== this.#p2?.x || p2.y !== this.#p2?.y || p2.h !== this.#p2?.h) {
+			this.#p2 = { ...p2 };
+			hasChanged = true;
+		}
+
+		if (hasChanged) {
+			this._recalculateLos();
+			this._draw();
+		}
+	}
+
+	_recalculateLos() {
+		/** @type {import("../geometry/height-map.mjs").HeightMap} */
+		const hm = game.canvas.terrainHeightLayer._heightMap;
+		const intersectionRegions = hm.calculateLineOfSight(this.#p1, this.#p2);
+		this.#intersectionRegions = HeightMap.flattenLineOfSightIntersectionRegions(intersectionRegions);
+	}
+
+	_draw() {
+		this.line.clear();
+
+		const terrainTypes = getTerrainTypeMap();
+
+		// Draw the line
+		let { h: _, ...lastPosition } = this.#p1;
+		for (const region of this.#intersectionRegions) {
+
+			// If there is a gap between this region's start and the previous region's end (or the start of the ray if
+			// this is the first region), draw a default ruler line.
+			if (lastPosition.x !== region.start.x || lastPosition.y !== region.start.y) {
+				this.line.lineStyle({ color: 0xFFFFFF, width: rulerLineWidth });
+				this.line.moveTo(lastPosition.x, lastPosition.y);
+				this.line.lineTo(region.start.x, region.start.y);
+			}
+
+			// Draw the intersection region (in the color of the intersected terrain)
+			const terrainColor = getTerrainColor(terrainTypes.get(region.terrainTypeId) ?? {});
+			this.line.lineStyle({ color: terrainColor, width: rulerLineWidth });
+			if (region.skimmed) {
+				this.line.moveTo(region.start.x, region.start.y);
+				this.line.lineTo(region.end.x, region.end.y);
+			} else {
+				drawDashedPath(this.line, [region.start, region.end], { dashSize: 4 });
+			}
+			lastPosition = region.end;
+		}
+
+		// If there is a gap between the last region's end point (or the start of the ray if there are no regions) and
+		// the end point of the ray, draw a default line between these two points
+		if (lastPosition.x !== this.#p2.x || lastPosition.y !== this.#p2.y) {
+			this.line.lineStyle({ color: 0xFFFFFF, width: rulerLineWidth });
+			this.line.moveTo(lastPosition.x, lastPosition.y);
+			this.line.lineTo(this.#p2.x, this.#p2.y);
+		}
+
+		// Update the labels for the height
+		this.startHeightLabel.text = getHeightIndicatorLabel(this.#p1.h);
+		this.startHeightLabel.position.set(this.#p1.x + heightIndicatorXOffset, this.#p1.y);
+
+		this.endHeightLabel.text = getHeightIndicatorLabel(this.#p2.h);
+		this.endHeightLabel.position.set(this.#p2.x + heightIndicatorXOffset, this.#p2.y);
 	}
 }
