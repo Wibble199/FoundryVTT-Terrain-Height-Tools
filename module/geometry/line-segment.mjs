@@ -94,18 +94,19 @@ export class LineSegment {
 	}
 
 	/**
-	 * Determines if the given point lies on this LineSegment.
+	 * Determines the `t` value for this LineSegment for the closest point on the line to the given point and the square
+	 * distance from the given point to that point.
+	 * Note the given value for `t` may NOT be within the range 0-1 (i.e. the length of the line is ignored, only it's
+	 * position and angle have any bearing on the result).
 	 * @param {number} x
 	 * @param {number} y
 	 */
-	pointOnLine(x, y) {
-		// Cross product checks if the point lies on the line (must be ~0)
-		const cross = (y - this.p1.y) * this.dx - (x - this.p1.x) * this.dy;
-		if (Math.abs(cross) > Number.EPSILON) return false;
-
-		// Dot product checks if point lies between p1 and p2 (must be between 0 and length^2).
-		const dot = (x - this.p1.x) * (this.p2.x - this.p1.x) + (y - this.p1.y) * (this.p2.y - this.p1.y);
-		return dot >= 0 && dot <= this.lengthSquared;
+	findClosestPoint(x, y) {
+		const { dx, dy, p1: { x: x1, y: y1 } } = this;
+		const t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+		const { x: closestX, y: closestY } = this.lerp(t);
+		const distanceSquared = Math.pow(x - closestX, 2) + Math.pow(y - closestY, 2);
+		return { t, point: { x: closestX, y: closestY }, distanceSquared };
 	}
 
 	/**
@@ -206,13 +207,13 @@ export class LineSegment {
 	/**
 	 * Linearly interpolates the X,Y position of a point that is at `t` along the line.
 	 * @param {number} t
-	 * @returns {[number, number]}
+	 * @returns {{ x: number; y: number; }}
 	 */
 	lerp(t) {
-		return [
-			this.dx * t + this.p1.x,
-			this.dy * t + this.p1.y
-		];
+		return {
+			x: this.dx * t + this.p1.x,
+			y: this.dy * t + this.p1.y
+		};
 	}
 
 	/**
