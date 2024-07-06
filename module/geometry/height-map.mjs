@@ -445,18 +445,14 @@ export class HeightMap {
 		// There may be multiple intersections at an equal point along the test ray (t) - for example when touching a vertex
 		// of a shape - it'll intersect both edges of the vertex. These are a special case and need to be handled
 		// differently, so group everything by t.
-		// We also include the vertical intersection (if there is one) in this list to get processed also (needs to get
-		// sorted with the rest before being processed), however we don't want to include it in the group as we don't ever
-		// want a case where the vertical and an edge intersection happen at the same time and get treated as a two-edge
-		// intersection.
-		/** @type {[number, LineOfSightIntersection[]] | undefined} */
-		const verticalIntersectionGroup = verticalIntersection
-			? [roundTo(verticalIntersection.t, Number.EPSILON), [verticalIntersection]]
-			: undefined;
-		const intersectionsByT = [
-				...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries(),
-				...[verticalIntersectionGroup].filter(Boolean)
-			]
+		// We also include the vertical intersection (if there is one AND if there isn't already an intersection at that
+		// value of `t`) in this list to get processed also. We don't include it if there is already an intersection at
+		// that point because we don't want it to treat a one-edge intersection at the top of the shape as a two-edge
+		// intersection. In that case, we can just the existing one without needing the vertical one.
+		if (verticalIntersection !== undefined && !intersections.some(i => Math.abs(i.t - verticalIntersection.t) < Number.EPSILON))
+			intersections.push(verticalIntersection)
+
+		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries()]
 			.sort(([a], [b]) => a - b) // sort by t
 			.map(([, intersections]) => intersections);
 
