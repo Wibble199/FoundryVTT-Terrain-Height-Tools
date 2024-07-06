@@ -593,8 +593,26 @@ export class HeightMap {
 				let { t: t2, distanceSquared: d2 } = testRay.findClosestPoint(edge.p2.x, edge.p2.y);
 				t2 = Math.max(Math.min(t2, 1), 0);
 
-				if (d1 <= skimDistThresholdSquared && d2 <= skimDistThresholdSquared && Math.abs(t1 - t2) > Number.EPSILON)
-					skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
+				// If the two ends of the edge wouldn't be skimming, continue to next edge
+				if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
+					continue;
+
+				// Check height of both ends is within the height of the shape.
+				// If neither are, then this region isn't a skim so continue to next edge.
+				// If only one is, figure out which and figure out which point the skimming stops and replace the out
+				// of range t value with the interpolated value
+				// If both are, no alteration needed
+				const h1 = lerpLosHeight(t1);
+				const h2 = lerpLosHeight(t2);
+
+				if (h1 > shape.height && h2 > shape.height)
+					continue;
+				else if (h1 > shape.height) // h2 <= shape.height
+					t1 = inverseLerpLosHeight(shape.height);
+				else if (h2 > shape.height) // h1 <= shape.height
+					t2 = inverseLerpLosHeight(shape.height);
+
+				skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
 			}
 
 			skimRegions.sort((a, b) => a.t1 - b.t2);
