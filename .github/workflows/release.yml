@@ -54,3 +54,27 @@ jobs:
           asset_path: ./release.zip
           asset_name: release.zip
           asset_content_type: application/zip
+
+      - name: Publish to Foundry Package Registry
+        run: |
+          VERSION_TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
+          VERSION=$(jq -r '.version' module.json)
+          MINIMUM=$(jq -r '.compatibility.minimum' module.json)
+          VERIFIED=$(jq -r '.compatibility.verified' module.json)
+          MAXIMUM=$(jq -r '.compatibility.maximum' module.json)
+          curl -X POST https://api.foundryvtt.com/_api/packages/release_version/ \
+               -H 'Content-Type: application/json' \
+               -H 'Authorization: ${{ secrets.FOUNDRY_AUTH_TOKEN }}' \
+               -d '{
+                     "id": "terrain-height-tools",
+                     "release": {
+                       "version": "'"$VERSION"'",
+                       "manifest": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/'"$VERSION_TAG"'/module.json",
+                       "notes": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/tag/'"$VERSION_TAG"'",
+                       "compatibility": {
+                         "minimum": "'"$MINIMUM"'",
+                         "verified": "'"$VERIFIED"'",
+                         "maximum": "'"$MAXIMUM"'"
+                       }
+                     }
+                   }'

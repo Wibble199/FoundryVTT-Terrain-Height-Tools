@@ -1,4 +1,8 @@
-# Terrain Height Tools (Foundry v11)
+# Terrain Height Tools
+
+[![Latest module version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2FWibble199%2FFoundryVTT-Terrain-Height-Tools%2Freleases%2Flatest%2Fdownload%2Fmodule.json&query=%24.version&prefix=v&style=for-the-badge&label=latest%20version)](https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/latest)
+![Latest Foundry version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2FWibble199%2FFoundryVTT-Terrain-Height-Tools%2Freleases%2Flatest%2Fdownload%2Fmodule.json&query=%24.compatibility.verified&style=for-the-badge&label=foundry%20version&color=fe6a1f)
+[![GitHub downloads (latest version)](https://img.shields.io/github/downloads/Wibble199/FoundryVTT-Terrain-Height-Tools/latest/release.zip?style=for-the-badge&label=downloads)](https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/latest)
 
 Tools for painting grid cells with terrain heights and calculating line of sight with respect to these heights.
 
