@@ -482,9 +482,9 @@ export class HeightMap {
 
 		let lastIntersectionPosition = { x: x1, y: y1, h: h1, t: 0 };
 
-		/** @param {{ x: number; y: number; t: number; allowZeroLength: boolean }} param0 */
-		const pushRegion = ({ x, y, t, allowZeroLength = false }) => {
-			if (!allowZeroLength && t === lastIntersectionPosition.t) return;
+		/** @param {{ x: number; y: number; t: number; }} param0 */
+		const pushRegion = ({ x, y, t }) => {
+			if (t === lastIntersectionPosition.t) return;
 			const position = { x, y, t, h: lerpLosHeight(t) };
 			if (isInside) {
 				regions.push({
@@ -511,7 +511,7 @@ export class HeightMap {
 				// Get the angle between previous and current edge, and between the previous edge and the test ray. If
 				// the ray angle is between that angle, then it has entered. This is similar to the logic we use for
 				// vertex intersections.
-				isInside = previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
+				isInside = testRay.isBetween(previousEdge, edge);
 
 			} else if (u > 1 - Number.EPSILON) {
 				// If we've intersected at the end of the shape's edge, check the angle for the next edge, similar to
@@ -519,7 +519,7 @@ export class HeightMap {
 				const nextEdge = shape.polygon.nextEdge(edge)
 					?? shape.holes.map(h => h.nextEdge(edge)).find(Boolean);
 
-				isInside = edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
+				isInside = testRay.isBetween(edge, nextEdge);
 
 			} else {
 				// For any other values of u, this was a clean intersection, so just toggle isInside
@@ -639,10 +639,10 @@ export class HeightMap {
 						if (region.start.t < skimEndT && region.end.t > skimEndT)
 							overlappingEndRegion = region;
 
-						if (region.end.t < skimStartT)
+						if (region.end.t <= skimStartT)
 							spliceRangeStart = j + 1;
 
-						if (region.start.t > skimEndT && spliceRangeEnd > j)
+						if (region.start.t >= skimEndT && spliceRangeEnd > j)
 							spliceRangeEnd = j;
 					}
 
