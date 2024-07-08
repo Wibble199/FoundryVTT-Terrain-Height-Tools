@@ -13,7 +13,6 @@ import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
 const rulerLineWidth = 4;
 const heightIndicatorXOffset = 10;
-const getHeightIndicatorLabel = (/** @type {number} */ h) => `H${h}`;
 
 export class LineOfSightRulerLayer extends CanvasLayer {
 
@@ -36,8 +35,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/** @type {Map<string, LineOfSightRuler>} */
 	#rulers = new Map();
 
-	/** @type {PreciseText} */
-	#heightIndicator = undefined;
+	/** @type {LineOfSightRulerLineCap} */
+	#lineStartIndicator = undefined;
 
 	constructor() {
 		super();
@@ -66,10 +65,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (game.canvas.grid?.type !== CONST.GRID_TYPES.GRIDLESS) {
 			this.#setupEventListeners("on");
 
-			this.#heightIndicator = new PreciseText("", CONFIG.canvasTextStyle);
-			this.#heightIndicator.anchor.set(0, 0.5);
-			this.#heightIndicator.visible = false;
-			this.addChild(this.#heightIndicator);
+			this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap());
+			this.#lineStartIndicator.visible = false;
 		}
 	}
 
@@ -78,7 +75,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		await super._tearDown();
 		this.#setupEventListeners("off");
 		this.#rulers.clear();
-		this.removeChild(this.#heightIndicator);
+		this.removeChild(this.#lineStartIndicator);
 	}
 
 	// ----------------------- //
@@ -138,22 +135,22 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	#onMouseMove = event => {
 		// Update height indicator visibility
 		// TODO: can this be moved to a hook?
-		this.#heightIndicator.visible = this.isToolSelected && !this.#dragStartPoint;
+		this.#lineStartIndicator.visible = this.isToolSelected && !this.#dragStartPoint;
 
-		if (this.#heightIndicator.visible) {
-			// Position the height indicator and update the text
-			/** @type {{ x: number; y: number }} */
-			const { x, y } = this.toLocal(event.data.global);
-			this.#heightIndicator.position.set(x + heightIndicatorXOffset, y);
-			this.#heightIndicator.text = getHeightIndicatorLabel(this.#cursorStartHeight);
+		// Get the drag position, which may include snapping
+		const [x, y] = this.#getDragPosition(event);
+
+		// Position the height indicator and update the text if it's visible
+		if (this.#lineStartIndicator.visible) {
+			this.#lineStartIndicator.position.set(x, y);
+			this.#lineStartIndicator.height = this.#cursorStartHeight;
 		}
 
-		if (!this.#dragStartPoint) return;
-
-		// If dragging a measurement, use the snapped x and y position of the mouse cursor
-		const [xSnapped, ySnapped] = this.#getDragPosition(event);
-		this.#dragEndPoint = { x: xSnapped, y: ySnapped, h: this.#cursorEndHeight };
-		this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
+		// If the user has started dragging a measurement, update the endpoint
+		if (this.#dragStartPoint) {
+			this.#dragEndPoint = { x, y, h: this.#cursorEndHeight };
+			this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
+		}
 	};
 
 	#onMouseUp = event => {
@@ -219,8 +216,32 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
 		} else {
 			this.#cursorStartHeight = change(this.#cursorStartHeight);
-			this.#heightIndicator.text = getHeightIndicatorLabel(this.#cursorStartHeight);
+			this.#lineStartIndicator.height = this.#cursorStartHeight;
 		}
+	}
+}
+
+class LineOfSightRulerLineCap extends PIXI.Container {
+
+	/** @type {PreciseText} */
+	#text;
+
+	constructor() {
+		super();
+
+		this.#text = this.addChild(new PreciseText("", CONFIG.canvasTextStyle));
+		this.#text.anchor.set(0, 0.5);
+		this.#text.position.set(heightIndicatorXOffset, 0);
+
+		this.addChild(new PIXI.Graphics())
+			.beginFill(0xFFFFFF, 0.5)
+			.lineStyle({ color: 0x000000, alpha: 0.25, width: 2 })
+			.drawCircle(0, 0, 6);
+	}
+
+	/** @param {number} value */
+	set height(value) {
+		this.#text.text = `H${value}`;
 	}
 }
 
@@ -235,19 +256,21 @@ class LineOfSightRuler extends PIXI.Container {
 	/** @type {ReturnType<typeof HeightMap.flattenLineOfSightIntersectionRegions>} */
 	#intersectionRegions = [];
 
+	/** @type {PIXI.Graphics} */
+	#line;
+
+	/** @type {LineOfSightRulerLineCap} */
+	#startCap;
+
+	/** @type {LineOfSightRulerLineCap} */
+	#endCap;
+
 	constructor() {
 		super();
 
-		/** @type {PIXI.Graphics} */
-		this.line = this.addChild(new PIXI.Graphics());
-
-		/** @type {PreciseText} */
-		this.startHeightLabel = this.addChild(new PreciseText("", CONFIG.canvasTextStyle));
-		this.startHeightLabel.anchor.set(0, 0.5);
-
-		/** @type {PreciseText} */
-		this.endHeightLabel = this.addChild(new PreciseText("", CONFIG.canvasTextStyle));
-		this.endHeightLabel.anchor.set(0, 0.5);
+		this.#line = this.addChild(new PIXI.Graphics());
+		this.#startCap = this.addChild(new LineOfSightRulerLineCap());
+		this.#endCap = this.addChild(new LineOfSightRulerLineCap());
 	}
 
 	/**
@@ -282,9 +305,14 @@ class LineOfSightRuler extends PIXI.Container {
 	}
 
 	_draw() {
-		this.line.clear();
+		this.#line.clear();
 
 		const terrainTypes = getTerrainTypeMap();
+
+		// Draw the line's shadow
+		this.#line.lineStyle({ color: 0x000000, alpha: 0.5, width: rulerLineWidth + 2 })
+			.moveTo(this.#p1.x, this.#p1.y)
+			.lineTo(this.#p2.x, this.#p2.y);
 
 		// Draw the line
 		let { h: _, ...lastPosition } = this.#p1;
@@ -293,19 +321,18 @@ class LineOfSightRuler extends PIXI.Container {
 			// If there is a gap between this region's start and the previous region's end (or the start of the ray if
 			// this is the first region), draw a default ruler line.
 			if (lastPosition.x !== region.start.x || lastPosition.y !== region.start.y) {
-				this.line.lineStyle({ color: 0xFFFFFF, width: rulerLineWidth });
-				this.line.moveTo(lastPosition.x, lastPosition.y);
-				this.line.lineTo(region.start.x, region.start.y);
+				this.#line.lineStyle({ color: 0xFFFFFF, alpha: 0.75, width: rulerLineWidth })
+					.moveTo(lastPosition.x, lastPosition.y)
+					.lineTo(region.start.x, region.start.y);
 			}
 
 			// Draw the intersection region (in the color of the intersected terrain)
 			const terrainColor = getTerrainColor(terrainTypes.get(region.terrainTypeId) ?? {});
-			this.line.lineStyle({ color: terrainColor, width: rulerLineWidth });
+			this.#line.lineStyle({ color: terrainColor, alpha: 0.75, width: rulerLineWidth });
 			if (region.skimmed) {
-				this.line.moveTo(region.start.x, region.start.y);
-				this.line.lineTo(region.end.x, region.end.y);
+				this.#line.moveTo(region.start.x, region.start.y).lineTo(region.end.x, region.end.y);
 			} else {
-				drawDashedPath(this.line, [region.start, region.end], { dashSize: 4 });
+				drawDashedPath(this.#line, [region.start, region.end], { dashSize: 4 });
 			}
 			lastPosition = region.end;
 		}
@@ -313,16 +340,16 @@ class LineOfSightRuler extends PIXI.Container {
 		// If there is a gap between the last region's end point (or the start of the ray if there are no regions) and
 		// the end point of the ray, draw a default line between these two points
 		if (lastPosition.x !== this.#p2.x || lastPosition.y !== this.#p2.y) {
-			this.line.lineStyle({ color: 0xFFFFFF, width: rulerLineWidth });
-			this.line.moveTo(lastPosition.x, lastPosition.y);
-			this.line.lineTo(this.#p2.x, this.#p2.y);
+			this.#line.lineStyle({ color: 0xFFFFFF, alpha: 0.75, width: rulerLineWidth })
+				.moveTo(lastPosition.x, lastPosition.y)
+				.lineTo(this.#p2.x, this.#p2.y);
 		}
 
 		// Update the labels for the height
-		this.startHeightLabel.text = getHeightIndicatorLabel(this.#p1.h);
-		this.startHeightLabel.position.set(this.#p1.x + heightIndicatorXOffset, this.#p1.y);
+		this.#startCap.height = this.#p1.h;
+		this.#startCap.position.set(this.#p1.x, this.#p1.y);
 
-		this.endHeightLabel.text = getHeightIndicatorLabel(this.#p2.h);
-		this.endHeightLabel.position.set(this.#p2.x + heightIndicatorXOffset, this.#p2.y);
+		this.#endCap.height = this.#p2.h;
+		this.#endCap.position.set(this.#p2.x, this.#p2.y);
 	}
 }
