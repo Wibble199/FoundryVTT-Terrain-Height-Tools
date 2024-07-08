@@ -245,6 +245,19 @@ export class LineSegment {
 	}
 
 	/**
+	 * Determines if this LineSegment is angled between the two given edges. It is assumed that these edges have a common
+	 * vertex, i.e. edge1 starts where edge2 ends, or edge2 starts where edge1 ends. It is also assumed that this segment
+	 * passes between that vertex also.
+	 * @param {LineSegment} edge1
+	 * @param {LineSegment} edge2
+	 */
+	isBetween(edge1, edge2) {
+		if (edge1.p1.equals(edge2.p2)) [edge1, edge2] = [edge2, edge1];
+		const angleInside = edge1.angleBetween(edge2);
+		return edge1.angleBetween(this) < angleInside;
+	}
+
+	/**
 	 * Creates the LineSegment that represents this inverse of this LineSegment.
 	 */
 	inverse() {

@@ -411,7 +411,8 @@ export class HeightMap {
 		const intersections = [];
 		for (const [hole, edge] of allEdges) {
 			const intersection = testRay.intersectsAt(edge);
-			if (intersection)
+			// Do not include intersections at t=0 as it can interfere with initial isInside check
+			if (intersection && intersection.t >= Number.EPSILON)
 				intersections.push({ ...intersection, edge, hole });
 		}
 
@@ -427,9 +428,53 @@ export class HeightMap {
 			.map(([, intersections]) => intersections);
 
 		// Determine if the start point of the test ray is inside or outside the shape, taking height into account.
-		let isInside = (!usesHeight || h1 <= shape.height)
-			&& shape.polygon.containsPoint(x1, y1, { containsOnEdge: false })
-			&& !shape.holes.some(h => h.containsPoint(x1, y1, { containsOnEdge: true }));
+		// If the start point lies exactly on an edge then we need to figure out which way the ray is facing - into the
+		// shape or out of the shape. If the point does not lie on an edge, then we can just use containsPoint.
+		// This code is very similar in structure to the code in handleEdgeIntersection - TODO: can we re-use that?
+		let isInside = false;
+		if (!usesHeight || h1 <= shape.height) {
+			const p1LiesOnEdges = allEdges
+				.map(([poly, edge]) => ({ edge, poly, ...edge.findClosestPoint(x1, y1) }))
+				.filter(x =>
+					x.t > -Number.EPSILON && x.t < 1 + Number.EPSILON &&
+					x.distanceSquared < Number.EPSILON * Number.EPSILON);
+
+			switch (p1LiesOnEdges.length) {
+				case 0:
+					isInside = shape.polygon.containsPoint(x1, y1, { containsOnEdge: false })
+						&& !shape.holes.some(h => h.containsPoint(x1, y1, { containsOnEdge: true }));
+					break;
+
+				case 1:
+					// (Rename t to u because elsewhere we use t as the relative distance along the ray and u as the
+					// relative distance along an edge, which is what we have here)
+					const { edge, poly, t: u } = p1LiesOnEdges[0];
+
+					if (u < Number.EPSILON) {
+						const previousEdge = poly.previousEdge(edge);
+						isInside = previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
+
+					} else if (u > 1 - Number.EPSILON) {
+						const nextEdge = poly.nextEdge(edge);
+						isInside = edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
+
+					} else {
+						const a = edge.angleBetween(testRay);
+						isInside = a > 0 && a < Math.PI; // Do not count 0 or PI as inside because that means it's parallel
+					}
+					break;
+
+				case 2:
+					isInside = testRay.isBetween(p1LiesOnEdges[0].edge, p1LiesOnEdges[1].edge);
+					break;
+
+				default:
+					// Rare case when the ruler starts at an intersection of 4 edges. Should only be able to happen on
+					// square grids when two vertices of the shape meet. For now, not sure what to do here :(
+					warn(`Edge case occured when performing line of sight calculation: the line of sight ray starts at multiple vertices of a single shape. This rare case is not currently supported and may give incorrect line of sight calculation results.`);
+					break;
+			}
+		}
 
 		// If the test ray is flat in the height direction and this shape's height = the test ray height, then whenever we
 		// 'enter' the shape, we're actually going to be skimming the top.
@@ -498,24 +543,14 @@ export class HeightMap {
 					// it works fine. However, in cases where the first and last edges defined on a shape are
 					// intersected, edge1 will actually be the one that begins where edge2 ends. In this case
 					// we need to swap them round for the calculations to work properly.
-					let [{ edge: edge1 }, { edge: edge2 }] = intersectionsOfT;
-					if (edge1.p1.equals(edge2.p2)) [edge1, edge2] = [edge2, edge1];
+					const [{ edge: edge1 }, { edge: edge2 }] = intersectionsOfT;
+					const rayInside = testRay.isBetween(edge1, edge2);
+					const inverseRayInside = inverseTestRay.isBetween(edge1, edge2);
 
-					// To determine if we we can treat this is an edge intersection, either: the ray's angle must be between
-					// the angle between edge1 and edge2 and the inverse ray's angle must not, or vice versa. If the ray and
-					// the inverse angles are both outside or both inside, then we have a 'skimming' vertex intersection.
-					const angleInside = edge1.angleBetween(edge2);
-					const rayInside = edge1.angleBetween(testRay) < angleInside;
-					const inverseRayInside = edge1.angleBetween(inverseTestRay) < angleInside;
-					const treatAsEdgeIntersection = rayInside !== inverseRayInside;
-
-					// If so, then we can treat it as if it was an edge intersection.
-					// If not, then we skimmed the shape at a corner, so add a zero-length skim region.
-					if (treatAsEdgeIntersection) {
+					// If the ray and the inverse ray's angles are both outside or both inside, then we have a skimmed a
+					// vertex intersection. If not, then we can treat it as if it was an edge intersection.
+					if (rayInside !== inverseRayInside)
 						handleEdgeIntersection(intersectionsOfT[0]);
-					} else {
-						pushRegion({ ...intersectionsOfT[0], allowZeroLength: true })
-					}
 
 					break;
 				}
