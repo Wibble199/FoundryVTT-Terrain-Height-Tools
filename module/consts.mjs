@@ -12,6 +12,8 @@ export const tools = /** @type {const} */ ({
 
 /** @enum {keyof typeof settings} */
 export const settings = /** @type {const} */ ({
+	displayLosMeasurementGm: "displayLosMeasurementGm",
+	displayLosMeasurementPlayer: "displayLosMeasurementPlayer",
 	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer",
 	smartLabelPlacement: "smartLabelPlacement",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
@@ -37,4 +39,10 @@ export const lineTypes = ({
 	none: 0,
 	solid: 1,
 	dashed: 2
+});
+
+/** @enum {keyof typeof socketlibFuncs} */
+export const socketlibFuncs = /** @type {const} */ ({
+	drawLineOfSightRay: "drawLineOfSightRay",
+	clearLineOfSightRay: "clearLineOfSightRay"
 });

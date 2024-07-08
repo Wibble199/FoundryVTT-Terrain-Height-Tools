@@ -38,6 +38,24 @@ export function registerSettings() {
 		}
 	});
 
+	game.settings.register(moduleName, settings.displayLosMeasurementGm, {
+		name: "SETTINGS.DisplayLosMeasurementGm.Name",
+		hint: "SETTINGS.DisplayLosMeasurementGm.Hint",
+		scope: "world",
+		type: Boolean,
+		default: true,
+		config: true
+	});
+
+	game.settings.register(moduleName, settings.displayLosMeasurementPlayer, {
+		name: "SETTINGS.DisplayLosMeasurementPlayer.Name",
+		hint: "SETTINGS.DisplayLosMeasurementPlayer.Hint",
+		scope: "world",
+		type: Boolean,
+		default: true,
+		config: true
+	});
+
 	game.settings.register(moduleName, settings.showTerrainHeightOnTokenLayer, {
 		name: "SETTINGS.ShowTerrainHeightOnTokenLayer",
 		scope: "client",

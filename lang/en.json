@@ -14,6 +14,10 @@
 		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
 	},
 	"SETTINGS": {
+		"DisplayLosMeasurementGm.Name": "Display Line of Sight Ruler (GM)",
+		"DisplayLosMeasurementGm.Hint": "Whether to display the GM's line of sight measurement ruler to other connected players or not.",
+		"DisplayLosMeasurementPlayer.Name": "Display Line of Sight Ruler (Player)",
+		"DisplayLosMeasurementPlayer.Hint": "Whether to display the players' line of sight measurement rulers to other connected players or not.",
 		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
 		"TerrainHeightLayerRenderAboveTiles.Name": "Terrain Height Map Above Tiles",
 		"TerrainHeightLayerRenderAboveTiles.Hint": "Whether or not the terrain height map will be drawn above non-overhead tiles on the scene. This can be also be set per-scene.",
@@ -53,6 +57,7 @@
 			"UseGlobal": "Inherit Global Setting",
 			"AboveTiles": "Show Height Map Above Tiles",
 			"BelowTiles": "Show Height Map Below Tiles"
-		}
+		},
+		"SocketLibWarning": "Terrain Height Tools | Socketlib is not installed or enabled. You can continue to use THT, but note that line-of-sight rulers will not be shared between users."
 	}
 }

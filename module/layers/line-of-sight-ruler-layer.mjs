@@ -1,4 +1,4 @@
-import { tools } from "../consts.mjs";
+import { moduleName, settings, socketlibFuncs, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { getGridCellPolygon, getGridCenter } from "../utils/grid-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
@@ -41,6 +41,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	constructor() {
 		super();
 		this.eventMode = "static";
+
+		// Ensure rulers are deleted when a user quits
+		Hooks.on("userConnected", (user, _connected) => this._clearLineOfSightRay({ userId: user.id, clearForOthers: false }));
 	}
 
 	/** @override */
@@ -65,7 +68,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (game.canvas.grid?.type !== CONST.GRID_TYPES.GRIDLESS) {
 			this.#setupEventListeners("on");
 
-			this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap());
+			this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
 			this.#lineStartIndicator.visible = false;
 		}
 	}
@@ -85,26 +88,37 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * Draws a line of sight ruler on the map, from the given start and end points and the given intersection regions.
 	 * @param {Point3D} p1 The first point, where `x` and `y` are pixel coordinates.
 	 * @param {Point3D} p2 The second point, where `x` and `y` are pixel coordinates.
-	 * @param {string} [userId=undefined] ID of the user that is drawing the LOS ruler. Defaults to current user.
+	 * @param {Object} [options]
+	 * @param {string} [options.userId] ID of the user that is drawing the LOS ruler. Defaults to current user.
+	 * @param {boolean} [options.drawForOthers] If true, this ruler will be drawn on other user's canvases.
 	 */
-	_drawLineOfSightRay(p1, p2, userId = undefined) {
+	_drawLineOfSightRay(p1, p2, { userId = undefined, drawForOthers = true } = {}) {
 		userId ??= game.userId;
 
 		let ruler = this.#rulers.get(userId);
 		if (!ruler) {
-			ruler = new LineOfSightRuler();
+			ruler = new LineOfSightRuler(Color.from(game.users.get(userId).color));
 			this.addChild(ruler);
 			this.#rulers.set(userId, ruler);
 		}
 
 		ruler.setEndpoints(p1, p2);
+
+		if (drawForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
+			globalThis.terrainHeightTools.socket?.executeForOthers(
+				socketlibFuncs.drawLineOfSightRay,
+				this.#dragStartPoint, this.#dragEndPoint,
+				{ userId: game.userId, drawForOthers: false });
+		}
 	}
 
 	/**
 	 * Removes a line of sight
-	 * @param {string} userId The ID of the user whose LOS ruler to remove. Defaults to current user.
+	 * @param {Object} [options]
+	 * @param {string} [options.userId] The ID of the user whose LOS ruler to remove. Defaults to current user.
+	 * @param {boolean} [options.clearForOthers] If true, this user's ruler will be cleared on other user's canvases.
 	 */
-	_clearLineOfSightRay(userId = undefined) {
+	_clearLineOfSightRay({ userId = undefined, clearForOthers = true } = {}) {
 		userId ??= game.userId;
 
 		const ruler = this.#rulers.get(userId);
@@ -112,6 +126,16 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			this.removeChild(ruler);
 			this.#rulers.delete(userId);
 		}
+
+		if (clearForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
+			globalThis.terrainHeightTools.socket?.executeForOthers(
+				socketlibFuncs.clearLineOfSightRay,
+				{ userId: game.userId, clearForOthers: false });
+		}
+	}
+
+	get #shouldShowUsersRuler() {
+		return game.settings.get(moduleName, game.user.isGM ? settings.displayLosMeasurementGm : settings.displayLosMeasurementPlayer);
 	}
 
 	// ----------------------------- //
@@ -147,7 +171,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		}
 
 		// If the user has started dragging a measurement, update the endpoint
-		if (this.#dragStartPoint) {
+		if (this.#dragStartPoint && (this.#dragEndPoint.x !== x || this.#dragEndPoint.y !== y || this.#dragEndPoint.h !== this.#cursorEndHeight)) {
 			this.#dragEndPoint = { x, y, h: this.#cursorEndHeight };
 			this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
 		}
@@ -226,15 +250,17 @@ class LineOfSightRulerLineCap extends PIXI.Container {
 	/** @type {PreciseText} */
 	#text;
 
-	constructor() {
+	/** @param {number} color */
+	constructor(color = 0xFFFFFF) {
 		super();
 
-		this.#text = this.addChild(new PreciseText("", CONFIG.canvasTextStyle));
+		this.#text = this.addChild(new PreciseText("", CONFIG.canvasTextStyle.clone()));
 		this.#text.anchor.set(0, 0.5);
 		this.#text.position.set(heightIndicatorXOffset, 0);
+		this.#text.style.fill = color;
 
 		this.addChild(new PIXI.Graphics())
-			.beginFill(0xFFFFFF, 0.5)
+			.beginFill(color, 0.5)
 			.lineStyle({ color: 0x000000, alpha: 0.25, width: 2 })
 			.drawCircle(0, 0, 6);
 	}
@@ -265,12 +291,13 @@ class LineOfSightRuler extends PIXI.Container {
 	/** @type {LineOfSightRulerLineCap} */
 	#endCap;
 
-	constructor() {
+	/** @param {number} color */
+	constructor(color = 0xFFFFFF) {
 		super();
 
 		this.#line = this.addChild(new PIXI.Graphics());
-		this.#startCap = this.addChild(new LineOfSightRulerLineCap());
-		this.#endCap = this.addChild(new LineOfSightRulerLineCap());
+		this.#startCap = this.addChild(new LineOfSightRulerLineCap(color));
+		this.#endCap = this.addChild(new LineOfSightRulerLineCap(color));
 	}
 
 	/**
