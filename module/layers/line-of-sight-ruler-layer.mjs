@@ -1,6 +1,5 @@
 import { tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
-import { LineSegment } from '../geometry/line-segment.mjs';
 import { getGridCellPolygon, getGridCenter } from "../utils/grid-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";

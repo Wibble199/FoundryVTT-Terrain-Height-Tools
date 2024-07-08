@@ -210,9 +210,21 @@ export class LineSegment {
 	 * @returns {{ x: number; y: number; }}
 	 */
 	lerp(t) {
+		return LineSegment.lerp(this.p1.x, this.p1.y, this.p2.x, this.p2.y, t);
+	}
+
+	/**
+	 * Linearly interpolates the X,Y position of a point that is at `t` along the specified line.
+	 * @param {number} x1
+	 * @param {number} y1
+	 * @param {number} x2
+	 * @param {number} y2
+	 * @param {number} t
+	 */
+	static lerp(x1, y1, x2, y2, t) {
 		return {
-			x: this.dx * t + this.p1.x,
-			y: this.dy * t + this.p1.y
+			x: (x2 - x1) * t + x1,
+			y: (y2 - y1) * t + y1
 		};
 	}
 

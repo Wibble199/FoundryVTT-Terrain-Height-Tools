@@ -378,25 +378,27 @@ export class HeightMap {
 	 * @param {boolean} [options.detectSkimming=true] Whether or not to perform additional calculations to work out the
 	 * skim regions.
 	 */
-	static getIntersectionsOfShape(shape, p1, p2, usesHeight, { detectSkimming = true } = {}) {
-		const [{ x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }] = [p1, p2];
-
+	static getIntersectionsOfShape(shape, { x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }, usesHeight, { detectSkimming = true } = {}) {
 		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
 		// the line of sight ray would never cross at the required height for an intersection.
 		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
-		if (usesHeight && shape.height < h1 && shape.height < h2) return [];
-
-		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
-		const inverseTestRay = testRay.inverse();
+		if (usesHeight && h1 > shape.height && h2 > shape.height) return [];
 
 		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
 		const inverseLerpLosHeight = (/** @type {number} */ h) => (h - h1) / (h2 - h1);
 
-		/** @type {LineOfSightIntersection[]} */
-		const intersections = [];
+		// If the test ray extends above the height of the shape, instead stop it at that height
+		let t1 = 0, t2 = 1;
+		if (h1 > shape.height) {
+			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shape.height)));
+			h1 = shape.height;
+		} else if (h2 > shape.height) {
+			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shape.height)));
+			h2 = shape.height;
+		}
 
-		/** @type {LineOfSightIntersection} */
-		let verticalIntersection = undefined;
+		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
+		const inverseTestRay = testRay.inverse();
 
 		// Loop each edge in this shape and check for an intersection. Record height, shape and how far along the
 		// test line the intersection occured.
@@ -405,37 +407,12 @@ export class HeightMap {
 			.concat(shape.holes
 				.flatMap(h => h.edges.map(e => /** @type {[Polygon, LineSegment]} */ ([h, e]))));
 
+		/** @type {LineOfSightIntersection[]} */
+		const intersections = [];
 		for (const [hole, edge] of allEdges) {
 			const intersection = testRay.intersectsAt(edge);
-			if (!intersection) continue;
-
-			// Check whether this intersection happens below the height of the LOS ray.
-			// If it does, then the collision would not have occured.
-			const losHeightAtIntersection = lerpLosHeight(intersection.t)
-			if (usesHeight && losHeightAtIntersection > shape.height) continue;
-
-			intersections.push({ ...intersection, edge, hole });
-		}
-
-		// Next, we need to check for leaving the shape from the top: work out the `t` position where the LOS ray crosses
-		// the height of the shape. E.G. for a height 3 shape, work out the `t` value where the LOS ray has a height of 3.
-		// Then, we can lerp the X,Y position of this ray when it is at this t value.
-		// Finally, we can take that X,Y position and check whether it is inside the shape or not (counting holes also).
-		// Note that we only need to do this is if there is a height difference in the LOS ray.
-		if (h1 !== h2 && usesHeight) {
-			const t = inverseLerpLosHeight(shape.height);
-			if (t >= 0 && t <= 1) {
-				const testLinePointAtHeight = testRay.lerp(t);
-				if (shape.polygon.containsPoint(testLinePointAtHeight.x, testLinePointAtHeight.y) && !shape.holes.some(h => h.containsPoint(testLinePointAtHeight.x, testLinePointAtHeight.y)))
-					verticalIntersection = {
-						x: testLinePointAtHeight.x,
-						y: testLinePointAtHeight.y,
-						t,
-						u: undefined,
-						edge: undefined,
-						hole: undefined
-					};
-			}
+			if (intersection)
+				intersections.push({ ...intersection, edge, hole });
 		}
 
 		// Next to use these intersections to determine the regions where an intersection is occuring.
@@ -445,27 +422,20 @@ export class HeightMap {
 		// There may be multiple intersections at an equal point along the test ray (t) - for example when touching a vertex
 		// of a shape - it'll intersect both edges of the vertex. These are a special case and need to be handled
 		// differently, so group everything by t.
-		// We also include the vertical intersection (if there is one AND if there isn't already an intersection at that
-		// value of `t`) in this list to get processed also. We don't include it if there is already an intersection at
-		// that point because we don't want it to treat a one-edge intersection at the top of the shape as a two-edge
-		// intersection. In that case, we can just the existing one without needing the vertical one.
-		if (verticalIntersection !== undefined && !intersections.some(i => Math.abs(i.t - verticalIntersection.t) < Number.EPSILON))
-			intersections.push(verticalIntersection)
-
 		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries()]
 			.sort(([a], [b]) => a - b) // sort by t
 			.map(([, intersections]) => intersections);
 
 		// Determine if the start point of the test ray is inside or outside the shape, taking height into account.
-		let isInside = (!usesHeight || p1.h <= shape.height)
-			&& shape.polygon.containsPoint(p1.x, p1.y, { containsOnEdge: false })
-			&& !shape.holes.some(h => h.containsPoint(p1.x, p1.y, { containsOnEdge: true }));
+		let isInside = (!usesHeight || h1 <= shape.height)
+			&& shape.polygon.containsPoint(x1, y1, { containsOnEdge: false })
+			&& !shape.holes.some(h => h.containsPoint(x1, y1, { containsOnEdge: true }));
 
 		// If the test ray is flat in the height direction and this shape's height = the test ray height, then whenever we
 		// 'enter' the shape, we're actually going to be skimming the top.
-		const isSkimmingTop = detectSkimming && usesHeight && p1.h === p2.h && p1.h === shape.height;
+		const isSkimmingTop = detectSkimming && usesHeight && h1 === h2 && h1 === shape.height;
 
-		let lastIntersectionPosition = { x: p1.x, y: p1.y, h: p1.h, t: 0 };
+		let lastIntersectionPosition = { x: x1, y: y1, h: h1, t: 0 };
 
 		/** @param {{ x: number; y: number; t: number; allowZeroLength: boolean }} param0 */
 		const pushRegion = ({ x, y, t, allowZeroLength = false }) => {
@@ -562,7 +532,7 @@ export class HeightMap {
 		}
 
 		// In case the last intersection was not at the end, ensure we close the region
-		pushRegion({ x: p2.x, y: p2.y, t: 1 });
+		pushRegion({ x: x2, y: y2, t: 1 });
 
 		// As a final step, need to calculate if any of the regions are 'skimmed' regions.
 		// Note: this is done as an independent step as it allows us to add some tolerance without making a mess of the
@@ -584,29 +554,14 @@ export class HeightMap {
 			const skimRegions = [];
 			for (const edge of parallelEdges) {
 				// Cap the t values to 0-1 (i.e. on the testRay), but don't alter the distances.
-				let { t: t1, distanceSquared: d1 } = testRay.findClosestPoint(edge.p1.x, edge.p1.y);
+				let { t: t1, distanceSquared: d1, point: point1 } = testRay.findClosestPoint(edge.p1.x, edge.p1.y);
 				t1 = Math.max(Math.min(t1, 1), 0);
-				let { t: t2, distanceSquared: d2 } = testRay.findClosestPoint(edge.p2.x, edge.p2.y);
+				let { t: t2, distanceSquared: d2, point: point2 } = testRay.findClosestPoint(edge.p2.x, edge.p2.y);
 				t2 = Math.max(Math.min(t2, 1), 0);
 
 				// If the two ends of the edge wouldn't be skimming, continue to next edge
 				if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
 					continue;
-
-				// Check height of both ends is within the height of the shape.
-				// If neither are, then this region isn't a skim so continue to next edge.
-				// If only one is, figure out which and figure out which point the skimming stops and replace the out
-				// of range t value with the interpolated value
-				// If both are, no alteration needed
-				const h1 = lerpLosHeight(t1);
-				const h2 = lerpLosHeight(t2);
-
-				if (h1 > shape.height && h2 > shape.height)
-					continue;
-				else if (h1 > shape.height) // h2 <= shape.height
-					t1 = inverseLerpLosHeight(shape.height);
-				else if (h2 > shape.height) // h1 <= shape.height
-					t2 = inverseLerpLosHeight(shape.height);
 
 				skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
 			}
@@ -689,6 +644,14 @@ export class HeightMap {
 				}
 			}
 		}
+
+		// Finally, in case we trimmed the testRay to make the logic simpler, we need to convert the trimmed-ray `t`
+		// values back into full ray `t` values
+		if (t1 !== 0 || t2 !== 1)
+			for (const region of regions) {
+				region.start.t = t1 + region.start.t * (t2 - t1);
+				region.end.t = t1 + region.end.t * (t2 - t1);
+			}
 
 		return regions;
 	}
