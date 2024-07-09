@@ -341,11 +341,9 @@ export class HeightMap {
 	 * @param {Object} [options={}] Options that change how the calculation is done.
 	 * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
 	 * height value will be included in the return list. They are treated as having infinite height.
-	 * @param {boolean} [options.detectSkimming=true] If true, additional calculations are performed to detemine which
-	 * regions of the line of sight ray are skimming shapes.
 	 * @returns {{ shape: HeightMapShape; regions: LineOfSightIntersectionRegion[] }[]}
 	 */
-	calculateLineOfSight(p1, p2, { includeNoHeightTerrain = false, detectSkimming = true } = {}) {
+	calculateLineOfSight(p1, p2, { includeNoHeightTerrain = false } = {}) {
 		const terrainTypes = getTerrainTypeMap();
 
 		/** @type {{ shape: HeightMapShape; regions: LineOfSightIntersectionRegion[] }[]} */
@@ -360,7 +358,7 @@ export class HeightMap {
 			// If this shape has a no-height terrain, only test for intersections if we are includeNoHeightTerrain
 			if (!usesHeight && !includeNoHeightTerrain) continue;
 
-			const regions = HeightMap.getIntersectionsOfShape(shape, p1, p2, usesHeight, { detectSkimming });
+			const regions = HeightMap.getIntersectionsOfShape(shape, p1, p2, usesHeight);
 			if (regions.length > 0)
 				intersectionsByShape.push({ shape, regions });
 		}
@@ -374,11 +372,9 @@ export class HeightMap {
 	 * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
 	 * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
 	 * @param {boolean} usesHeight Whether or not the terrain type assigned to the shape utilises height or not.
-	 * @param {Object} [options={}]
-	 * @param {boolean} [options.detectSkimming=true] Whether or not to perform additional calculations to work out the
 	 * skim regions.
 	 */
-	static getIntersectionsOfShape(shape, { x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }, usesHeight, { detectSkimming = true } = {}) {
+	static getIntersectionsOfShape(shape, { x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }, usesHeight) {
 		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
 		// the line of sight ray would never cross at the required height for an intersection.
 		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
@@ -411,9 +407,28 @@ export class HeightMap {
 		const intersections = [];
 		for (const [hole, edge] of allEdges) {
 			const intersection = testRay.intersectsAt(edge);
+
 			// Do not include intersections at t=0 as it can interfere with initial isInside check
-			if (intersection && intersection.t >= Number.EPSILON)
-				intersections.push({ ...intersection, edge, hole });
+			if (!intersection || intersection.t < Number.EPSILON) continue;
+
+			intersections.push({ ...intersection, edge, hole });
+
+			// If the intersection occured at u=0 or u=1, and the previous or next edge respectively is parallel to the
+			// testray, then add a synthetic intersection for that edge. This makes it easier later to do the region
+			// calculations later on, as we don't then need to check for vertex collisions and handle them differently.
+			// If the prev/next edge is not parallel then it should cause it's own intersection and get added normally.
+			if (intersection.u < Number.EPSILON) {
+				const previousEdge = (hole ?? shape.polygon).previousEdge(edge);
+				if (previousEdge.isParallelTo(testRay)) {
+					intersections.push({ ...intersection, u: 1, edge: previousEdge, hole });
+				}
+
+			} else if (intersection.u > 1 - Number.EPSILON) {
+				const nextEdge = (hole ?? shape.polygon).nextEdge(edge);
+				if (nextEdge.isParallelTo(testRay)) {
+					intersections.push({ ...intersection, u: 0, edge: nextEdge, hole });
+				}
+			}
 		}
 
 		// Next to use these intersections to determine the regions where an intersection is occuring.
@@ -451,11 +466,11 @@ export class HeightMap {
 					const { edge, poly, t: u } = p1LiesOnEdges[0];
 
 					if (u < Number.EPSILON) {
-						const previousEdge = poly.previousEdge(edge);
+						const previousEdge = (poly ?? shape.polygon).previousEdge(edge);
 						isInside = previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 
 					} else if (u > 1 - Number.EPSILON) {
-						const nextEdge = poly.nextEdge(edge);
+						const nextEdge = (poly ?? shape.polygon).nextEdge(edge);
 						isInside = edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 
 					} else {
@@ -468,17 +483,34 @@ export class HeightMap {
 					isInside = testRay.isBetween(p1LiesOnEdges[0].edge, p1LiesOnEdges[1].edge);
 					break;
 
+				case 4:
+					// In the case of a 4-way intersection, loop over all the edges and see if the ray passes between
+					// the relevant adjacent edge. This does mean we could end up testing all the edges twice (since the
+					// relevant edge should already be in the array), but the code to try pair them up would be clunky,
+					// and since it's only 4 basic maths operations it'll have no noticable impact on perf.
+					isInside = p1LiesOnEdges.some(({ edge, poly, t: u }) => {
+						if (u < Number.EPSILON) {
+							const previousEdge = (poly ?? shape.polygon).previousEdge(edge);
+							return previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
+						} else if (u > 1 - Number.EPSILON) {
+							const nextEdge = (poly ?? shape.polygon).nextEdge(edge);
+							return edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
+						}
+					});
+
+					break;
+
 				default:
 					// Rare case when the ruler starts at an intersection of 4 edges. Should only be able to happen on
 					// square grids when two vertices of the shape meet. For now, not sure what to do here :(
-					warn(`Edge case occured when performing line of sight calculation: the line of sight ray starts at multiple vertices of a single shape. This rare case is not currently supported and may give incorrect line of sight calculation results.`);
+					warn(`Error when performing line of sight calculation: the line of sight ray starts at ${p1LiesOnEdges.length} vertices of a single shape, but expected 0, 1, 2, or 4. This case is not supported and will likely give incorrect line of sight calculation results.`);
 					break;
 			}
 		}
 
 		// If the test ray is flat in the height direction and this shape's height = the test ray height, then whenever we
 		// 'enter' the shape, we're actually going to be skimming the top.
-		const isSkimmingTop = detectSkimming && usesHeight && h1 === h2 && h1 === shape.height;
+		const isSkimmingTop = usesHeight && h1 === h2 && h1 === shape.height;
 
 		let lastIntersectionPosition = { x: x1, y: y1, h: h1, t: 0 };
 
@@ -496,72 +528,45 @@ export class HeightMap {
 			lastIntersectionPosition = position;
 		};
 
-		/** @param {LineOfSightIntersection} param0 */
-		const handleEdgeIntersection = ({ edge, x, y, t, u }) => {
-			pushRegion({ x, y, t });
-
-			if (u < Number.EPSILON) {
-				// If we've intersected at the start of the shape's edge, check the angle of the previous edge.
-				// This edge will be parallel to the test ray (else it would have also caused an intersection).
-				// If the angle is the same as the test ray (i.e. the edge is going the same direction), then we
-				// have entered a skimming section.
-				const previousEdge = shape.polygon.previousEdge(edge)
-					?? shape.holes.map(h => h.previousEdge(edge)).find(Boolean);
-
-				// Get the angle between previous and current edge, and between the previous edge and the test ray. If
-				// the ray angle is between that angle, then it has entered. This is similar to the logic we use for
-				// vertex intersections.
-				isInside = testRay.isBetween(previousEdge, edge);
-
-			} else if (u > 1 - Number.EPSILON) {
-				// If we've intersected at the end of the shape's edge, check the angle for the next edge, similar to
-				// how we do for when u = 0.
-				const nextEdge = shape.polygon.nextEdge(edge)
-					?? shape.holes.map(h => h.nextEdge(edge)).find(Boolean);
-
-				isInside = testRay.isBetween(edge, nextEdge);
-
-			} else {
-				// For any other values of u, this was a clean intersection, so just toggle isInside
-				isInside = !isInside;
-			}
-		};
-
 		for (const intersectionsOfT of intersectionsByT) {
 			switch (intersectionsOfT.length) {
-				// In the case of a single intersection, then we have either crossed an edge cleanly, or we have
-				// hit a vertex where one of the edges is parallel to the test ray.
-				case 1: {
-					handleEdgeIntersection(intersectionsOfT[0]);
+				// In the case of a single intersection, then we have crossed an edge cleanly.
+				case 1:
+					pushRegion(intersectionsOfT[0]);
+					isInside = !isInside;
 					break;
-				}
 
-				// In the case of two intersections, we have hit a vertex where neither edge are parallel to the
-				// test ray.
-				case 2: {
-					// In most cases, edge2 will start where edge1 ends. So when working out the angle between
-					// it works fine. However, in cases where the first and last edges defined on a shape are
-					// intersected, edge1 will actually be the one that begins where edge2 ends. In this case
-					// we need to swap them round for the calculations to work properly.
-					const [{ edge: edge1 }, { edge: edge2 }] = intersectionsOfT;
-					const rayInside = testRay.isBetween(edge1, edge2);
-					const inverseRayInside = inverseTestRay.isBetween(edge1, edge2);
+				// In the case of two intersections, we have hit a vertex,
+				case 2:
+					// If intersection2 comes before intersection1 in the shape, then swap them
+					let [intersection1, intersection2] = intersectionsOfT;
+					if (intersection2.edge.p2.equals(intersection1.edge.p1))
+						[intersection1, intersection2] = [intersection2, intersection1];
 
-					// If the ray and the inverse ray's angles are both outside or both inside, then we have a skimmed a
-					// vertex intersection. If not, then we can treat it as if it was an edge intersection.
-					if (rayInside !== inverseRayInside)
-						handleEdgeIntersection(intersectionsOfT[0]);
+					// Work out of the ray is passing between the two edges
+					// If NEITHER the ray nor the inverse ray pass between, or BOTH have then the ray has skimmed this vertex
+					// (on the outside or the inside of the shape respectively), so don't add the region to the array.
+					const rayInside = testRay.isBetween(intersection1.edge, intersection2.edge);
+					const inverseRayInside = inverseTestRay.isBetween(intersection1.edge, intersection2.edge);
 
+					if (rayInside !== inverseRayInside) {
+						pushRegion(intersection1);
+						isInside = rayInside;
+					}
 					break;
-				}
 
-				// In any other case we don't know what to do. These should be very rare so for now I think it's
-				// fine to leave as just a warning and ignore it.
-				// This can happen for example on a square grid when the shape has two vertices touching one
-				// another and the line crosses at this vertex.
-				// Shouldn't be possible on a hex grid?
+				// In the uncommon case of four intersections, we have hit a 4-way vertex on a square grid (not possible
+				// on a hex grid).
+				case 4:
+					// In this case we don't actually need to do anything. The only time this can happen is on a square
+					// grid, and for it to happen opposite corners must be painted (i.e. top left and bottom right; or
+					// top right and bottom left). This means that whatever state the ray is in when it intersections,
+					// it is the same when it comes out because it will end up in the same type of cell - painted or not
+					break;
+
+				// If anything else, then something has gone wrong. :(
 				default:
-					warn(`Edge case occured when performing line of sight calculation: the line of sight ray met a shape and caused ${intersectionsOfT.length} intersections at the same point. This rare case is not currently supported and will likely give incorrect line of sight calculation results.`);
+					error(`Error occured when performing line of sight calculation: the line of sight ray met a shape and caused ${intersectionsOfT.length} intersections at the same point but expected either 1, 2, or 4. This case is not supported and will likely give incorrect line of sight calculation results.`);
 					break;
 			}
 		}
@@ -573,110 +578,109 @@ export class HeightMap {
 		// Note: this is done as an independent step as it allows us to add some tolerance without making a mess of the
 		// normal intersection calculations. For example, adding some tolerance around the ends of lines can cause extra
 		// intersections to occur when they otherwise wouldn't. This often gets more noticable on longer lines too.
-		if (detectSkimming) {
-			// Only edges that are (approximately) parallel to the test ray could cause a skimming to occur
-			const parallelThreshold = 0.05; // radians
-			const parallelEdges = allEdges
-				.map(([, e]) => e)
-				.filter(e =>
-					Math.abs(testRay.angle - e.angle) < parallelThreshold ||
-					Math.abs(inverseTestRay.angle - e.angle) < parallelThreshold);
 
-			// For each edge that is parallel, check how far the ends are from the testRay (assuming testRay had
-			// infinite length). If both are within a small threshold, then add it as a skimming region.
-			const skimDistThresholdSquared = 16; // pixels
-			/** @type {{ t1: number; t2: number }[]} */
-			const skimRegions = [];
-			for (const edge of parallelEdges) {
-				// Cap the t values to 0-1 (i.e. on the testRay), but don't alter the distances.
-				let { t: t1, distanceSquared: d1, point: point1 } = testRay.findClosestPoint(edge.p1.x, edge.p1.y);
-				t1 = Math.max(Math.min(t1, 1), 0);
-				let { t: t2, distanceSquared: d2, point: point2 } = testRay.findClosestPoint(edge.p2.x, edge.p2.y);
-				t2 = Math.max(Math.min(t2, 1), 0);
+		// Only edges that are (approximately) parallel to the test ray could cause a skimming to occur
+		const parallelThreshold = 0.05; // radians
+		const parallelEdges = allEdges
+			.map(([, e]) => e)
+			.filter(e =>
+				Math.abs(testRay.angle - e.angle) < parallelThreshold ||
+				Math.abs(inverseTestRay.angle - e.angle) < parallelThreshold);
 
-				// If the two ends of the edge wouldn't be skimming, continue to next edge
-				if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
-					continue;
+		// For each edge that is parallel, check how far the ends are from the testRay (assuming testRay had
+		// infinite length). If both are within a small threshold, then add it as a skimming region.
+		const skimDistThresholdSquared = 16; // pixels
+		/** @type {{ t1: number; t2: number }[]} */
+		const skimRegions = [];
+		for (const edge of parallelEdges) {
+			// Cap the t values to 0-1 (i.e. on the testRay), but don't alter the distances.
+			let { t: t1, distanceSquared: d1, point: point1 } = testRay.findClosestPoint(edge.p1.x, edge.p1.y);
+			t1 = Math.max(Math.min(t1, 1), 0);
+			let { t: t2, distanceSquared: d2, point: point2 } = testRay.findClosestPoint(edge.p2.x, edge.p2.y);
+			t2 = Math.max(Math.min(t2, 1), 0);
 
-				skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
-			}
+			// If the two ends of the edge wouldn't be skimming, continue to next edge
+			if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
+				continue;
 
-			skimRegions.sort((a, b) => a.t1 - b.t2);
+			skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
+		}
 
-			// Merge these regions with the overall intersection regions, combining any adjacent skim regions together
-			// (combining may only happen on a square grid, would never occur on a hex grid)
-			/** @type {number | undefined} */
-			let skimStartT = undefined;
-			for (let i = 0; i < skimRegions.length; i++) {
+		skimRegions.sort((a, b) => a.t1 - b.t2);
 
-				// Merge adjacent skim regions. The combined skim region is from skimStartT -> skimRegions[i].t2.
-				skimStartT ??= skimRegions[i].t1;
-				if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON) {
-					const skimEndT = skimRegions[i].t2;
+		// Merge these regions with the overall intersection regions, combining any adjacent skim regions together
+		// (combining may only happen on a square grid, would never occur on a hex grid)
+		/** @type {number | undefined} */
+		let skimStartT = undefined;
+		for (let i = 0; i < skimRegions.length; i++) {
 
-					// We need to figure out which, if any, of the intersection regions to remove.
-					// We also need to figure out if we're overlapping any of these intersection regions, and if so, we
-					// want to remove it but also insert a new one up to that point. E.G. if a region was from t=0.2 to
-					// t=0.4, and then a skim region was from t=0.3 to t=0.5, remove the existing intersection region
-					// and add a new one from t=0.2 to t=0.3. Note that the start and end intersect regions may be the
-					// same if the skim region does not fully overlap it.
+			// Merge adjacent skim regions. The combined skim region is from skimStartT -> skimRegions[i].t2.
+			skimStartT ??= skimRegions[i].t1;
+			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON) {
+				const skimEndT = skimRegions[i].t2;
 
-					/** @type {LineOfSightIntersectionRegion | undefined} */
-					let overlappingStartRegion = undefined;
-					/** @type {LineOfSightIntersectionRegion | undefined} */
-					let overlappingEndRegion = undefined;
+				// We need to figure out which, if any, of the intersection regions to remove.
+				// We also need to figure out if we're overlapping any of these intersection regions, and if so, we
+				// want to remove it but also insert a new one up to that point. E.G. if a region was from t=0.2 to
+				// t=0.4, and then a skim region was from t=0.3 to t=0.5, remove the existing intersection region
+				// and add a new one from t=0.2 to t=0.3. Note that the start and end intersect regions may be the
+				// same if the skim region does not fully overlap it.
 
-					// We also keep track of the indices to splice
-					let spliceRangeStart = 0;
-					let spliceRangeEnd = regions.length;
+				/** @type {LineOfSightIntersectionRegion | undefined} */
+				let overlappingStartRegion = undefined;
+				/** @type {LineOfSightIntersectionRegion | undefined} */
+				let overlappingEndRegion = undefined;
 
-					for (let j = 0; j < regions.length; j++) {
-						const region = regions[j];
+				// We also keep track of the indices to splice
+				let spliceRangeStart = 0;
+				let spliceRangeEnd = regions.length;
 
-						if (region.start.t < skimStartT && region.end.t > skimStartT)
-							overlappingStartRegion = region;
+				for (let j = 0; j < regions.length; j++) {
+					const region = regions[j];
 
-						if (region.start.t < skimEndT && region.end.t > skimEndT)
-							overlappingEndRegion = region;
+					if (region.start.t < skimStartT && region.end.t > skimStartT)
+						overlappingStartRegion = region;
 
-						if (region.end.t <= skimStartT)
-							spliceRangeStart = j + 1;
+					if (region.start.t < skimEndT && region.end.t > skimEndT)
+						overlappingEndRegion = region;
 
-						if (region.start.t >= skimEndT && spliceRangeEnd > j)
-							spliceRangeEnd = j;
-					}
+					if (region.end.t <= skimStartT)
+						spliceRangeStart = j + 1;
 
-					const skimStartObject = { t: skimStartT, h: lerpLosHeight(skimStartT), ...testRay.lerp(skimStartT) };
-					const skimEndObject = { t: skimEndT, h: lerpLosHeight(skimEndT), ...testRay.lerp(skimEndT) };
-
-					// Actually remove the overlapping regions and insert the new regions
-					/** @type {LineOfSightIntersectionRegion[]} */
-					const newElements = [
-						overlappingStartRegion
-							? {
-								start: overlappingStartRegion.start,
-								end: skimStartObject,
-								skimmed: overlappingStartRegion.skimmed
-							}
-							: undefined,
-						{
-							start: skimStartObject,
-							end: skimEndObject,
-							skimmed: true
-						},
-						overlappingEndRegion
-							? {
-								start: skimEndObject,
-								end: overlappingEndRegion.end,
-								skimmed: overlappingEndRegion.skimmed
-							}
-							: undefined
-					].filter(Boolean);
-
-					regions.splice(spliceRangeStart, spliceRangeEnd - spliceRangeStart, ...newElements);
-
-					skimStartT = undefined;
+					if (region.start.t >= skimEndT && spliceRangeEnd > j)
+						spliceRangeEnd = j;
 				}
+
+				const skimStartObject = { t: skimStartT, h: lerpLosHeight(skimStartT), ...testRay.lerp(skimStartT) };
+				const skimEndObject = { t: skimEndT, h: lerpLosHeight(skimEndT), ...testRay.lerp(skimEndT) };
+
+				// Actually remove the overlapping regions and insert the new regions
+				/** @type {LineOfSightIntersectionRegion[]} */
+				const newElements = [
+					overlappingStartRegion
+						? {
+							start: overlappingStartRegion.start,
+							end: skimStartObject,
+							skimmed: overlappingStartRegion.skimmed
+						}
+						: undefined,
+					{
+						start: skimStartObject,
+						end: skimEndObject,
+						skimmed: true
+					},
+					overlappingEndRegion
+						? {
+							start: skimEndObject,
+							end: overlappingEndRegion.end,
+							skimmed: overlappingEndRegion.skimmed
+						}
+						: undefined
+				].filter(Boolean);
+
+				regions.splice(spliceRangeStart, spliceRangeEnd - spliceRangeStart, ...newElements);
+
+				skimStartT = undefined;
 			}
 		}
 

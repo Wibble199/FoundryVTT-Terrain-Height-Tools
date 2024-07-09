@@ -254,7 +254,7 @@ export class LineSegment {
 	isBetween(edge1, edge2) {
 		if (edge1.p1.equals(edge2.p2)) [edge1, edge2] = [edge2, edge1];
 		const angleInside = edge1.angleBetween(edge2);
-		return edge1.angleBetween(this) < angleInside;
+		return edge1.angleBetween(this) <= angleInside;
 	}
 
 	/**
