@@ -90,15 +90,18 @@ export class HeightMap {
 	 * @param {[number, number][]} cells A list of cells to paint.
 	 * @param {string} terrainTypeId The ID of the terrain type to paint.
 	 * @param {number} height The height of the terrain to paint.
+	 * @param {Object} [options]
+	 * @param {boolean} [options.overwrite] Whether or not to overwrite already-painted cells with hew terrain data.
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
-	async paintCells(cells, terrainTypeId, height = 1) {
+	async paintCells(cells, terrainTypeId, height = 1, { overwrite = true } = {}) {
 		/** @type {this["_history"][number]} */
 		const history = [];
 		let anyAdded = false;
 
 		for (const cell of cells) {
 			const existing = this.get(...cell);
+			if (existing && !overwrite) continue;
 			if (existing && existing.terrainTypeId === terrainTypeId && existing.height === height) continue;
 
 			history.push({ position: cell, terrainTypeId: existing?.terrainTypeId, height: existing?.height });

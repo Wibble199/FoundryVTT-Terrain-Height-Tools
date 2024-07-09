@@ -14,7 +14,10 @@ Hooks.on("getSceneControlButtons", registerSceneControls);
 Hooks.on("renderSceneControls", renderTerrainHeightPalette);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 
-globalThis.terrainHeightTools = { ...api };
+Object.defineProperty(globalThis, "terrainHeightTools", {
+	value: { ...api },
+	writable: false
+});
 
 function init() {
 	log("Initialising");
