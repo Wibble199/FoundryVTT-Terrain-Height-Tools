@@ -388,10 +388,10 @@ export class HeightMap {
 
 		// If the test ray extends above the height of the shape, instead stop it at that height
 		let t1 = 0, t2 = 1;
-		if (h1 > shape.height) {
+		if (usesHeight && h1 > shape.height) {
 			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shape.height)));
 			h1 = shape.height;
-		} else if (h2 > shape.height) {
+		} else if (usesHeight && h2 > shape.height) {
 			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shape.height)));
 			h2 = shape.height;
 		}

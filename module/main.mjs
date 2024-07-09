@@ -1,5 +1,5 @@
 import * as api from './api.mjs';
-import { registerSceneControls, renderTerrainHeightPalette } from "./config/controls.mjs";
+import { registerSceneControls, renderToolSpecificApplications } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { addAboveTilesToSceneConfig, registerSettings } from './config/settings.mjs';
 import { moduleName, socketlibFuncs } from './consts.mjs';
@@ -11,7 +11,7 @@ Hooks.once("init", init);
 Hooks.once("ready", ready);
 Hooks.once("socketlib.ready", initSocketlib);
 Hooks.on("getSceneControlButtons", registerSceneControls);
-Hooks.on("renderSceneControls", renderTerrainHeightPalette);
+Hooks.on("renderSceneControls", renderToolSpecificApplications);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 
 Object.defineProperty(globalThis, "terrainHeightTools", {

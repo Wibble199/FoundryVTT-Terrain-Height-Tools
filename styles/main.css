@@ -1,19 +1,23 @@
-/* --------------------- */
-/* Terrain Height Palette */
-/* --------------------- */
-#tht_terrainHeightPalette {
-	position: absolute;
-	margin: 0 0 0 10px;
-}
-
-#tht_terrainHeightPalette .window-content {
+/* ------------------------- */
+/* Common Tool Window Styles */
+/* ------------------------- */
+.terrain-height-tool-window .window-content {
 	background: none;
 }
 
-#tht_terrainHeightPalette ul,
-#tht_terrainHeightPalette input,
-#tht_terrainHeightPalette label {
+.terrain-height-tool-window ul,
+.terrain-height-tool-window input,
+.terrain-height-tool-window label {
 	color: #FFFFFF;
+}
+
+
+/* ---------------------- */
+/* Terrain Height Palette */
+/* ---------------------- */
+#tht_terrainHeightPalette {
+	position: absolute;
+	margin: 0 0 0 10px;
 }
 
 #tht_terrainHeightPalette ul {

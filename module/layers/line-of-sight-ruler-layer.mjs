@@ -2,6 +2,7 @@ import { moduleName, settings, socketlibFuncs, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { getGridCellPolygon, getGridCenter } from "../utils/grid-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
+import { Signal } from "../utils/signal.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
 /**
@@ -18,19 +19,23 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	// Track the start and end heights separately so that when the user is using it, it remembers their start and end
 	// values allowing them to quickly repeat the same measurement at the same height.
-	/** @type {number} */
-	#cursorStartHeight = 1;
 
-	// If the end height is undefined, then it should use the start height value. Only if the user explicitly changes the
-	// height of the end of the ruler should this become non-undefined.
-	/** @type {number | undefined} */
-	#_cursorEndHeight = undefined;
+	/** @type {Signal<{ x: number; y: number; } | undefined>} */
+	_rulerStartPoint = new Signal(undefined);
 
-	/** @type {Point3D | undefined} */
-	#dragStartPoint = undefined;
+	/** @type {Signal<number>} */
+	_rulerStartHeight = new Signal(1);
 
-	/** @type {Point3D | undefined} */
-	#dragEndPoint = undefined;
+	/** @type {Signal<{ x: number; y: number; } | undefined>} */
+_rulerEndPoint = new Signal(undefined);
+
+	// If `undefined`, then should use the start height instead.
+	/** @type {Signal<number | undefined>} */
+	_rulerEndHeight = new Signal(undefined);
+
+	/** @type {Signal<boolean>} */
+	_rulerIncludeNoHeightTerrain = new Signal(false);
+
 
 	/** @type {Map<string, LineOfSightRuler>} */
 	#rulers = new Map();
@@ -44,6 +49,25 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// Ensure rulers are deleted when a user quits
 		Hooks.on("userConnected", (user, _connected) => this._clearLineOfSightRay({ userId: user.id, clearForOthers: false }));
+
+		// When any of the drag values are changed, update the ruler
+		Signal.join((p1, h1, p2, h2, includeNoHeightTerrain) => {
+				if (p1 && p2)
+					this._drawLineOfSightRay({ ...p1, h: h1 }, { ...p2, h: h2 ?? h1 }, { includeNoHeightTerrain, drawForOthers: true });
+				else
+					this._clearLineOfSightRay({ clearForOthers: true });
+			},
+			this._rulerStartPoint,
+			this._rulerStartHeight,
+			this._rulerEndPoint,
+			this._rulerEndHeight,
+			this._rulerIncludeNoHeightTerrain);
+
+		// When the start height is changed, update the ghost indicator
+		this._rulerStartHeight.subscribe(v => {
+			if (this.#lineStartIndicator)
+				this.#lineStartIndicator.height = v;
+		});
 	}
 
 	/** @override */
@@ -57,8 +81,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		return game.activeTool === tools.lineOfSight;
 	}
 
-	get #cursorEndHeight() {
-		return this.#_cursorEndHeight ?? this.#cursorStartHeight;
+	get #isDraggingRuler() {
+		return this._rulerStartPoint.value !== undefined;
 	}
 
 	/** @override */
@@ -69,6 +93,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			this.#setupEventListeners("on");
 
 			this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
+			this.#lineStartIndicator.height = this._rulerStartHeight.value;
 			this.#lineStartIndicator.visible = false;
 		}
 	}
@@ -90,9 +115,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * @param {Point3D} p2 The second point, where `x` and `y` are pixel coordinates.
 	 * @param {Object} [options]
 	 * @param {string} [options.userId] ID of the user that is drawing the LOS ruler. Defaults to current user.
+	 * @param {boolean} [options.includeNoHeightTerrain] Whether to include terrain that does not provide a height.
 	 * @param {boolean} [options.drawForOthers] If true, this ruler will be drawn on other user's canvases.
 	 */
-	_drawLineOfSightRay(p1, p2, { userId = undefined, drawForOthers = true } = {}) {
+	_drawLineOfSightRay(p1, p2, { userId = undefined, includeNoHeightTerrain = false, drawForOthers = true } = {}) {
 		userId ??= game.userId;
 
 		let ruler = this.#rulers.get(userId);
@@ -102,13 +128,12 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			this.#rulers.set(userId, ruler);
 		}
 
-		ruler.setEndpoints(p1, p2);
+		ruler.updateRuler(p1, p2, includeNoHeightTerrain);
 
 		if (drawForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
 			globalThis.terrainHeightTools.socket?.executeForOthers(
 				socketlibFuncs.drawLineOfSightRay,
-				this.#dragStartPoint, this.#dragEndPoint,
-				{ userId: game.userId, drawForOthers: false });
+				p1, p2, { userId: game.userId, includeNoHeightTerrain, drawForOthers: false });
 		}
 	}
 
@@ -152,14 +177,14 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (!this.isToolSelected || event.button !== 0) return;
 
 		const [x, y] = this.#getDragPosition(event);
-		this.#dragStartPoint = { x, y, h: this.#cursorStartHeight };
-		this.#dragEndPoint = { ...this.#dragStartPoint };
+		this._rulerStartPoint.value = { x, y };
+		this._rulerEndPoint.value = { x, y };
 	};
 
 	#onMouseMove = event => {
 		// Update height indicator visibility
 		// TODO: can this be moved to a hook?
-		this.#lineStartIndicator.visible = this.isToolSelected && !this.#dragStartPoint;
+		this.#lineStartIndicator.visible = this.isToolSelected && !this._rulerStartPoint.value;
 
 		// Get the drag position, which may include snapping
 		const [x, y] = this.#getDragPosition(event);
@@ -167,21 +192,18 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// Position the height indicator and update the text if it's visible
 		if (this.#lineStartIndicator.visible) {
 			this.#lineStartIndicator.position.set(x, y);
-			this.#lineStartIndicator.height = this.#cursorStartHeight;
 		}
 
 		// If the user has started dragging a measurement, update the endpoint
-		if (this.#dragStartPoint && (this.#dragEndPoint.x !== x || this.#dragEndPoint.y !== y || this.#dragEndPoint.h !== this.#cursorEndHeight)) {
-			this.#dragEndPoint = { x, y, h: this.#cursorEndHeight };
-			this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
+		if (this.#isDraggingRuler && (this._rulerEndPoint.value.x !== x || this._rulerEndPoint.value.y !== y)) {
+			this._rulerEndPoint.value = { x, y };
 		}
 	};
 
 	#onMouseUp = event => {
-		if (!this.#dragStartPoint || event.button !== 0) return;
+		if (!this.#isDraggingRuler || event.button !== 0) return;
 
-		this.#dragStartPoint = this.#dragEndPoint = undefined;
-		this._clearLineOfSightRay();
+		this._rulerStartPoint.value = this._rulerEndPoint.value = undefined;
 	};
 
 	/** @returns {[number, number]} */
@@ -232,15 +254,11 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			return delta < 0 ? Math.floor(current) : Math.ceil(current);
 		};
 
-		// If there is dragEndPoint defined, then we want to change the end height and re-draw the ruler.
-		// Otherwise, just change the start height, no re-draw required.
-		if (this.#dragEndPoint) {
-			this.#_cursorEndHeight = change(this.#cursorEndHeight);
-			this.#dragEndPoint.h = this.#cursorEndHeight;
-			this._drawLineOfSightRay(this.#dragStartPoint, this.#dragEndPoint);
+		// If the user is currently dragging the ruler, then we want to change the end height otherwise the start height
+		if (this.#isDraggingRuler) {
+			this._rulerEndHeight.value = change(this._rulerEndHeight.value ?? this._rulerStartHeight.value);
 		} else {
-			this.#cursorStartHeight = change(this.#cursorStartHeight);
-			this.#lineStartIndicator.height = this.#cursorStartHeight;
+			this._rulerStartHeight.value = change(this._rulerStartHeight.value);
 		}
 	}
 }
@@ -279,6 +297,8 @@ class LineOfSightRuler extends PIXI.Container {
 	/** @type {Point3D | undefined} */
 	#p2;
 
+	#includeNoHeightTerrain = false;
+
 	/** @type {ReturnType<typeof HeightMap.flattenLineOfSightIntersectionRegions>} */
 	#intersectionRegions = [];
 
@@ -303,8 +323,9 @@ class LineOfSightRuler extends PIXI.Container {
 	/**
 	 * @param {Point3D} p1
 	 * @param {Point3D} p2
+	 * @param {boolean} includeNoHeightTerrain
 	 */
-	setEndpoints(p1, p2) {
+	updateRuler(p1, p2, includeNoHeightTerrain) {
 		// If the points haven't actually changed, don't need to do any recalculations/redraws
 		let hasChanged = false;
 
@@ -318,6 +339,11 @@ class LineOfSightRuler extends PIXI.Container {
 			hasChanged = true;
 		}
 
+		if (includeNoHeightTerrain !== this.#includeNoHeightTerrain) {
+			this.#includeNoHeightTerrain = includeNoHeightTerrain;
+			hasChanged = true;
+		}
+
 		if (hasChanged) {
 			this._recalculateLos();
 			this._draw();
@@ -327,7 +353,7 @@ class LineOfSightRuler extends PIXI.Container {
 	_recalculateLos() {
 		/** @type {import("../geometry/height-map.mjs").HeightMap} */
 		const hm = game.canvas.terrainHeightLayer._heightMap;
-		const intersectionRegions = hm.calculateLineOfSight(this.#p1, this.#p2);
+		const intersectionRegions = hm.calculateLineOfSight(this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
 		this.#intersectionRegions = HeightMap.flattenLineOfSightIntersectionRegions(intersectionRegions);
 	}
 
