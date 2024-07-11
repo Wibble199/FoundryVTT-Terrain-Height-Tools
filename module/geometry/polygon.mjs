@@ -110,29 +110,64 @@ export class Polygon {
 	containsPoint(x, y, { containsOnEdge = true } = {}) {
 		const { boundingBox } = this;
 
-		// If the point is not even in the bounding box, don't need to check the vertices
+		// If the point is not even in the bounding box, don't need to perform edge intersections
 		if (x < boundingBox.x1 || x > boundingBox.x2 || y < boundingBox.y1 || y > boundingBox.y2)
 			return false;
 
+		// Check for any points that lie exactly on an edge
+		const onAnyEdge = this.#edges.some(e => {
+			const { t, distanceSquared } = e.findClosestPoint(x, y);
+			return Math.abs(t) < Number.EPSILON && Math.abs(t - 1) < Number.EPSILON
+				&& distanceSquared < Number.EPSILON * Number.EPSILON;
+		});
+		if (onAnyEdge) return containsOnEdge;
+
+
 		// From the point, count how many edges it intersects when a line is drawn from this point to the left edge
 		// of the canvas. If there's an odd number of intersections, it must be inside the polygon.
-		// For edge cases where the point lies exactly on an edge, if `containsOnEdge`:
-		// - If the direction of the edge is upwards then we need to count an intersection if intersectX <= x.
-		// - If the direction of the edge is downwards, then we need to count an intersection if intersect < x.
-		// - If `containsOnEdge` is false, then swap this logic
-		// We could re-write to explicitly check if the point is on the edge, which would make the code more clear but
-		// it would require many additional calculations.
-		// We distinct them by the X position of the intersection so that corners don't count multiple times
-		const numberOfIntersections = distinctBy(
-				this.#edges
-					.map(e => [e.intersectsYAt(y), e.p1.y - e.p2.y])
-					.filter(([intersectX, dy]) =>
-						typeof intersectX === "number" &&
-						(dy < 0 ^ containsOnEdge ? intersectX <= x : intersectX < x)),
-				([intersectX]) => intersectX)
-			.length;
+		// First, collect a set of edges that are crossed. We also 'distinct' them by their X intersection value to
+		// eliminate any pairs of edges that are at the same point, e.g. when meeting two adjacent vertical edges.
 
-    	return numberOfIntersections % 2 == 1;
+		const intersectedEdges = new Set(distinctBy(
+			this.#edges
+				.map(edge => ({ edge, intersectX: edge.intersectsYAt(y) }))
+				.filter(({ intersectX }) => typeof intersectX === "number" && intersectX < x),
+			({ intersectX }) => intersectX
+		).map(({ edge }) => edge));
+
+
+		// Next, we need to handle some edge cases when the point lies at the same y level as an intersection. We need
+		// to ensure cases like ┌─┘ only count as 1 (despite crossing two vertical lines), while also ensuring that
+		// cases like ┌─┐ count as either 0 or 2.
+		// We do this by traversing the edge graph from the intersected edge and seeing if it's connected to another
+		// intersecting edge by horizontal lines, then checking the direction of two edges.
+		const possibleConnectingHorizontalEdges = new Set(this.#edges
+			.filter(e => Math.abs(e.p1.y - y) < Number.EPSILON && Math.abs(e.p2.y - y) < Number.EPSILON));
+
+		/** @type {(edge: LineSegment, dir: 1 | -1) => boolean} */
+		const detectHorizontallyConnectedEdge = (edge, dir) => {
+			// Starting from the given edge, traverse in a given direction.
+			// - If we find an edge that is parallel to the imaginary test ray, continue as this should connect to
+			//   another intersection edge.
+			// - If we find an edge that is an intersected edge, check if both it and the edge are pointing up or both
+			//   down. If so, remove the other one from the Set as this pair should only count as 1.
+			// - If we find an edge that is intersected, but pointing opposite, leave it in the Set as this pair should
+			//   count as 2.
+			// - If we find an edge that is not intersected and not a possible connecting edge, then just stop here.
+			for (const edge2 of this.traverseEdges(edge, dir)) {
+				if (possibleConnectingHorizontalEdges.has(edge2))
+					continue;
+				if (intersectedEdges.has(edge2) && Math.sign(edge.dy) === Math.sign(edge2.dy))
+					return intersectedEdges.delete(edge2);
+				return false;
+			}
+		};
+
+		for (const edge of intersectedEdges.values()) {
+			detectHorizontallyConnectedEdge(edge, 1) || detectHorizontallyConnectedEdge(edge, -1);
+		}
+
+    	return intersectedEdges.size % 2 == 1;
 	}
 
 	/**
@@ -177,6 +212,26 @@ export class Polygon {
 			case -1: return undefined;
 			case this.#edges.length - 1: return this.#edges[0];
 			default: return this.#edges[idx + 1];
+		}
+	}
+
+	/**
+	 * Traverses the edges in the polygon, starting at the given edge in the given direction. Does not repeat or yield
+	 * the original 'startEdge'.
+	 * @param {LineSegment} startEdge The edge to begin traversal from.
+	 * @param {1 | -1} direction The direction of travel. 1 for forwards, -1 for backwards.
+	 * @returns {Generator<LineSegment, void, void>}
+	 */
+	*traverseEdges(startEdge, direction) {
+		const startIdx = this.#edges.indexOf(startEdge);
+		if (startIdx < 0) throw new Error("Given edge is not part of this polygon.");
+		let idx = startIdx;
+
+		while (true) {
+			idx = (idx + direction) % this.#edges.length;
+			if (idx < 0) idx += this.#edges.length;
+			if (idx === startIdx) return;
+			yield this.#edges[idx];
 		}
 	}
 }
