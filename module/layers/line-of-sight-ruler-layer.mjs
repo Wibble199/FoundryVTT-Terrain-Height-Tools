@@ -120,11 +120,17 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * @param {Point3D} p2 The second point, where `x` and `y` are pixel coordinates.
 	 * @param {Object} [options]
 	 * @param {string} [options.userId] ID of the user that is drawing the LOS ruler. Defaults to current user.
+	 * @param {string} [options.sceneId] ID of the scene that the ruler is being drawn on. Defaults to current scene. If
+	 * provided and not equal to the current scene, then the ruler is not drawn.
 	 * @param {boolean} [options.includeNoHeightTerrain] Whether to include terrain that does not provide a height.
 	 * @param {boolean} [options.drawForOthers] If true, this ruler will be drawn on other user's canvases.
 	 */
-	_drawLineOfSightRay(p1, p2, { userId = undefined, includeNoHeightTerrain = false, drawForOthers = true } = {}) {
+	_drawLineOfSightRay(p1, p2, { userId = undefined, sceneId = undefined, includeNoHeightTerrain = false, drawForOthers = true } = {}) {
 		userId ??= game.userId;
+		sceneId ??= canvas.scene.id;
+
+		// Occurs when a user draws a ruler on a different scene
+		if (sceneId !== canvas.scene.id) return;
 
 		let ruler = this.#rulers.get(userId);
 		if (!ruler) {
@@ -138,7 +144,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (drawForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
 			globalThis.terrainHeightTools.socket?.executeForOthers(
 				socketlibFuncs.drawLineOfSightRay,
-				p1, p2, { userId: game.userId, includeNoHeightTerrain, drawForOthers: false });
+				p1, p2, { userId: game.userId, sceneId, includeNoHeightTerrain, drawForOthers: false });
 		}
 	}
 
