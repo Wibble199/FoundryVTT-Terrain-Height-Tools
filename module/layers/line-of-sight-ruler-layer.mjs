@@ -1,3 +1,4 @@
+import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, socketlibFuncs, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { getGridCellPolygon, getGridCenter } from "../utils/grid-utils.mjs";
@@ -27,7 +28,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	_rulerStartHeight = new Signal(1);
 
 	/** @type {Signal<{ x: number; y: number; } | undefined>} */
-_rulerEndPoint = new Signal(undefined);
+	_rulerEndPoint = new Signal(undefined);
 
 	// If `undefined`, then should use the start height instead.
 	/** @type {Signal<number | undefined>} */
@@ -68,13 +69,16 @@ _rulerEndPoint = new Signal(undefined);
 			if (this.#lineStartIndicator)
 				this.#lineStartIndicator.height = v;
 		});
-	}
 
-	/** @override */
-	static get layerOptions() {
-		return mergeObject(super.layerOptions, {
-			zIndex: 300
-		});
+		// Only enable events when the ruler layer is active, otherwise it interferes with other standard layers
+		Signal.join((activeControl, activeTool) => {
+			this.eventMode = activeControl === "token" && activeTool === tools.lineOfSight ? "static" : "none";
+		}, sceneControls.activeControl$, sceneControls.activeTool$);
+
+		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
+		Signal.join((rulerStartPoint) => {
+			this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
+		}, this._rulerStartPoint, sceneControls.activeControl$, sceneControls.activeTool$);
 	}
 
 	get isToolSelected() {
@@ -87,15 +91,16 @@ _rulerEndPoint = new Signal(undefined);
 
 	/** @override */
 	async _draw() {
+		if (game.canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
+
 		this.hitArea = canvas.dimensions.rect;
+		this.zIndex = 900; // Above token layer, below control layers
 
-		if (game.canvas.grid?.type !== CONST.GRID_TYPES.GRIDLESS) {
-			this.#setupEventListeners("on");
+		this.#setupEventListeners("on");
 
-			this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
-			this.#lineStartIndicator.height = this._rulerStartHeight.value;
-			this.#lineStartIndicator.visible = false;
-		}
+		this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
+		this.#lineStartIndicator.height = this._rulerStartHeight.value;
+		this.#lineStartIndicator.visible = false;
 	}
 
 	/** @override */
@@ -182,9 +187,7 @@ _rulerEndPoint = new Signal(undefined);
 	};
 
 	#onMouseMove = event => {
-		// Update height indicator visibility
-		// TODO: can this be moved to a hook?
-		this.#lineStartIndicator.visible = this.isToolSelected && !this._rulerStartPoint.value;
+		if (!this.isToolSelected) return;
 
 		// Get the drag position, which may include snapping
 		const [x, y] = this.#getDragPosition(event);
@@ -201,7 +204,7 @@ _rulerEndPoint = new Signal(undefined);
 	};
 
 	#onMouseUp = event => {
-		if (!this.#isDraggingRuler || event.button !== 0) return;
+		if (!this.isToolSelected || !this.#isDraggingRuler || event.button !== 0) return;
 
 		this._rulerStartPoint.value = this._rulerEndPoint.value = undefined;
 	};

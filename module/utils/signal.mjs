@@ -10,9 +10,14 @@ export class Signal {
 	/** @type {Set<(value: T) => void>} */
 	#subscriptions = new Set();
 
-	/** @param {T} initialValue */
-	constructor(initialValue) {
+	/**
+	 * @param {T} initialValue
+	 * @param {Object} [options]
+	 * @param {boolean} [options.onlyFireWhenChanged]
+	 */
+	constructor(initialValue, { onlyFireWhenChanged = true } = {}) {
 		this.#value = initialValue;
+		this.onlyFireWhenChanged = onlyFireWhenChanged;
 	}
 
 	get value() {
@@ -20,6 +25,9 @@ export class Signal {
 	}
 
 	set value(newValue) {
+		if (this.onlyFireWhenChanged && newValue === this.#value)
+			return;
+
 		this.#value = newValue;
 
 		for (const callback of this.#subscriptions.values())

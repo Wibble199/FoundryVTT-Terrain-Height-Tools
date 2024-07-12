@@ -1,8 +1,15 @@
 import { LineOfSightRulerConfig } from '../applications/line-of-sight-ruler-config.mjs';
 import { TerrainHeightPalette } from "../applications/terrain-height-palette.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
+import { Signal } from "../utils/signal.mjs";
 
 export const sceneControls = {
+	/** @type {Signal<string>} */
+	activeControl$: new Signal(),
+
+	/** @type {Signal<string>} */
+	activeTool$: new Signal(),
+
 	/** @type {SceneControlTool | undefined} */
 	terrainHeightToolsLayerToggleControlButton: undefined,
 
@@ -89,6 +96,10 @@ export function registerSceneControls(controls) {
  * @param {SceneControls} controls
  */
 export function renderToolSpecificApplications(controls) {
+	// Update the signals to allow notifying other parts of the module more easily
+	sceneControls.activeControl$.value = controls.activeControl;
+	sceneControls.activeTool$.value = controls.activeTool;
+
 	// Show the palette if either the paint or fill tools are selected
 	renderToolSpecificApplication(
 		controls.activeControl === moduleName && [tools.paint, tools.fill].includes(controls.activeTool),
