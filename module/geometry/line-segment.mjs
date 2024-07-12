@@ -194,7 +194,7 @@ export class LineSegment {
 		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 
 		// If the intersection point lies outside of either line, then there is no intersection
-		if (t < 0 || t > 1 || u < 0 || u > 1) return undefined;
+		if (t < -Number.EPSILON || t > 1 + Number.EPSILON || u < -Number.EPSILON || u > 1 + Number.EPSILON) return undefined;
 
 		return {
 			x: x1 + t * (x2 - x1),
