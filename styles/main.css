@@ -163,3 +163,20 @@
 	height: 100%;
 	resize: none;
 }
+
+
+/* -------------------------- */
+/* Line of Sight Ruler Config */
+/* -------------------------- */
+#tht_lineOfSightRulerConfig .height-input-hint {
+	color: #FFFFFF;
+	cursor: help;
+}
+
+#tht_lineOfSightRulerConfig .form-group-stacked label {
+	margin-bottom: 4px;
+}
+
+#tht_lineOfSightRulerConfig .form-group-stacked {
+	margin-bottom: 8px;
+}
