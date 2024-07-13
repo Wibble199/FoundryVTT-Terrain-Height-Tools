@@ -15,6 +15,7 @@ export const tools = /** @type {const} */ ({
 export const settings = /** @type {const} */ ({
 	displayLosMeasurementGm: "displayLosMeasurementGm",
 	displayLosMeasurementPlayer: "displayLosMeasurementPlayer",
+	otherUserLineOfSightRulerOpacity: "otherUserLineOfSightRulerOpacity",
 	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer",
 	smartLabelPlacement: "smartLabelPlacement",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",

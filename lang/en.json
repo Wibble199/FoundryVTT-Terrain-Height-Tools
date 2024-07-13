@@ -20,6 +20,8 @@
 		"DisplayLosMeasurementGm.Hint": "Whether to display the GM's line of sight measurement ruler to other connected players or not.",
 		"DisplayLosMeasurementPlayer.Name": "Display Line of Sight Ruler (Player)",
 		"DisplayLosMeasurementPlayer.Hint": "Whether to display the players' line of sight measurement rulers to other connected players or not.",
+		"OtherUserLineOfSightRulerOpacity.Name": "Other users' LoS ruler opacity",
+		"OtherUserLineOfSightRulerOpacity.Hint": "How transparent other user's line of sight rulers appear to you.",
 		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
 		"TerrainHeightLayerRenderAboveTiles.Name": "Terrain Height Map Above Tiles",
 		"TerrainHeightLayerRenderAboveTiles.Hint": "Whether or not the terrain height map will be drawn above non-overhead tiles on the scene. This can be also be set per-scene.",

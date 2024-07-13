@@ -76,6 +76,15 @@ export function registerSettings() {
 		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
 	});
 
+	game.settings.register(moduleName, settings.otherUserLineOfSightRulerOpacity, {
+		name: "SETTINGS.OtherUserLineOfSightRulerOpacity.Name",
+		hint: "SETTINGS.OtherUserLineOfSightRulerOpacity.Hint",
+		type: Number,
+		range: { min: 0, max: 1, step: 0.05 },
+		config: true,
+		default: 0.5
+	});
+
 	game.settings.register(moduleName, settings.smartLabelPlacement, {
 		name: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Name",
 		hint: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Hint",

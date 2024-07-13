@@ -186,6 +186,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			const { includeNoHeightTerrain = false, showLabels = true } = rulers[i][2] ?? {};
 			userRulers[i].updateRuler(rulers[i][0], rulers[i][1], includeNoHeightTerrain);
 			userRulers[i].showLabels = showLabels;
+			userRulers[i].alpha = userId === game.userId ? 1 : game.settings.get(moduleName, settings.otherUserLineOfSightRulerOpacity);
 		}
 
 		// Draw for other players
