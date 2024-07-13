@@ -7,7 +7,8 @@ export const tools = /** @type {const} */ ({
 	fill: "fill",
 	erase: "erase",
 	eraseFill: "eraseFill",
-	lineOfSight: "terrainHeightToolsLineOfSight"
+	lineOfSight: "terrainHeightToolsLineOfSight",
+	tokenLineOfSight: "terrainHeightToolsTokenLineOfSight"
 });
 
 /** @enum {keyof typeof settings} */

@@ -5,9 +5,12 @@
 	background: none;
 }
 
+.terrain-height-tool-window p,
+.terrain-height-tool-window span,
 .terrain-height-tool-window ul,
 .terrain-height-tool-window input,
-.terrain-height-tool-window label {
+.terrain-height-tool-window label,
+.terrain-height-tool-window a {
 	color: #FFFFFF;
 }
 
@@ -179,4 +182,44 @@
 
 #tht_lineOfSightRulerConfig .form-group-stacked {
 	margin-bottom: 8px;
+}
+
+
+/* -------------------------- */
+/* Token Line of Sight Config */
+/* -------------------------- */
+#tht_tokenLineOfSightConfig .token-selection-container {
+	display: flex;
+	align-items: center;
+	margin-bottom: 6px;
+	padding: 2px;
+	border-radius: 3px;
+	border: 1px solid rgba(0, 0, 0, 0.7);
+	box-shadow: 0 0 6px inset rgba(0, 0, 0, 0.7);
+}
+
+#tht_tokenLineOfSightConfig .token-selection-container.is-selecting-token {
+	border-color: var(--color-border-highlight-alt);
+	box-shadow: 0 0 6px inset var(--color-shadow-highlight);
+}
+
+#tht_tokenLineOfSightConfig .token-selection-container > * {
+	margin: 4px;
+}
+
+#tht_tokenLineOfSightConfig .token-selection-container .token-image {
+	width: 32px;
+	height: 32px;
+	border: none;
+}
+
+#tht_tokenLineOfSightConfig .token-selection-container .token-name {
+	flex: 1 1 0;
+    white-space: nowrap;
+	overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tht_tokenLineOfSightConfig .token-selection-container .token-action {
+	font-size: 1.2rem;
 }

@@ -1,5 +1,6 @@
 import { LineOfSightRulerConfig } from '../applications/line-of-sight-ruler-config.mjs';
 import { TerrainHeightPalette } from "../applications/terrain-height-palette.mjs";
+import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { Signal } from "../utils/signal.mjs";
 
@@ -17,7 +18,10 @@ export const sceneControls = {
 	terrainHeightPalette: undefined,
 
 	/** @type {LineOfSightRulerConfig | undefined} */
-	lineOfSightRulerConfig: undefined
+	lineOfSightRulerConfig: undefined,
+
+	/** @type {TokenLineOfSightConfig | undefined} */
+	tokenLineOfSightConfig: undefined
 };
 
 /**
@@ -32,8 +36,13 @@ export function registerSceneControls(controls) {
 	controls.find(grp => grp.name === "token").tools.push(
 		{
 			name: tools.lineOfSight,
-			title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerLineOfSightRuler"),
+			title: game.i18n.localize("CONTROLS.TerrainHeightToolsLineOfSightRuler"),
 			icon: "fas fa-ruler-combined"
+		},
+		{
+			name: tools.tokenLineOfSight,
+			title: game.i18n.localize("CONTROLS.TerrainHeightToolsTokenLineOfSight"),
+			icon: "fas fa-compass-drafting"
 		},
 		sceneControls.terrainHeightToolsLayerToggleControlButton = {
 			name: "terrainHeightLayerToggle",
@@ -111,6 +120,12 @@ export function renderToolSpecificApplications(controls) {
 		controls.activeControl === "token" && controls.activeTool === tools.lineOfSight,
 		sceneControls.lineOfSightRulerConfig,
 		() => sceneControls.lineOfSightRulerConfig = new LineOfSightRulerConfig());
+
+	// Show the token line of sight config if that tool is selected
+	renderToolSpecificApplication(
+		controls.activeControl === "token" && controls.activeTool === tools.tokenLineOfSight,
+		sceneControls.tokenLineOfSightConfig,
+		() => sceneControls.tokenLineOfSightConfig = new TokenLineOfSightConfig());
 }
 
 /**

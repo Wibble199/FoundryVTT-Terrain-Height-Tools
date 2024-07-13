@@ -1,11 +1,11 @@
 import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
+import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 import { debug, error, warn } from '../utils/log.mjs';
+import { roundTo } from '../utils/misc-utils.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from './polygon.mjs';
-import { getGridCellPolygon } from "../utils/grid-utils.mjs";
-import { roundTo } from '../utils/misc-utils.mjs';
 
 /**
  * @typedef {object} HeightMapShape Represents a shape that can be drawn to the map. It is a closed polygon that may
@@ -452,7 +452,7 @@ export class HeightMap {
 		let isInside = false;
 		if (!usesHeight || h1 <= shape.height) {
 			const p1LiesOnEdges = allEdges
-				.map(([poly, edge]) => ({ edge, poly, ...edge.findClosestPoint(x1, y1) }))
+				.map(([poly, edge]) => ({ edge, poly, ...edge.findClosestPointOnLineTo(x1, y1) }))
 				.filter(x =>
 					x.t > -Number.EPSILON && x.t < 1 + Number.EPSILON &&
 					x.distanceSquared < Number.EPSILON * Number.EPSILON);
@@ -597,9 +597,9 @@ export class HeightMap {
 		const skimRegions = [];
 		for (const edge of parallelEdges) {
 			// Cap the t values to 0-1 (i.e. on the testRay), but don't alter the distances.
-			let { t: t1, distanceSquared: d1, point: point1 } = testRay.findClosestPoint(edge.p1.x, edge.p1.y);
+			let { t: t1, distanceSquared: d1, point: point1 } = testRay.findClosestPointOnLineTo(edge.p1.x, edge.p1.y);
 			t1 = Math.max(Math.min(t1, 1), 0);
-			let { t: t2, distanceSquared: d2, point: point2 } = testRay.findClosestPoint(edge.p2.x, edge.p2.y);
+			let { t: t2, distanceSquared: d2, point: point2 } = testRay.findClosestPointOnLineTo(edge.p2.x, edge.p2.y);
 			t2 = Math.max(Math.min(t2, 1), 0);
 
 			// If the two ends of the edge wouldn't be skimming, continue to next edge

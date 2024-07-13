@@ -10,14 +10,24 @@ export class Signal {
 	/** @type {Set<(value: T) => void>} */
 	#subscriptions = new Set();
 
+	/** @type {(() => void) | undefined} */
+	#beforeFirstSubscribe = undefined;
+
+	/** @type {(() => void) | undefined} */
+	#afterLastUnsubscribe = undefined;
+
 	/**
 	 * @param {T} initialValue
 	 * @param {Object} [options]
 	 * @param {boolean} [options.onlyFireWhenChanged]
+	 * @param {() => void} [options.beforeFirstSubscribe] Callback that runs before the first subscriber is added.
+	 * @param {() => void} [options.afterLastUnsubscribe] Callback that runs after the last subscriber is removed.
 	 */
-	constructor(initialValue, { onlyFireWhenChanged = true } = {}) {
+	constructor(initialValue, { onlyFireWhenChanged = true, beforeFirstSubscribe, afterLastUnsubscribe } = {}) {
 		this.#value = initialValue;
 		this.onlyFireWhenChanged = onlyFireWhenChanged;
+		this.#beforeFirstSubscribe = beforeFirstSubscribe;
+		this.#afterLastUnsubscribe = afterLastUnsubscribe;
 	}
 
 	get value() {
@@ -41,9 +51,12 @@ export class Signal {
 	 * @returns A function that can be called to unsubscribe this callback.
 	 */
 	subscribe(callback, immediate = false) {
+		if (this.#subscriptions.size === 0)
+			this.#beforeFirstSubscribe?.();
+
 		this.#subscriptions.add(callback);
 		if (immediate) callback(this.#value);
-		return () => { this.#subscriptions.delete(callback); };
+		return () => this.unsubscribe(callback);
 	}
 
 	/**
@@ -52,6 +65,9 @@ export class Signal {
 	 */
 	unsubscribe(callback) {
 		this.#subscriptions.delete(callback);
+
+		if (this.#subscriptions.size === 0)
+			this.#afterLastUnsubscribe?.();
 	}
 
 	/**
@@ -65,5 +81,26 @@ export class Signal {
 		const joinedCallback = () => callback(...signals.map(s => s.value));
 		signals.forEach(s => s.subscribe(joinedCallback, false));
 		return () => signals.forEach(s => s.unsubscribe(joinedCallback));
+	}
+
+	/**
+	 * Creates a Signal that monitors the specified Foundry Hook for changes.
+	 * @param {string} hookName The name of the Foundry Hook.
+	 * @param {(...params: any[]) => boolean} [filter] If provided, only events that meet this filter will be forwarded.
+	 * @returns
+	 */
+	static fromHook(hookName, filter) {
+		const hookHandler = (...params) => {
+			if (typeof filter !== "function" || filter(...params))
+				signal.value = params;
+		};
+
+		const signal = new Signal(undefined, {
+			onlyFireWhenChanged: false,
+			beforeFirstSubscribe: () => Hooks.on(hookName, hookHandler),
+			afterLastUnsubscribe: () => Hooks.off(hookName, hookHandler)
+		});
+
+		return signal;
 	}
 }

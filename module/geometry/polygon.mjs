@@ -116,7 +116,7 @@ export class Polygon {
 
 		// Check for any points that lie exactly on an edge
 		const onAnyEdge = this.#edges.some(e => {
-			const { t, distanceSquared } = e.findClosestPoint(x, y);
+			const { t, distanceSquared } = e.findClosestPointOnLineTo(x, y);
 			return Math.abs(t) < Number.EPSILON && Math.abs(t - 1) < Number.EPSILON
 				&& distanceSquared < Number.EPSILON * Number.EPSILON;
 		});
@@ -233,5 +233,18 @@ export class Polygon {
 			if (idx === startIdx) return;
 			yield this.#edges[idx];
 		}
+	}
+
+	/**
+	 * Finds the mid of point of all given vertices.
+	 * @param {{ x: number; y: number; }[]} vertices
+	 */
+	static centroid(vertices) {
+		const centroid = { x: 0, y: 0 };
+		for (let i = 0; i < vertices.length; i++) {
+			centroid.x += (vertices[i].x - centroid.x) / (i + 1);
+			centroid.y += (vertices[i].y - centroid.y) / (i + 1);
+		}
+		return centroid;
 	}
 }

@@ -98,15 +98,18 @@ export class LineSegment {
 	 * distance from the given point to that point.
 	 * Note the given value for `t` may NOT be within the range 0-1 (i.e. the length of the line is ignored, only it's
 	 * position and angle have any bearing on the result).
+	 * The returned `side` will be either +1 or -1, depending on which side of the line the point is on, or 0 if the
+	 * point lies exactly on the line.
 	 * @param {number} x
 	 * @param {number} y
 	 */
-	findClosestPoint(x, y) {
+	findClosestPointOnLineTo(x, y) {
 		const { dx, dy, p1: { x: x1, y: y1 } } = this;
 		const t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
 		const { x: closestX, y: closestY } = this.lerp(t);
 		const distanceSquared = Math.pow(x - closestX, 2) + Math.pow(y - closestY, 2);
-		return { t, point: { x: closestX, y: closestY }, distanceSquared };
+		const crossProduct = (x - x1) * dy - (y - y1) * dx;
+		return { t, point: { x: closestX, y: closestY }, distanceSquared, side: Math.sign(crossProduct) };
 	}
 
 	/**

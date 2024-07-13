@@ -32,6 +32,10 @@
 			{
 				"id": "socketlib",
 				"type": "module"
+			},
+			{
+				"id": "lib-wrapper",
+            	"type": "module"
 			}
 		]
 	},

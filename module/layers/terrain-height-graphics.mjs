@@ -1,5 +1,5 @@
 import { flags, lineTypes, moduleName, settings } from "../consts.mjs";
-import { LineSegment, HeightMap, Polygon, Point } from "../geometry/index.mjs";
+import { HeightMap, LineSegment, Point, Polygon } from "../geometry/index.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { debug } from "../utils/log.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
