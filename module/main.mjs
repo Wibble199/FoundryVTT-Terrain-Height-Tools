@@ -2,14 +2,13 @@ import * as api from './api.mjs';
 import { registerSceneControls, renderToolSpecificApplications, sceneControls } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { addAboveTilesToSceneConfig, registerSettings } from './config/settings.mjs';
-import { moduleName, socketlibFuncs } from './consts.mjs';
+import { moduleName, socketFuncs, socketName } from './consts.mjs';
 import { LineOfSightRulerLayer } from './layers/line-of-sight-ruler-layer.mjs';
 import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
 import { log } from "./utils/log.mjs";
 
 Hooks.once("init", init);
 Hooks.once("ready", ready);
-Hooks.once("socketlib.ready", initSocketlib);
 Hooks.on("getSceneControlButtons", registerSceneControls);
 Hooks.on("renderSceneControls", renderToolSpecificApplications);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
@@ -29,17 +28,15 @@ function init() {
 	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightLayer };
 	CONFIG.Canvas.layers.terrainHeightLosRulerLayer = { group: "interface", layerClass: LineOfSightRulerLayer };
 
-	if (libWrapper) initLibWrapper();
+	if (game.modules.get("lib-wrapper")?.active) initLibWrapper();
 }
 
 function ready() {
-	// Warn if module dependencies are missing (has to be done in ready not init, as user does not exist at init)
-	const hasMissingDep = game.user.isGM && (
-		game.modules.get("lib-wrapper")?.active !== true ||
-		game.modules.get("socketlib")?.active !== true
-	);
-	if (hasMissingDep) {
-		ui.notifications.error(game.i18n.localize("TERRAINHEIGHTTOOLS.MissingDependencyWarning"), { permanent: true });
+	game.socket.on(socketName, handleSocketEvent);
+
+	// Warn if lib-wrapper is missing (has to be done in ready not init, as user does not exist at init)
+	if (game.user.isGM && game.modules.get("lib-wrapper")?.active !== true) {
+		ui.notifications.error(game.i18n.localize("TERRAINHEIGHTTOOLS.MissingLibWrapperWarning"), { permanent: true });
 	}
 }
 
@@ -74,18 +71,19 @@ function initLibWrapper() {
 	}, libWrapper.MIXED);
 }
 
-function initSocketlib() {
-	const socket = globalThis.terrainHeightTools.socket = socketlib.registerModule(moduleName);
+function handleSocketEvent({ func, args }) {
+	switch (func) {
+		case socketFuncs.drawLineOfSightRay: {
+			/** @type {import("./layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer | undefined} */
+			const losRulerLayer = canvas.terrainHeightLosRulerLayer;
+			losRulerLayer?._drawLineOfSightRays(...args);
+			break;
+		}
 
-	socket.register(socketlibFuncs.drawLineOfSightRay, (...args) => {
-		/** @type {import("./layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer | undefined} */
-		const losRulerLayer = canvas.terrainHeightLosRulerLayer;
-		losRulerLayer?._drawLineOfSightRays(...args);
-	});
-
-	socket.register(socketlibFuncs.clearLineOfSightRay, (...args) => {
-		/** @type {import("./layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer | undefined} */
-		const losRulerLayer = canvas.terrainHeightLosRulerLayer;
-		losRulerLayer?._clearLineOfSightRays(...args);
-	});
+		case socketFuncs.clearLineOfSightRay: {
+			const losRulerLayer = canvas.terrainHeightLosRulerLayer;
+			losRulerLayer?._clearLineOfSightRays(...args);
+			break;
+		}
+	}
 }

@@ -1,5 +1,5 @@
 import { sceneControls } from "../config/controls.mjs";
-import { moduleName, settings, socketlibFuncs, tools } from "../consts.mjs";
+import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { LineSegment } from "../geometry/line-segment.mjs";
 import { Polygon } from "../geometry/polygon.mjs";
@@ -191,9 +191,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// Draw for other players
 		if (drawForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
-			globalThis.terrainHeightTools.socket?.executeForOthers(
-				socketlibFuncs.drawLineOfSightRay,
-				rulers, { userId, sceneId, drawForOthers: false });
+			game.socket.emit(socketName, {
+				func: socketFuncs.drawLineOfSightRay,
+				args: [rulers, { userId, sceneId, drawForOthers: false }]
+			});
 		}
 	}
 
@@ -213,9 +214,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		}
 
 		if (clearForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
-			globalThis.terrainHeightTools.socket?.executeForOthers(
-				socketlibFuncs.clearLineOfSightRay,
-				{ userId: game.userId, clearForOthers: false });
+			game.socket.emit(socketName, {
+				func: socketFuncs.clearLineOfSightRay,
+				args: [{ userId: game.userId, clearForOthers: false }]
+			});
 		}
 	}
 

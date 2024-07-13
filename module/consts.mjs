@@ -1,5 +1,7 @@
 export const moduleName = "terrain-height-tools";
 
+export const socketName = `module.${moduleName}`;
+
 
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
@@ -43,8 +45,8 @@ export const lineTypes = ({
 	dashed: 2
 });
 
-/** @enum {keyof typeof socketlibFuncs} */
-export const socketlibFuncs = /** @type {const} */ ({
+/** @enum {keyof typeof socketFuncs} */
+export const socketFuncs = /** @type {const} */ ({
 	drawLineOfSightRay: "drawLineOfSightRay",
 	clearLineOfSightRay: "clearLineOfSightRay"
 });

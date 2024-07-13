@@ -71,7 +71,7 @@
 			"BelowTiles": "Show Height Map Below Tiles"
 		},
 		"SelectToken": "Select token",
-		"MissingDependencyWarning": "Terrain Height Tools now requires the libWrapper and socketlib modules to work. Please ensure they are installed and enabled or you may encounter issues.",
+		"MissingLibWrapperWarning": "Terrain Height Tools now requires the libWrapper module to work. Please ensure it is installed and enabled or you may encounter issues.",
 		"StartHeight.Name": "Start Height",
 		"StartHeight.Hint": "This is the height of the first point of the ruler. You can also adjust this using +/- on the keyboard before starting to drag the ruler.",
 		"TokenLineOfSightConfigHint": "Select two tokens to measure line of sight between them.",
