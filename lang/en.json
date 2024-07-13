@@ -63,6 +63,7 @@
 		"NoTokenSelected": "No token selected",
 		"PaletteTitle": "Terrain Palette",
 		"SameAsStart": "Same as start",
+		"SameTokenSelected": "You have already selected this token for line of sight, please select a different one",
 		"SceneRenderAboveTiles": "Terrain Height Map Layer",
 		"SceneRenderAboveTilesChoice": {
 			"UseGlobal": "Inherit Global Setting",

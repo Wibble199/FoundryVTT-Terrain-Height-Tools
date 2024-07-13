@@ -104,7 +104,16 @@ export class TokenLineOfSightConfig extends Application {
 	 */
 	_onSelectToken(token) {
 		if (!this._isSelecting) return;
-		this.#losLayer[`_token${this.#selectingToken$.value}$`].value = token;
+
+		const tokenIndex = this.#selectingToken$.value;
+		const otherToken = this.#losLayer[`_token${tokenIndex === 1 ? 2 : 1}$`].value;
+
+		if (otherToken === token) {
+			ui.notifications.error(game.i18n.localize("TERRAINHEIGHTTOOLS.SameTokenSelected"));
+			return;
+		}
+
+		this.#losLayer[`_token${tokenIndex}$`].value = token;
 		this.#selectingToken$.value = undefined;
 	}
 
