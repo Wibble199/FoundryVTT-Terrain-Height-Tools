@@ -25,11 +25,12 @@ import { lineTypes, moduleName, settings } from '../consts.mjs';
 
 /**
  * Creates a new TerrainType object with the default options.
+ * @param {TerrainType["id"]} id
  * @returns {TerrainType}
  */
-export function createDefaultTerrainType() {
+export function createDefaultTerrainType(id = undefined) {
 	return {
-		id: randomID(),
+		id: id ?? randomID(),
 		name: "New Terrain Type",
 		usesHeight: true,
 		textRotation: false,
@@ -60,7 +61,14 @@ export function getTerrainTypes() {
 	const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
 
 	// Merge with the default terrain type so that any new properties get their default values.
-	return terrainTypes.map(t => ({ ...createDefaultTerrainType(), ...t }));
+	return terrainTypes.map(t => ({ ...createDefaultTerrainType(t.id), ...t }));
+}
+
+/**
+ * Loads the TerrainTypes from the settings into a Map that is keyed by the terrain type ID.
+ */
+export function getTerrainTypeMap() {
+	return new Map(getTerrainTypes().map(t => [t.id, t]));
 }
 
 /**
@@ -70,4 +78,23 @@ export function getTerrainTypes() {
  */
 export function getTerrainType(terrainTypeId) {
 	return getTerrainTypes().find(x => x.id === terrainTypeId);
+}
+
+/**
+ * Gets a single colour used to represent the given terrain type.
+ * @param {TerrainType} terrainType
+ * @param {number} defaultColor
+ * @returns {number}
+ */
+export function getTerrainColor(terrainType, defaultColor = 0x00FFFF) {
+	// If the terrain type has a fill colour, use that
+	if (terrainType.fillOpacity > 0 && terrainType.fillType !== CONST.DRAWING_FILL_TYPES.NONE)
+		return Color.from(terrainType.fillColor);
+
+	// If the terrain type does not have a fill colour but has a border colour, use that
+	if (terrainType.lineWidth > 0 && terrainType.lineOpacity > 0)
+		return Color.from(terrainType.lineColor);
+
+	// Otherwise use a default
+	return defaultColor;
 }

@@ -38,6 +38,24 @@ export function registerSettings() {
 		}
 	});
 
+	game.settings.register(moduleName, settings.displayLosMeasurementGm, {
+		name: "SETTINGS.DisplayLosMeasurementGm.Name",
+		hint: "SETTINGS.DisplayLosMeasurementGm.Hint",
+		scope: "world",
+		type: Boolean,
+		default: true,
+		config: true
+	});
+
+	game.settings.register(moduleName, settings.displayLosMeasurementPlayer, {
+		name: "SETTINGS.DisplayLosMeasurementPlayer.Name",
+		hint: "SETTINGS.DisplayLosMeasurementPlayer.Hint",
+		scope: "world",
+		type: Boolean,
+		default: true,
+		config: true
+	});
+
 	game.settings.register(moduleName, settings.showTerrainHeightOnTokenLayer, {
 		name: "SETTINGS.ShowTerrainHeightOnTokenLayer",
 		scope: "client",
@@ -56,6 +74,15 @@ export function registerSettings() {
 		config: true,
 		default: 0,
 		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
+	});
+
+	game.settings.register(moduleName, settings.otherUserLineOfSightRulerOpacity, {
+		name: "SETTINGS.OtherUserLineOfSightRulerOpacity.Name",
+		hint: "SETTINGS.OtherUserLineOfSightRulerOpacity.Hint",
+		type: Number,
+		range: { min: 0, max: 1, step: 0.05 },
+		config: true,
+		default: 0.5
 	});
 
 	game.settings.register(moduleName, settings.smartLabelPlacement, {

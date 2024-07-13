@@ -1,0 +1,22 @@
+<form>
+	<div class="form-group-stacked">
+		<label>
+			{{localize "TERRAINHEIGHTTOOLS.StartHeight.Name"}}:
+			<i class="fa fa-question-circle height-input-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.StartHeight.Hint"}}"></i>
+		</label>
+		<input type="number" name="rulerStartHeight" min="0">
+	</div>
+
+	<div class="form-group-stacked">
+		<label>
+			{{localize "TERRAINHEIGHTTOOLS.EndHeight.Name"}}:
+			<i class="fa fa-question-circle height-input-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.EndHeight.Hint"}}"></i>
+		</label>
+		<input type="number" name="rulerEndHeight" min="0" placeholder="{{localize "TERRAINHEIGHTTOOLS.SameAsStart"}}">
+	</div>
+
+	<label>
+		<input type="checkbox" name="rulerIncludeNoHeightTerrain">
+		{{localize "TERRAINHEIGHTTOOLS.IncludeFlatTerrain"}}
+	</label>
+</form>

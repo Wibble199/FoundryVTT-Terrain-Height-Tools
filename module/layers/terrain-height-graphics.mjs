@@ -1,5 +1,5 @@
 import { flags, lineTypes, moduleName, settings } from "../consts.mjs";
-import { Edge, HeightMap, Polygon, Vertex } from "../geometry/index.mjs";
+import { HeightMap, LineSegment, Point, Polygon } from "../geometry/index.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { debug } from "../utils/log.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
@@ -68,11 +68,15 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * @param {HeightMap} heightMap
 	 */
 	async update(heightMap) {
-		this.graphics.clear();
-		this.labels.removeChildren();
-		this.parent.sortChildren();
+		// If there are no shapes on the map, just clear it and return
+		if (heightMap.shapes.length === 0) {
+			this._clear();
+			return;
+		}
 
-		if (heightMap.shapes.length === 0) return;
+		// If there are shapes on the map, load the textures (if required), then clear and redraw.
+		// Note that we don't clear before loading the textures as multiple calls to update may then clear, wait and
+		// draw at the same time, resulting in twice as many things being rendered as there should be.
 
 		const terrainTypes = getTerrainTypes();
 
@@ -80,6 +84,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		const textures = Object.fromEntries(await Promise.all(terrainTypes
 			.filter(type => type.fillTexture?.length)
 			.map(async type => [type.id, await loadTexture(type.fillTexture)])));
+
+		this._clear();
 
 		/** @type {boolean} */
 		const smartLabelPlacement = game.settings.get(moduleName, settings.smartLabelPlacement);
@@ -125,6 +131,12 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			if (label?.length)
 				this.#drawPolygonLabel(label, textStyle, shape, { smartPlacement: smartLabelPlacement, allowRotation: terrainStyle.textRotation });
 		}
+	}
+
+	_clear() {
+		this.graphics.clear();
+		this.labels.removeChildren();
+		this.parent.sortChildren();
 	}
 
 	/**
@@ -197,11 +209,11 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		/** Tests that if the text was position centrally at the given point, if it fits in the shape entirely. */
 		const testTextPosition = (x, y, rotated = false) => {
 			const testEdge = rotated
-				? new Edge(new Vertex(x, y - text.width / 2), new Vertex(x, y + text.width / 2))
-				: new Edge(new Vertex(x - text.width / 2, y), new Vertex(x + text.width / 2, y));
+				? new LineSegment(new Point(x, y - text.width / 2), new Point(x, y + text.width / 2))
+				: new LineSegment(new Point(x - text.width / 2, y), new Point(x + text.width / 2, y));
 
 			return shape.polygon.containsPoint(x, y)
-				&& shape.holes.every(h => !h.containsPoint(x, y))
+				&& shape.holes.every(h => !h.containsPoint(x, y, false))
 				&& allEdges.every(e => !e.intersectsAt(testEdge));
 		};
 

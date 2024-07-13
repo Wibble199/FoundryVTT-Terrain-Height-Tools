@@ -1,19 +1,20 @@
-import { Edge } from "./edge.mjs";
-import { Vertex } from "./vertex.mjs";
+import { distinctBy } from '../utils/array-utils.mjs';
+import { LineSegment } from "./line-segment.mjs";
+import { Point } from "./point.mjs";
 
 export class Polygon {
 
-	/** @type {Vertex[]} */
+	/** @type {Point[]} */
 	#vertices = [];
 
-	/** @type {Edge[]} */
+	/** @type {LineSegment[]} */
 	#edges = [];
 
 	/** @type {[number, number]} */
 	#centroid = [0, 0];
 
 	/**
-	 * @param {Vertex[]} [vertices]
+	 * @param {({ x: number; y: number } | Point)[]} [vertices]
 	 */
 	constructor(vertices = undefined) {
 		this.boundingBox = {
@@ -26,16 +27,16 @@ export class Polygon {
 		};
 
 		for (const vertex of vertices ?? []) {
-			this.pushPoint(vertex);
+			this.pushVertex(vertex);
 		}
 	}
 
-	/** @type {readonly Vertex[]} */
+	/** @type {readonly Point[]} */
 	get vertices() {
 		return [...this.#vertices];
 	}
 
-	/** @type {readonly Edge[]} */
+	/** @type {readonly LineSegment[]} */
 	get edges() {
 		return [...this.#edges];
 	}
@@ -47,11 +48,13 @@ export class Polygon {
 
 	/**
 	 * Pushes a vertex to the end of the polygon.
-	 * @param {number | Vertex} x The X coordinate of the point or a Vertex object to add.
+	 * @param {number | Point | { x: number; y: number }} x The X coordinate of the point or a Point object to add.
 	 * @param {number | undefined} y The Y coordinate of the point or undefined.
 	 */
-	pushPoint(x, y = undefined) {
-		const vertex = x instanceof Vertex ? x : new Vertex(x, y);
+	pushVertex(x, y = undefined) {
+		const vertex = x instanceof Point ? x
+			: typeof x === "object" ? new Point(x.x, x.y)
+			: new Point(x, y);
 
 		this.#vertices.push(vertex);
 
@@ -61,7 +64,7 @@ export class Polygon {
 
 		// Add a new edge from this new vertex to the first vertex (when there were no vertices in this polygon before, this
 		// would make an edge from this new vertex to iself, but when more vertices are added this works fine).
-		this.#edges.push(new Edge(vertex, this.#vertices[0]));
+		this.#edges.push(new LineSegment(vertex, this.#vertices[0]));
 
 		// Update bounding box and centroid
 		this.#updateCalculatedValues(vertex);
@@ -97,31 +100,80 @@ export class Polygon {
 	}
 
 	/**
-	 * Determines if this point is within the bounds of this polygon.
+	 * Determines if a point is within the bounds of this polygon.
 	 * @param {number} x
 	 * @param {number} y
+	 * @param {Object} [options]
+	 * @param {boolean} [options.containsOnEdge=true] When true (default), a point that falls exactly on an edge of this
+	 * polygon will be treated as inside the polygon. If false, that point would be treated as being outside.
 	 */
-	containsPoint(x, y) {
+	containsPoint(x, y, { containsOnEdge = true } = {}) {
 		const { boundingBox } = this;
 
-		// If the point is not even in the bounding box, don't need to check the vertices
+		// If the point is not even in the bounding box, don't need to perform edge intersections
 		if (x < boundingBox.x1 || x > boundingBox.x2 || y < boundingBox.y1 || y > boundingBox.y2)
 			return false;
 
+		// Check for any points that lie exactly on an edge
+		const onAnyEdge = this.#edges.some(e => {
+			const { t, distanceSquared } = e.findClosestPointOnLineTo(x, y);
+			return Math.abs(t) < Number.EPSILON && Math.abs(t - 1) < Number.EPSILON
+				&& distanceSquared < Number.EPSILON * Number.EPSILON;
+		});
+		if (onAnyEdge) return containsOnEdge;
+
+
 		// From the point, count how many edges it intersects when a line is drawn from this point to the left edge
 		// of the canvas. If there's an odd number of intersections, it must be inside the polygon.
-		const numberOfIntersections = this.#edges
-			.map(e => e.intersectsYAt(y))
-			.filter(intersectX => !!intersectX && intersectX < x)
-			.length;
+		// First, collect a set of edges that are crossed. We also 'distinct' them by their X intersection value to
+		// eliminate any pairs of edges that are at the same point, e.g. when meeting two adjacent vertical edges.
 
-		return numberOfIntersections % 2 == 1;
+		const intersectedEdges = new Set(distinctBy(
+			this.#edges
+				.map(edge => ({ edge, intersectX: edge.intersectsYAt(y) }))
+				.filter(({ intersectX }) => typeof intersectX === "number" && intersectX < x),
+			({ intersectX }) => intersectX
+		).map(({ edge }) => edge));
+
+
+		// Next, we need to handle some edge cases when the point lies at the same y level as an intersection. We need
+		// to ensure cases like ┌─┘ only count as 1 (despite crossing two vertical lines), while also ensuring that
+		// cases like ┌─┐ count as either 0 or 2.
+		// We do this by traversing the edge graph from the intersected edge and seeing if it's connected to another
+		// intersecting edge by horizontal lines, then checking the direction of two edges.
+		const possibleConnectingHorizontalEdges = new Set(this.#edges
+			.filter(e => Math.abs(e.p1.y - y) < Number.EPSILON && Math.abs(e.p2.y - y) < Number.EPSILON));
+
+		/** @type {(edge: LineSegment, dir: 1 | -1) => boolean} */
+		const detectHorizontallyConnectedEdge = (edge, dir) => {
+			// Starting from the given edge, traverse in a given direction.
+			// - If we find an edge that is parallel to the imaginary test ray, continue as this should connect to
+			//   another intersection edge.
+			// - If we find an edge that is an intersected edge, check if both it and the edge are pointing up or both
+			//   down. If so, remove the other one from the Set as this pair should only count as 1.
+			// - If we find an edge that is intersected, but pointing opposite, leave it in the Set as this pair should
+			//   count as 2.
+			// - If we find an edge that is not intersected and not a possible connecting edge, then just stop here.
+			for (const edge2 of this.traverseEdges(edge, dir)) {
+				if (possibleConnectingHorizontalEdges.has(edge2))
+					continue;
+				if (intersectedEdges.has(edge2) && Math.sign(edge.dy) === Math.sign(edge2.dy))
+					return intersectedEdges.delete(edge2);
+				return false;
+			}
+		};
+
+		for (const edge of intersectedEdges.values()) {
+			detectHorizontallyConnectedEdge(edge, 1) || detectHorizontallyConnectedEdge(edge, -1);
+		}
+
+    	return intersectedEdges.size % 2 == 1;
 	}
 
 	/**
 	 * Updates any of the calculated values for the newly added vertex.
 	 * Should be called _after_ adding the vertex to the array.
-	 * @param {Vertex} vertex
+	 * @param {Point} vertex
 	 */
 	#updateCalculatedValues(vertex) {
 		// Update the centroid (the average of all vertices)
@@ -133,5 +185,66 @@ export class Polygon {
 		if (vertex.y < this.boundingBox.y1) this.boundingBox.y1 = vertex.y;
 		if (vertex.x > this.boundingBox.x2) this.boundingBox.x2 = vertex.x;
 		if (vertex.y > this.boundingBox.y2) this.boundingBox.y2 = vertex.y;
+	}
+
+	/**
+	 * Finds the edge that comes before the given edge. If the given edge is the first edge, will return the last edge.
+	 * If the given edge does not exist in this polygon, returns `undefined`.
+	 * @param {LineSegment} edge
+	 */
+	previousEdge(edge) {
+		const idx = this.#edges.indexOf(edge);
+		switch (idx) {
+			case -1: return undefined;
+			case 0: return this.#edges[this.#edges.length	- 1];
+			default: return this.#edges[idx - 1];
+		}
+	}
+
+	/**
+	 * Finds the edge that comes after the given edge. If the given edge is the last edge, will return the first edge.
+	 * If the given edge does not exist in this polygon, returns `undefined`.
+	 * @param {LineSegment} edge
+	 */
+	nextEdge(edge) {
+		const idx = this.#edges.indexOf(edge);
+		switch (idx) {
+			case -1: return undefined;
+			case this.#edges.length - 1: return this.#edges[0];
+			default: return this.#edges[idx + 1];
+		}
+	}
+
+	/**
+	 * Traverses the edges in the polygon, starting at the given edge in the given direction. Does not repeat or yield
+	 * the original 'startEdge'.
+	 * @param {LineSegment} startEdge The edge to begin traversal from.
+	 * @param {1 | -1} direction The direction of travel. 1 for forwards, -1 for backwards.
+	 * @returns {Generator<LineSegment, void, void>}
+	 */
+	*traverseEdges(startEdge, direction) {
+		const startIdx = this.#edges.indexOf(startEdge);
+		if (startIdx < 0) throw new Error("Given edge is not part of this polygon.");
+		let idx = startIdx;
+
+		while (true) {
+			idx = (idx + direction) % this.#edges.length;
+			if (idx < 0) idx += this.#edges.length;
+			if (idx === startIdx) return;
+			yield this.#edges[idx];
+		}
+	}
+
+	/**
+	 * Finds the mid of point of all given vertices.
+	 * @param {{ x: number; y: number; }[]} vertices
+	 */
+	static centroid(vertices) {
+		const centroid = { x: 0, y: 0 };
+		for (let i = 0; i < vertices.length; i++) {
+			centroid.x += (vertices[i].x - centroid.x) / (i + 1);
+			centroid.y += (vertices[i].y - centroid.y) / (i + 1);
+		}
+		return centroid;
 	}
 }

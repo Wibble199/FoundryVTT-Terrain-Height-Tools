@@ -5,13 +5,23 @@
 		"TerrainHeightToolsErase": "Erase",
 		"TerrainHeightToolsEraseFill": "Erase fill (Erase connected)",
 		"TerrainHeightToolsFill": "Fill",
+		"TerrainHeightToolsLineOfSightRuler": "Terrain Height Tools Line of Sight Ruler",
 		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Map",
-		"TerrainHeightToolsPaint": "Paint"
+		"TerrainHeightToolsPaint": "Paint",
+		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight"
 	},
 	"KEYBINDINGS": {
+		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Height",
+		"IncreaseLosRulerHeight": "Increase Line of Sight Ruler Height",
 		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
 	},
 	"SETTINGS": {
+		"DisplayLosMeasurementGm.Name": "Display Line of Sight Ruler (GM)",
+		"DisplayLosMeasurementGm.Hint": "Whether to display the GM's line of sight measurement ruler to other connected players or not.",
+		"DisplayLosMeasurementPlayer.Name": "Display Line of Sight Ruler (Player)",
+		"DisplayLosMeasurementPlayer.Hint": "Whether to display the players' line of sight measurement rulers to other connected players or not.",
+		"OtherUserLineOfSightRulerOpacity.Name": "Other Users' LoS Ruler Opacity",
+		"OtherUserLineOfSightRulerOpacity.Hint": "How transparent other user's line of sight rulers appear to you.",
 		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
 		"TerrainHeightLayerRenderAboveTiles.Name": "Terrain Height Map Above Tiles",
 		"TerrainHeightLayerRenderAboveTiles.Hint": "Whether or not the terrain height map will be drawn above non-overhead tiles on the scene. This can be also be set per-scene.",
@@ -21,36 +31,51 @@
 		"TerrainTypes.Hint": "Configure what kind of terrain types are available to be drawn to a scene.",
 		"TerrainTypes.Button": "Configure Terrain Types",
 		"TerrainHeightLayerSmartLabelPlacement.Name": "Smart Label Placement",
-		"TerrainHeightLayerSmartLabelPlacement.Hint": "If enabled, will attempt to be smarter about where labels are placed on complex shapes. If disabled, labels will simple appear at the center of the shape, though for concave shapes or shapes with holes this may fall outside the painted area."
+		"TerrainHeightLayerSmartLabelPlacement.Hint": "If enabled, will attempt to be smarter about where labels are placed on complex shapes. If disabled, labels will simply appear at the center of the shape, though for concave shapes or shapes with holes this may fall outside the painted area."
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",
 		"AllowTextRotation": "Allow Text Rotation",
 		"ClearConfirmContent": "Permanently delete all terrain data from this scene?",
 		"ClearConfirmTitle": "Clear All Terrain",
+		"ClearSelectedToken": "Clear selected token",
 		"DeleteTerrainTypeHint": "<p>Edit the types of terrain that can be painted onto the scene.</p><p>Note: Removing a terrain type will clear cells that are using it from the scene on next save.</p>",
+		"EndHeight.Name": "End Height",
+		"EndHeight.Hint": "This is the height of the last point of the ruler. You can also adjust this using +/- on the keyboard while dragging the ruler. If not set to anything, uses the same height as the start point.",
 		"ExportTerrainTypes": "Export Terrain Types",
 		"Height": "Height",
 		"ImportCombine": "Import (Combine with Existing)",
 		"ImportReplace": "Import (Replace Existing)",
 		"ImportTerrainTypes": "Import Terrain Types",
 		"ImportTextPlaceholder": "Paste your terrain type export here...",
+		"IncludeFlatTerrain": "Include Flat Terrain",
 		"LabelFormatHint": "Use <u>%h%</u> for the numeric height of the terrain",
 		"LineDashSize": "Dash Size",
 		"LineGapSize": "Gap Size",
+		"LineOfSightConfigTitle": "LoS Ruler",
+		"LineType": "Line Type",
 		"LineTypeDashed": "Dashed",
 		"LineTypeNone": "None",
 		"LineTypeSolid": "Solid",
-		"LineType": "Line Type",
 		"MoveDown": "Move down (affects palette list only)",
 		"MoveUp": "Move up (affects palette list only)",
 		"NoTerrainTypesWarn": "No terrain types configured. Click to configure.",
+		"NoTokenSelected": "No token selected",
 		"PaletteTitle": "Terrain Palette",
+		"SameAsStart": "Same as start",
+		"SameTokenSelected": "You have already selected this token for line of sight, please select a different one",
 		"SceneRenderAboveTiles": "Terrain Height Map Layer",
 		"SceneRenderAboveTilesChoice": {
 			"UseGlobal": "Inherit Global Setting",
 			"AboveTiles": "Show Height Map Above Tiles",
 			"BelowTiles": "Show Height Map Below Tiles"
-		}
+		},
+		"SelectToken": "Select token",
+		"MissingDependencyWarning": "Terrain Height Tools now requires the libWrapper and socketlib modules to work. Please ensure they are installed and enabled or you may encounter issues.",
+		"StartHeight.Name": "Start Height",
+		"StartHeight.Hint": "This is the height of the first point of the ruler. You can also adjust this using +/- on the keyboard before starting to drag the ruler.",
+		"TokenLineOfSightConfigHint": "Select two tokens to measure line of sight between them.",
+		"TokenLineOfSightConfigTitle": "Token LoS",
+		"TokenLineOfSightSelectTokenHint": "Click on a token to select it, or click on the 'Select token' button again to cancel"
 	}
 }
