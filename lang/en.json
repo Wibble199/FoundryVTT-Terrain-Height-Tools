@@ -20,7 +20,7 @@
 		"DisplayLosMeasurementGm.Hint": "Whether to display the GM's line of sight measurement ruler to other connected players or not.",
 		"DisplayLosMeasurementPlayer.Name": "Display Line of Sight Ruler (Player)",
 		"DisplayLosMeasurementPlayer.Hint": "Whether to display the players' line of sight measurement rulers to other connected players or not.",
-		"OtherUserLineOfSightRulerOpacity.Name": "Other users' LoS ruler opacity",
+		"OtherUserLineOfSightRulerOpacity.Name": "Other Users' LoS Ruler Opacity",
 		"OtherUserLineOfSightRulerOpacity.Hint": "How transparent other user's line of sight rulers appear to you.",
 		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
 		"TerrainHeightLayerRenderAboveTiles.Name": "Terrain Height Map Above Tiles",
@@ -31,7 +31,7 @@
 		"TerrainTypes.Hint": "Configure what kind of terrain types are available to be drawn to a scene.",
 		"TerrainTypes.Button": "Configure Terrain Types",
 		"TerrainHeightLayerSmartLabelPlacement.Name": "Smart Label Placement",
-		"TerrainHeightLayerSmartLabelPlacement.Hint": "If enabled, will attempt to be smarter about where labels are placed on complex shapes. If disabled, labels will simple appear at the center of the shape, though for concave shapes or shapes with holes this may fall outside the painted area."
+		"TerrainHeightLayerSmartLabelPlacement.Hint": "If enabled, will attempt to be smarter about where labels are placed on complex shapes. If disabled, labels will simply appear at the center of the shape, though for concave shapes or shapes with holes this may fall outside the painted area."
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",

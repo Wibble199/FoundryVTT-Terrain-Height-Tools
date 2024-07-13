@@ -8,7 +8,9 @@ Tools for painting grid cells with terrain heights and calculating line of sight
 
 Designed for LANCER, _Terrain Height Tools_ takes inspiration from the way painting tiles works in the _[Political Map Overlay](https://github.com/cirrahn/foundry-polmap)_ module by cirrahn; and augments it with some line of sight calculation functionality and the ability to render the heights on the token layer.
 
-![Preview](docs/overview.webp)
+![Map preview](docs/overview.webp)
+
+![Line of Sight preview](docs/los-rays.webp)
 
 ## Installation
 
@@ -28,6 +30,26 @@ Once installed, the first thing you need to do is configure the paintable terrai
 See [below](#configuring-terrain-types) for more details about configuring terrain types.
 
 Once at least one type of terrain has been configured, you can then use the tools in the '_Terrain Height Tools_' menu to paint terrain onto the map. To do this, you need to click the type of terrain you want to paint in the '_Terrain Palette_' window and choose a height for the terrain. Adjacent grid cells will merge together if both their terrain types and their heights are the same.
+
+### Line of Sight
+
+Terrain Height Tools provides two tools for testing line of sight (LoS) against the terrain that has been drawn to the scene. Both of them can be found under the tokens menu.
+
+![Line of Sight Tools](docs/los-tools.webp)
+
+The first, is the humble '_Line of Sight Ruler_'. The ruler behaves similarlly to the standard ruler built in to Foundry. You can click and drag between two points, and it will test the line of sight along this line, and highlight any intersections with the terrain. You will also see a 'H' number next to either end of the ruler. This represents the height of that endpoint. You can change this either by using the `+` and `-` keys on your keyboard, or typing values into the config window that appears.
+
+The second tool is the '_Token Line of Sight_' tool. When you click this tool, you will see a config window appear. Click on the bullseye icon and then click on a token on the scene, for both the boxes that appear. Terrain Height Tools will then draw 3 LoS rays: one from the centre of the first token to the centre of the second; one between the left-most edges of the tokens; and one between the right-most edges. The H value of these lines is based on the token's elevation + the token's width; For example a token with an elevation of 3 and a size of 2, the H would be 5. This represents the top of the token. (Note: I intend to add options to configure how this tool works in future).
+
+![Examples of the lines](docs/los-ray-examples.webp)
+
+When the LoS rays are drawn to the scene, you will see a line drawn from the source point to the target point. This line is formatted depending on what state it is in at that point:
+- A solid white line means that the line is not intersecting with anything.
+- A coloured line means that the line is touching or intersecting with some terrain. The colour matches the terrain's colour.
+- A solid coloured line means that the ray touches a terrain shape, but does not actually intersect it.
+- A dashed line means that the ray completely intersects a shape.
+
+It's also worth noting that the ray is calculated in 3D space, so if you see it abruptly stop intersecting a shape part way through, it has likely impacted the top of the shape.
 
 ### Configuring Terrain Types
 
@@ -54,9 +76,17 @@ There are some other useful buttons:
 
 Here is a quick reference of the settings module presents in the 'Configure Settings' button of Foundry:
 
-- `Terrain Types` - GM Only - Button to open the terrain type configuration (see [above]((#configuring-terrain-types)))
-- `Terrain Height Map Above Tiles` - GM Only - This determines whether or not the terrain height map is shown above or below ground-level tiles. The height map is ALWAYS shown below overhead tiles. This can also be configured on a per-scene basis using the 'Terrain Height Map Layer' option on the 'Grid' tab of the scene config settings.
-- `Terrain Height Map Visibility Radius` - Per Player - If not zero, the terrain height map will only be shown in a radius of that many grid cells around the mouse cursor. If zero, the entire map will be visible.
+#### All Users
+
+- `Terrain Height Map Visibility Radius` - If not zero, the terrain height map will only be shown in a radius of that many grid cells around the mouse cursor. If zero, the entire map will be visible.
+- `Other User's LoS Ruler Opacity` - How opaque/transparent other user's line of sight rulers will appear to you.
+
+#### GM Only
+
+- `Terrain Types` - Button to open the terrain type configuration (see [above]((#configuring-terrain-types)))
+- `Terrain Height Map Above Tiles` - This determines whether or not the terrain height map is shown above or below ground-level tiles. The height map is ALWAYS shown below overhead tiles. This can also be configured on a per-scene basis using the 'Terrain Height Map Layer' option on the 'Grid' tab of the scene config settings.
+- `Display Line of Sight Ruler (GM)` - If true, the GM's Line of Sight measurements will be shown to other players.
+- `Display Line of Sight Ruler (Player)` - If true, players' Line of Sight measurements will be shown to other players.
 
 ## API
 
