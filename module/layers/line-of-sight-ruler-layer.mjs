@@ -140,8 +140,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	async _tearDown() {
 		await super._tearDown();
 		this.#setupEventListeners("off");
-		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r)));
-		this.#rulers.clear();
+
+		// Ensure this user's rulers are cleared for others when this user changes scenes
+		this._clearAllCurrentUserRulers();
+
 		this.removeChild(this.#lineStartIndicator);
 	}
 
@@ -266,6 +268,17 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 				{ x: token2Right.x, y: token2Right.y, h: token2Height }
 			],
 		];
+	}
+
+	_clearAllCurrentUserRulers() {
+		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r)));
+		this.#rulers.clear();
+
+		this._rulerStartPoint$.value = undefined;
+		this._rulerEndPoint$.value = undefined;
+
+		this._token1$.value = undefined;
+		this._token2$.value = undefined;
 	}
 
 	get #shouldShowUsersRuler() {
