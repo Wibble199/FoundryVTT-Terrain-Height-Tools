@@ -221,8 +221,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/**
 	 * Given two tokens, calculates the centre-to-centre ray, and the two edge-to-edge rays for them.
-	 * @param {Token | TokenDocument} token1
-	 * @param {Token | TokenDocument} token2
+	 * @param {Token} token1
+	 * @param {Token} token2
 	 * @returns {[Point3D, Point3D][]}
 	 */
 	static _calculateRaysBetweenTokens(token1, token2) {

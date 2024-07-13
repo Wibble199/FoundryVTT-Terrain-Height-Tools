@@ -73,7 +73,7 @@ function getHexPolyAligned(row, col, points = undefined) {
 
 /**
  * Given a token, returns all the vertices of that token's border.
- * @param {Token | TokenDocument} token
+ * @param {Token} token
  * @returns {{ x: number; y: number; }[]}
  */
 export function getGridVerticesFromToken(token) {
@@ -81,13 +81,13 @@ export function getGridVerticesFromToken(token) {
 	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
 
 	/** @type {TokenDocument} */
-	const tokenDoc = token instanceof TokenDocument ? token : token.document;
-	const { x, y, width, height } = tokenDoc;
+	const { x, y, width, height } = token.document;
 
 	// For hex grids, use the getBorderPolygon method
 	if (game.canvas.grid.isHex) {
-		// TODO: add support for the Hex Size Support module if it's installed
-		const pointsFlat = canvas.grid.grid.getBorderPolygon(width, height, 0);
+		const pointsFlat = game.modules.get("hex-size-support")?.api?.isAltOrientation(token) === true
+			? canvas.grid.grid.getAltBorderPolygon(width, height, 0)
+			: canvas.grid.grid.getBorderPolygon(width, height, 0);
 		return pointArrayToObjects(pointsFlat, x, y);
 	}
 
