@@ -15,6 +15,7 @@ export const tools = /** @type {const} */ ({
 
 /** @enum {keyof typeof settings} */
 export const settings = /** @type {const} */ ({
+	defaultTokenLosTokenHeight: "defaultTokenLosTokenHeight",
 	displayLosMeasurementGm: "displayLosMeasurementGm",
 	displayLosMeasurementPlayer: "displayLosMeasurementPlayer",
 	otherUserLineOfSightRulerOpacity: "otherUserLineOfSightRulerOpacity",
@@ -49,4 +50,11 @@ export const lineTypes = ({
 export const socketFuncs = /** @type {const} */ ({
 	drawLineOfSightRay: "drawLineOfSightRay",
 	clearLineOfSightRay: "clearLineOfSightRay"
+});
+
+/** @enum {keyof typeof tokenRelativeHeights} */
+export const tokenRelativeHeights = /** @type {const} */ ({
+	[1]: "SETTINGS.DefaultTokenLosHeight.Choice.Top",
+	[0.5]: "SETTINGS.DefaultTokenLosHeight.Choice.Middle",
+	[0]: "SETTINGS.DefaultTokenLosHeight.Choice.Bottom",
 });

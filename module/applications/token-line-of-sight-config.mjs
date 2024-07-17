@@ -1,4 +1,4 @@
-import { moduleName } from "../consts.mjs";
+import { moduleName, tokenRelativeHeights } from "../consts.mjs";
 import { Signal } from "../utils/signal.mjs";
 
 export class TokenLineOfSightConfig extends Application {
@@ -60,10 +60,19 @@ export class TokenLineOfSightConfig extends Application {
 
 			this.#losLayer._token2$.subscribe(token =>
 				this.#updateTokenDisplay(token, html.find(".token-selection-container[data-token-index='2']")), true),
+
+			this.#losLayer._token1Height$.subscribe(height =>
+				this.#updateTokenHeightButton(height, html.find("[data-token-index='1'] [data-action='set-height']")), true),
+
+			this.#losLayer._token2Height$.subscribe(height =>
+				this.#updateTokenHeightButton(height, html.find("[data-token-index='2'] [data-action='set-height']")), true)
 		];
 
 		// Select token buttons
 		html.find("[data-action='select']").on("click", this.#beginSelectToken.bind(this));
+
+		// Set height buttons
+		html.find("[data-action='set-height']").on("click", this.#setTokenRelativeHeight.bind(this));
 
 		// Clear buttons
 		html.find("[data-action='clear']").on("click", this.#clearSelectedToken.bind(this));
@@ -76,7 +85,7 @@ export class TokenLineOfSightConfig extends Application {
 
 	/**
 	 * @param {Token | undefined} token
-	 * @param {jQuery} target
+	 * @param {jQuery} target The container element whose children to update.
 	 */
 	#updateTokenDisplay(token, target) {
 		target.find(".token-name")
@@ -85,6 +94,30 @@ export class TokenLineOfSightConfig extends Application {
 		target.find(".token-image")
 			.attr("src", token?.document.texture?.src)
 			.css("visibility", token?.document.texture?.src ? "visible" : "hidden");
+	}
+
+	/**
+	 * @param {import("../consts.mjs").tokenRelativeHeights} height
+	 * @param {jQuery} target The button element whose tooltip and icon to update.
+	 */
+	#updateTokenHeightButton(height, target) {
+		// Update tooltip
+		const tooltipText = game.i18n.format(
+			"TERRAINHEIGHTTOOLS.TokenLineOfSightRelativeRayPosition",
+			{ current: game.i18n.localize(tokenRelativeHeights[height]) });
+		target.attr("data-tooltip", tooltipText);
+
+		// If the tooltip is currently being shown to the user, we need to re-activate it so that the tooltip updates
+		if (game.tooltip.element === target.get(0))
+			game.tooltip.activate(game.tooltip.element);
+
+		// Update chevron icon
+		const icon = {
+			[1]: "fa-chevron-up",
+			[0.5]: "fa-minus",
+			[0]: "fa-chevron-down"
+		}[height];
+		target.find("i").removeClass().addClass(["fa", icon]);
 	}
 
 	/**
@@ -115,6 +148,20 @@ export class TokenLineOfSightConfig extends Application {
 
 		this.#losLayer[`_token${tokenIndex}$`].value = token;
 		this.#selectingToken$.value = undefined;
+	}
+
+	/**
+	 * @param {MouseEvent} event
+	 */
+	#setTokenRelativeHeight(event) {
+		const tokenIndex = +event.currentTarget.closest("[data-token-index]").dataset.tokenIndex;
+		const signal = this.#losLayer[`_token${tokenIndex}Height$`];
+
+		signal.value = {
+			[1]: 0.5,
+			[0.5]: 0,
+			[0]: 1
+		}[signal.value] ?? 1;
 	}
 
 	/**

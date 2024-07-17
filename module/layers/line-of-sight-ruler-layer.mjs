@@ -26,6 +26,9 @@ const heightIndicatorXOffset = 10;
 
 export class LineOfSightRulerLayer extends CanvasLayer {
 
+	// ---------------- //
+	// LoS Ruler config //
+	// ---------------- //
 	// Track the start and end heights separately so that when the user is using it, it remembers their start and end
 	// values allowing them to quickly repeat the same measurement at the same height.
 
@@ -42,12 +45,24 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/** @type {Signal<number | undefined>} */
 	_rulerEndHeight$ = new Signal(undefined);
 
+	// ---------------- //
+	// Token LoS config //
+	// ---------------- //
 	/** @type {Signal<Token | undefined>} */
 	_token1$ = new Signal(undefined);
 
 	/** @type {Signal<Token | undefined>} */
 	_token2$ = new Signal(undefined);
 
+	/** @type {Signal<number>} */
+	_token1Height$ = new Signal(game.settings.get(moduleName, settings.defaultTokenLosTokenHeight));
+
+	/** @type {Signal<number>} */
+	_token2Height$ = new Signal(game.settings.get(moduleName, settings.defaultTokenLosTokenHeight));
+
+	// ------------- //
+	// Shared config //
+	// ------------- //
 	/** @type {Signal<boolean>} */
 	_rulerIncludeNoHeightTerrain$ = new Signal(false);
 
@@ -85,20 +100,22 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		});
 
 		// When either of the selected tokens for the token LOS are changed, update the token LOS rulers.
-		Signal.join((token1, token2, includeNoHeightTerrain, _) => {
+		Signal.join((token1, token2, token1Height, token2Height, includeNoHeightTerrain, _) => {
 				if (token1 && token2) {
-					const [leftRay, centreRay, rightRay] = LineOfSightRulerLayer._calculateRaysBetweenTokens(token1, token2);
+					const [leftRay, centreRay, rightRay] = LineOfSightRulerLayer._calculateRaysBetweenTokens(token1, token2, token1Height, token2Height);
 					this._drawLineOfSightRays([
 						[...leftRay, { includeNoHeightTerrain, showLabels: false }],
 						[...centreRay, { includeNoHeightTerrain, showLabels: true }],
 						[...rightRay, { includeNoHeightTerrain, showLabels: false }],
 					]);
-				 } else {
+				} else {
 					this._clearLineOfSightRays();
-				 }
+				}
 			},
 			this._token1$,
 			this._token2$,
+			this._token1Height$,
+			this._token2Height$,
 			this._rulerIncludeNoHeightTerrain$,
 			Signal.fromHook("updateToken", t => this._token1$.value?.id === t.id || this._token2$.value?.id === t.id)
 		);
@@ -225,9 +242,13 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * Given two tokens, calculates the centre-to-centre ray, and the two edge-to-edge rays for them.
 	 * @param {Token} token1
 	 * @param {Token} token2
+	 * @param {number} token1RelativeHeight A number between 0-1 inclusive that specifies how far vertically relative to
+	 * token1 the ray should spawn from.
+	 * @param {number} token2RelativeHeight A number between 0-1 inclusive that specifies how far vertically relative to
+	 * token2 the ray should end at.
 	 * @returns {[Point3D, Point3D][]}
 	 */
-	static _calculateRaysBetweenTokens(token1, token2) {
+	static _calculateRaysBetweenTokens(token1, token2, token1RelativeHeight = 1, token2RelativeHeight = 1) {
 		if (token1 === token2) throw new Error("Cannot draw line of sight from a token to itself.");
 
 		// Work out the vertices for each token
@@ -253,9 +274,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// Work out the h value for the tokens. This is how far the token is off the ground + the token's height.
 		// Note that this uses the assumption that the width and height of the token is it's h value.
 		const token1Doc = token1 instanceof Token ? token1.document : token1;
-		const token1Height = token1Doc.elevation + token1Doc.width;
+		const token1Height = token1Doc.elevation + token1Doc.width * token1RelativeHeight;
 		const token2Doc = token2 instanceof Token ? token2.document : token2;
-		const token2Height = token2Doc.elevation + token2Doc.width;
+		const token2Height = token2Doc.elevation + token2Doc.width * token2RelativeHeight;
 
 		return [
 			[

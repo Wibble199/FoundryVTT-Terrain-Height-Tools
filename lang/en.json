@@ -16,6 +16,11 @@
 		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
 	},
 	"SETTINGS": {
+		"DefaultTokenLosHeight.Name": "Default Token LoS Height",
+		"DefaultTokenLosHeight.Hint": "The default value for the Token Line of Sight tool's token height setting. This determines what height the LoS is drawn from relative to the token. Note that this won't take effect until the next time the players refresh.",
+		"DefaultTokenLosHeight.Choice.Bottom": "Bottom of token",
+		"DefaultTokenLosHeight.Choice.Middle": "Middle of token",
+		"DefaultTokenLosHeight.Choice.Top": "Top of token",
 		"DisplayLosMeasurementGm.Name": "Display Line of Sight Ruler (GM)",
 		"DisplayLosMeasurementGm.Hint": "Whether to display the GM's line of sight measurement ruler to other connected players or not.",
 		"DisplayLosMeasurementPlayer.Name": "Display Line of Sight Ruler (Player)",
@@ -76,6 +81,7 @@
 		"StartHeight.Hint": "This is the height of the first point of the ruler. You can also adjust this using +/- on the keyboard before starting to drag the ruler.",
 		"TokenLineOfSightConfigHint": "Select two tokens to measure line of sight between them.",
 		"TokenLineOfSightConfigTitle": "Token LoS",
+		"TokenLineOfSightRelativeRayPosition": "Position of ray relative to the token. Currently: {current}",
 		"TokenLineOfSightSelectTokenHint": "Click on a token to select it, or click on the 'Select token' button again to cancel"
 	}
 }

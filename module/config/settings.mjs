@@ -1,5 +1,5 @@
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
-import { flags, moduleName, settings } from "../consts.mjs";
+import { flags, moduleName, settings, tokenRelativeHeights } from "../consts.mjs";
 import { sceneControls } from "./controls.mjs";
 
 export function registerSettings() {
@@ -53,6 +53,16 @@ export function registerSettings() {
 		scope: "world",
 		type: Boolean,
 		default: true,
+		config: true
+	});
+
+	game.settings.register(moduleName, settings.defaultTokenLosTokenHeight, {
+		name: "SETTINGS.DefaultTokenLosHeight.Name",
+		hint: "SETTINGS.DefaultTokenLosHeight.Hint",
+		scope: "world",
+		type: Number,
+		choices: tokenRelativeHeights,
+		default: 1,
 		config: true
 	});
 
