@@ -83,7 +83,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// When any of the drag values are changed, update the ruler
 		Signal.join((p1, h1, p2, h2, includeNoHeightTerrain) => {
 				if (p1 && p2)
-					this._drawLineOfSightRays([[{ ...p1, h: h1 }, { ...p2, h: h2 ?? h1 }]], { includeNoHeightTerrain, drawForOthers: true });
+					this._drawLineOfSightRays([[{ ...p1, h: h1 }, { ...p2, h: h2 ?? h1 }, { includeNoHeightTerrain }]], { drawForOthers: true });
 				else
 					this._clearLineOfSightRays({ clearForOthers: true });
 			},
