@@ -126,13 +126,15 @@ export class Polygon {
 		// From the point, count how many edges it intersects when a line is drawn from this point to the left edge
 		// of the canvas. If there's an odd number of intersections, it must be inside the polygon.
 		// First, collect a set of edges that are crossed. We also 'distinct' them by their X intersection value to
-		// eliminate any pairs of edges that are at the same point, e.g. when meeting two adjacent vertical edges.
-
+		// eliminate any pairs of edges that are at the same point and in the same Y direction. e.g. intersecting \/ at
+		// the bottom joint should count as 2, but intersecting two joined vertical lines stack at the join between them
+		// should only count as 1.
 		const intersectedEdges = new Set(distinctBy(
 			this.#edges
 				.map(edge => ({ edge, intersectX: edge.intersectsYAt(y) }))
 				.filter(({ intersectX }) => typeof intersectX === "number" && intersectX < x),
-			({ intersectX }) => intersectX
+			({ intersectX }) => intersectX,
+			({ edge }) => Math.sign(edge.dy)
 		).map(({ edge }) => edge));
 
 

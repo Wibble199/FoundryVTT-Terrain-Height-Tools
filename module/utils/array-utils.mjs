@@ -18,23 +18,42 @@ export function groupBy(items, func) {
 }
 
 /**
- * Returns distinct items in the array according to the given function.
- * The value returned from the function will be used in a Set, so ensure it implements value equality.
+ * Returns distinct items in the array according to the given functions.
+ * The value returned from each function will be used in a Set, so ensure it implements value equality.
+ * The order of the returned items is not guaranteed or stable.
  * @template T
  * @param {T[]} items
- * @param {(item: T) => any} func
- * @returns {T[]}
+ * @param  {...((item: T) => any)} funcs
+ * @returns
  */
-export function distinctBy(items, func) {
-	const seen = new Set();
-	const distinct = [];
+export function distinctBy(items, ...funcs) {
+	if (!funcs?.length) throw new Error("Must provide at least one function");
+
+	// Create a map that holds each key against either: another map (when it isn't at max depth) or a value (if it is)
+	const distinct = new Map();
+
 	for (const item of items) {
-		const key = func(item);
-		if (seen.has(key)) continue;
-		distinct.push(item);
-		seen.add(key);
+		const keys = funcs.map(f => f(item));
+		let map = distinct;
+		for (let i = 0; i < keys.length; i++) {
+			const key = keys[i];
+
+			// None last key should work it's way down the map heirarchy
+			if (i < keys.length - 1) {
+				map.set(key, map.get(key) ?? new Map());
+				map = map.get(key);
+
+			// Last key should, if one has not already been found, add this item into the leaf node
+			} else if (!map.has(key)) {
+				map.set(key, item);
+			}
+		}
+		console.groupEnd();
 	}
-	return distinct;
+
+	// Recursively flatten the maps to just get the leaf values
+	const flatten = value => value instanceof Map ? [...value.values()].flatMap(flatten) : value;
+	return flatten(distinct);
 }
 
 /**
