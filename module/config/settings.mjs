@@ -95,6 +95,24 @@ export function registerSettings() {
 		default: 0.5
 	});
 
+	game.settings.register(moduleName, settings.tokenLosToolPreselectToken1, {
+		name: "SETTINGS.TokenLosToolPreselectToken1.Name",
+		hint: "SETTINGS.TokenLosToolPreselectToken1.Hint",
+		scope: "client",
+		type: Boolean,
+		config: true,
+		default: true
+	});
+
+	game.settings.register(moduleName, settings.tokenLosToolPreselectToken2, {
+		name: "SETTINGS.TokenLosToolPreselectToken2.Name",
+		hint: "SETTINGS.TokenLosToolPreselectToken2.Hint",
+		scope: "client",
+		type: Boolean,
+		config: true,
+		default: true
+	});
+
 	game.settings.register(moduleName, settings.smartLabelPlacement, {
 		name: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Name",
 		hint: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Hint",

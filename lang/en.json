@@ -36,7 +36,11 @@
 		"TerrainTypes.Hint": "Configure what kind of terrain types are available to be drawn to a scene.",
 		"TerrainTypes.Button": "Configure Terrain Types",
 		"TerrainHeightLayerSmartLabelPlacement.Name": "Smart Label Placement",
-		"TerrainHeightLayerSmartLabelPlacement.Hint": "If enabled, will attempt to be smarter about where labels are placed on complex shapes. If disabled, labels will simply appear at the center of the shape, though for concave shapes or shapes with holes this may fall outside the painted area."
+		"TerrainHeightLayerSmartLabelPlacement.Hint": "If enabled, will attempt to be smarter about where labels are placed on complex shapes. If disabled, labels will simply appear at the center of the shape, though for concave shapes or shapes with holes this may fall outside the painted area.",
+		"TokenLosToolPreselectToken1.Name": "Token LoS: Auto-populate Primary Token",
+		"TokenLosToolPreselectToken1.Hint": "If enabled, when selecting the Token Line of Sight tool, will automatically populate the primary token with your owned token (or selected token if you do not own one).",
+		"TokenLosToolPreselectToken2.Name": "Token LoS: Auto-populate Secondary Token",
+		"TokenLosToolPreselectToken2.Hint": "If enabled, when selecting the Token Line of Sight tool, will automatically populate the secondary token with your first targeted token."
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",

@@ -42,7 +42,12 @@ export function registerSceneControls(controls) {
 		{
 			name: tools.tokenLineOfSight,
 			title: game.i18n.localize("CONTROLS.TerrainHeightToolsTokenLineOfSight"),
-			icon: "fas fa-compass-drafting"
+			icon: "fas fa-compass-drafting",
+			onClick: () => {
+				/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
+				const ruler = game.canvas.terrainHeightLosRulerLayer;
+				ruler._autoSelectTokenLosTargets();
+			}
 		},
 		sceneControls.terrainHeightToolsLayerToggleControlButton = {
 			name: "terrainHeightLayerToggle",

@@ -80,6 +80,8 @@ Here is a quick reference of the settings module presents in the 'Configure Sett
 
 - `Terrain Height Map Visibility Radius` - If not zero, the terrain height map will only be shown in a radius of that many grid cells around the mouse cursor. If zero, the entire map will be visible.
 - `Other User's LoS Ruler Opacity` - How opaque/transparent other user's line of sight rulers will appear to you.
+- `Token LoS: Auto-populate Primary Token` - If true, when selecting the Token Line of Sight tool, THT will attempt to populate the first token for LoS measurement. It will prioritise a selected token on the scene if you have one, or if there isn't one it'll attempt to fallback to the token that represents the actor you have configured as your character.
+- `Token LoS: Auto-populate Secondary Token` - If true, when selecting the Token Line of Sight tool, THT will attempt to populate the second token for LoS measurement. It will use the first targeted token on the scene, if there is one.
 
 #### GM Only
 

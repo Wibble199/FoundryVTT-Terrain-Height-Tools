@@ -23,7 +23,9 @@ export const settings = /** @type {const} */ ({
 	smartLabelPlacement: "smartLabelPlacement",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
 	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
-	terrainTypes: "terrainTypes"
+	terrainTypes: "terrainTypes",
+	tokenLosToolPreselectToken1: "tokenLosToolPreselectToken1",
+	tokenLosToolPreselectToken2: "tokenLosToolPreselectToken2",
 });
 
 /** @enum {keyof typeof keybindings} */

@@ -320,6 +320,29 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		return game.settings.get(moduleName, game.user.isGM ? settings.displayLosMeasurementGm : settings.displayLosMeasurementPlayer);
 	}
 
+	/** Attempts to populate the token1 and token2 values based on the user's selected/targetted tokens. */
+	_autoSelectTokenLosTargets() {
+		// For the primary token, prefer the selected token, falling back to the user's configured character token
+		if (game.settings.get(moduleName, settings.tokenLosToolPreselectToken1)) {
+			let token = canvas.tokens.controlled?.[0] ?? game.user.character?.getActiveTokens()?.[0];
+
+			// Special case for LANCER: If the user's active character is a pilot, get their active mech's active tokens
+			if (!token && game.system.id === "lancer" && game.user.character?.type === "pilot")
+				token = game.user.character.system.active_mech?.value?.getActiveTokens()?.[0];
+
+			if (token)
+				this._token1$.value = token;
+		}
+
+		// For the secondary token, prefer the targeted token
+		if (game.settings.get(moduleName, settings.tokenLosToolPreselectToken2)) {
+			const token = game.user.targets.first();
+
+			if (token && this._token1$.value !== token) // do not allow same token as primary token (e.g. if user targets own token)
+				this._token2$.value = token;
+		}
+	}
+
 	// ----------------------------- //
 	// Mouse/keyboard event handling //
 	// ----------------------------- //
