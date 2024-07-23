@@ -1,7 +1,9 @@
 // ! These are functions specifically for macros and scripts.
 // ! Changing these functions should always be done in a backwards-compatible way.
 
+import { moduleName, settings } from "./consts.mjs";
 import { HeightMap } from "./geometry/height-map.mjs";
+import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { getTerrainTypes } from "./utils/terrain-types.mjs";
 
 export { getTerrainTypes } from "./utils/terrain-types.mjs";
@@ -105,4 +107,95 @@ export function calculateLineOfSightByShape(p1, p2, options = {}) {
 	/** @type {import("./geometry/height-map.mjs").HeightMap} */
 	const hm = game.canvas.terrainHeightLayer._heightMap;
 	return hm.calculateLineOfSight(p1, p2, options);
+}
+
+/**
+ * Calculates the start and end points of line of right rays between two tokens. One from the left-most point of token1
+ * to the left-most point of token2, one from centre to centre, and one between the right-most points.
+ * @param {Token} token1 The first token to draw line of sight from.
+ * @param {Token} token2 The second token to draw line of sight to.
+ * @param {Object} [options={}] Options that change how the calculation is done.
+ * @param {number | undefined} [options.token1RelativeHeight] How far the ray starts vertically relative to token1. The
+ * height is calculated as `token1.elevation + (token1RelativeHeight * token1.size)`. If undefined, uses the
+ * world-configured default value.
+ * @param {number | undefined} [options.token2RelativeHeight] How far the ray ends vertically relative to token2. The
+ * height is calculated as `token2.elevation + (token2RelativeHeight * token2.size)`. If undefined, uses the
+ * world-configured default value.
+ */
+export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight } = {}) {
+	const defaultRelativeHeight = game.settings.get(moduleName, settings.defaultTokenLosTokenHeight);
+	const [left, centre, right] = LineOfSightRulerLayer._calculateRaysBetweenTokens(token1, token2, token1RelativeHeight ?? defaultRelativeHeight, token2RelativeHeight ?? defaultRelativeHeight);
+	return {
+		left: { p1: left[0], p2: left[1] },
+		centre: { p1: centre[0], p2: centre[1] },
+		right: { p1: right[0], p2: right[1] }
+	};
+}
+
+/**
+ * Calculates and draws a line of sight ray between the given points.
+ * Note that this will clear all previously drawn lines, INCLUDING those drawn by the tools in the side bar.
+ * @param {import("./layers/line-of-sight-ruler-layer.mjs").Point3D} p1 The first point (where the line is drawn from).
+ * @param {import("./layers/line-of-sight-ruler-layer.mjs").Point3D} p2 The second point (where the line is drawn to).
+ * @param {Object} [options={}] Options that change for the lines are drawn.
+ * @param {boolean} [options.drawForOthers=true] Whether to draw these rays for other users connected to the game.
+ * @param {} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a height
+ * value will be included in the drawn line. They are treated as having infinite height.
+ * @param {} [options.showLabels=true] Whether height labels are shown at the start and end of the ruler.
+ */
+export function drawLineOfSightRay(p1, p2, { drawForOthers = true, includeNoHeightTerrain = false, showLabels = true } = {}) {
+	if (!LineOfSightRulerLayer._isPoint3d(p1)) throw new Error("`p1` is not a valid Point3D. Expected an object with `x`, `y`, and `h` properties.");
+	if (!LineOfSightRulerLayer._isPoint3d(p2)) throw new Error("`p2` is not a valid Point3D. Expected an object with `x`, `y`, and `h` properties.");
+	return drawLineOfSightRays([{ p1, p2, options: { includeNoHeightTerrain, showLabels } }], { drawForOthers });
+}
+
+/**
+ * Calculates and draws any number of line of sight rays between the given points.
+ * Note that this will clear all previously drawn lines, INCLUDING those drawn by the tools in the side bar.
+ * @param {({ p1: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; p2: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; } & import("./layers/line-of-sight-ruler-layer.mjs").RulerOptions)[]} rays
+ * @param {Object} [options={}] Options that change for the lines are drawn.
+ * @param {boolean} [options.drawForOthers=true] Whether to draw these rays for other users connected to the game.
+ */
+export function drawLineOfSightRays(rays, { drawForOthers = true } = {}) {
+	/** @type {LineOfSightRulerLayer} */
+	const ruler = game.canvas.terrainHeightLosRulerLayer;
+	ruler._drawLineOfSightRays(rays.map(({ p1, p2, ...options }) => [p1, p2, options]), { drawForOthers });
+}
+
+/**
+ * Calculates and draws line of sight rays between two tokens, as per the token line of sight tool.
+ * Note that currently only one set of lines can be drawn, attempting to draw any other lines of sight will clear these
+ * lines, INCLUDING those drawn by the tools in the side bar.
+ * @param {Token} token1 The first token to draw line of sight from.
+ * @param {Token} token2 The second token to draw line of sight to.
+ * @param {Object} [options={}] Options that change how the calculation is done.
+ * @param {number | undefined} [options.token1RelativeHeight] How far the ray starts vertically relative to token1. The
+ * height is calculated as `token1.elevation + (token1RelativeHeight * token1.size)`. If undefined, uses the
+ * world-configured default value.
+ * @param {number | undefined} [options.token2RelativeHeight] How far the ray ends vertically relative to token2. The
+ * height is calculated as `token2.elevation + (token2RelativeHeight * token2.size)`. If undefined, uses the
+ * world-configured default value.
+ * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
+ * height value will be included in the return list. They are treated as having infinite height.
+ * @param {boolean} [options.drawForOthers] Whether to draw these rays for other users connected to the game.
+ */
+export function drawLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true } = {}) {
+	const { left, centre, right } = calculateLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight });
+
+	/** @type {LineOfSightRulerLayer} */
+	const ruler = game.canvas.terrainHeightLosRulerLayer;
+	ruler._drawLineOfSightRays([
+		[left.p1, left.p2, { includeNoHeightTerrain, showLabels: false }],
+		[centre.p1, centre.p2, { includeNoHeightTerrain, showLabels: true }],
+		[right.p1, right.p2, { includeNoHeightTerrain, showLabels: false }],
+	], { drawForOthers });
+}
+
+/**
+ * Removes all lines of sight drawn by this user, INCLUDING those drawn by the tools in the side bar.
+ */
+export function clearLineOfSightRays() {
+	/** @type {LineOfSightRulerLayer} */
+	const ruler = game.canvas.terrainHeightLosRulerLayer;
+	ruler._clearLineOfSightRays({ clearForOthers: true });
 }

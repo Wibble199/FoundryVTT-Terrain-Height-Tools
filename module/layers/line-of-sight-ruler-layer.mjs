@@ -179,6 +179,15 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * @param {boolean} [options.drawForOthers] If true, this ruler will be drawn on other user's canvases.
 	 */
 	_drawLineOfSightRays(rulers, { userId = undefined, sceneId = undefined, drawForOthers = true } = {}) {
+		// Validate `ruler` param type
+		if (!Array.isArray(rulers)) throw new Error("`rulers` was not an array.");
+		for (let i = 0; i < rulers.length; i++) {
+			if (!LineOfSightRulerLayer._isPoint3d(rulers[i][0]))
+				throw new Error(`\`rulers[${i}][0]\` is not a Point3D (object with x, y and h numbers)`);
+			if (!LineOfSightRulerLayer._isPoint3d(rulers[i][1]))
+				throw new Error(`\`rulers[${i}][1]\` is not a Point3D (object with x, y and h numbers)`);
+		}
+
 		userId ??= game.userId;
 		sceneId ??= canvas.scene.id;
 
@@ -249,6 +258,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * @returns {[Point3D, Point3D][]}
 	 */
 	static _calculateRaysBetweenTokens(token1, token2, token1RelativeHeight = 1, token2RelativeHeight = 1) {
+		if (!(token1 instanceof Token)) throw new Error("`token1` is not a Foundry Token");
+		if (!(token2 instanceof Token)) throw new Error("`token2` is not a Foundry Token");
 		if (token1 === token2) throw new Error("Cannot draw line of sight from a token to itself.");
 
 		// Work out the vertices for each token
@@ -406,6 +417,20 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		} else {
 			this._rulerStartHeight$.value = change(this._rulerStartHeight$.value);
 		}
+	}
+
+	// ---- //
+	// Util //
+	// ---- //
+	/**
+	 * @param {*} obj
+	 * @returns {obj is Point3D}
+	 */
+	static _isPoint3d(obj) {
+		return typeof obj === "object"
+			&& typeof obj.x === "number"
+			&& typeof obj.y === "number"
+			&& typeof obj.h === "number";
 	}
 }
 
