@@ -61,7 +61,7 @@ To add a new terrain type simply:
 3. Select whether or not the terrain type should have a height.
 	- This is the default, however for some types (e.g. objective/control zones) it may not make sense to give them a height. This setting will disable the height option in the palette, and prevent you from accidentally having areas with different heights. Note that disabling this will NOT affect already-painted grid cells.
 4. Configure the style of the area that will be painted on the scene - these settings should be familiar if you have used the default Foundry drawing tool before.
-	- One thing to note though is that the '_Text Label_' (number 8 in the above image), which is what the area will be labelled as, allows a `%h%` placeholder to be used. This will be replaced with the height value of the painted terrain. For example, if you create a type with a label of `H%h%`, when painted on the scene at height 2, it will have a label of `H2`. If painted at height 4, it will have a label of `H4`, etc.
+	- One thing to note though is that the '_Text Label_' (number 8 in the above image), which is what the area will be labelled as, allows a `%h%` and/or a `%e%` placeholder to be used. These will be replaced with the height value of the painted terrain or the elevation respectively. For example, if you create a type with a label of `H%h%`, when painted on the scene at height 2, it will have a label of `H2`. If painted at height 4, it will have a label of `H4`, etc. Likewise, a label of `%e%/%h%` would show `3/2` if it was a height 3 terrain at an elevation of 4.
 5. Click '_Save Changes_' in the bottom right, and your new terrain type will show up in the palette.
 
 There are some other useful buttons:

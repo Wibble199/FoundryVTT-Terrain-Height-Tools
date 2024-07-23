@@ -10,9 +10,15 @@
 	{{/each}}
 </ul>
 
+<hr/>
+
 <div class="flex0">
 	<div class="height-input flexrow">
 		<label>{{localize "TERRAINHEIGHTTOOLS.Height"}}</label>
 		<input type="number" name="selectedHeight" value="{{selectedHeight}}" min="1" {{#unless isHeightEnabled}}disabled{{/unless}}>
+	</div>
+	<div class="height-input flexrow">
+		<label>{{localize "TERRAINHEIGHTTOOLS.Elevation"}}</label>
+		<input type="number" name="selectedElevation" value="{{selectedElevation}}" min="0" {{#unless isHeightEnabled}}disabled{{/unless}}>
 	</div>
 </div>

@@ -60,10 +60,16 @@
 	align-self: center;
 }
 
-#tht_terrainHeightPalette .height-input {
-	margin-top: 8px;
-	padding-top: 8px;
+#tht_terrainHeightPalette hr {
+	margin: 8px;
+	flex: 0;
+	width: 100%;
 	border-top: 2px groove var(--color-border-dark-secondary);
+	border-bottom: none;
+}
+
+#tht_terrainHeightPalette .height-input:not(:first-child) {
+	padding-top: 8px;
 }
 
 #tht_terrainHeightPalette .height-input label {

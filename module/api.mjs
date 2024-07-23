@@ -43,6 +43,7 @@ export function getCell(x, y) {
  * @param {string} terrain.id The ID of the terrain type to use. Either this or `name` must be provided.
  * @param {string} terrain.name The name of the terrain type to use. Either this or `id` must be provided.
  * @param {number} terrain.height If the terrain type uses heights, the height to paint on these cells.
+ * @param {number} terrain.elevation If the terrain type uses heights, the elevation (how high off the ground) to paint these cells.
  * @param {Object} [options]
  * @param {boolean} [options.overwrite] Whether or not to overwrite already-painted cells with the new terrain data.
  * @returns {Promise<boolean>}
@@ -61,7 +62,7 @@ export function paintCells(cells, terrain, { overwrite = true } = {}) {
 
 	/** @type {import("./geometry/height-map.mjs").HeightMap} */
 	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.paintCells(cells, terrainType.id, terrain.height ?? 0, { overwrite });
+	return hm.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { overwrite });
 }
 
 /**

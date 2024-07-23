@@ -95,7 +95,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			if (!terrainStyle) continue;
 
 			const label = terrainStyle.usesHeight
-				? terrainStyle.textFormat.replace(/\%h\%/g, shape.height)
+				? terrainStyle.textFormat.replace(/\%h\%/g, shape.height).replace(/\%e\%/g, shape.elevation)
 				: terrainStyle.textFormat;
 			const textStyle = this.#getTextStyle(terrainStyle);
 

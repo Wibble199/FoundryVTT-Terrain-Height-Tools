@@ -1,7 +1,6 @@
 import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
-import { debug } from "../utils/log.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
 
@@ -193,10 +192,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 		switch (tool ?? this._pendingTool) {
 			case tools.paint: {
 				const existing = this._heightMap.get(...cell);
-				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPalette ?? {};
+				const { selectedTerrainId, selectedHeight, selectedElevation } = sceneControls.terrainHeightPalette ?? {};
 
 				if (!this.#cellIsPending(...cell)
-					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight)
+					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight || existing.elevation !== selectedElevation)
 					&& selectedTerrainId) {
 					this._pendingChanges.push(cell);
 					this._highlightGraphics.highlight(...cell);
@@ -206,8 +205,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 			case tools.fill: {
 				this._pendingTool = undefined;
-				const { selectedTerrainId, selectedHeight } = sceneControls.terrainHeightPalette ?? {};
-				if (selectedTerrainId && await this._heightMap.fillCells(cell, selectedTerrainId, selectedHeight))
+				const { selectedTerrainId, selectedHeight, selectedElevation } = sceneControls.terrainHeightPalette ?? {};
+				if (selectedTerrainId && await this._heightMap.fillCells(cell, selectedTerrainId, selectedHeight, selectedElevation))
 					await this._updateGraphics();
 				break;
 			}
@@ -225,12 +224,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 				this._pendingTool = undefined;
 				if (await this._heightMap.eraseFillCells(cell))
 					await this._updateGraphics();
-				break;
-			}
-
-			case "dbg": {
-				this._pendingTool = this.undefined;
-				debug(`Clicked at ${x}, ${y} (cell ${cell[0]}, ${cell[1]})`);
 				break;
 			}
 
@@ -255,7 +248,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 			case tools.paint:
 				const terrainId = sceneControls.terrainHeightPalette?.selectedTerrainId;
 				const height = sceneControls.terrainHeightPalette?.selectedHeight;
-				if (terrainId && await this._heightMap.paintCells(pendingChanges, terrainId, height))
+				const elevation = sceneControls.terrainHeightPalette?.selectedElevation;
+				if (terrainId && await this._heightMap.paintCells(pendingChanges, terrainId, height, elevation))
 					await this._updateGraphics();
 				break;
 

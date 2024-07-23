@@ -1,3 +1,4 @@
+import { getTerrainType } from "../api.mjs";
 import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
@@ -14,6 +15,7 @@ import { Polygon } from './polygon.mjs';
  * @property {Polygon[]} holes Other additional polygons that make holes in this shape.
  * @property {string} terrainTypeId
  * @property {number} height
+ * @property {number} elevation
  */
 
 /**
@@ -39,10 +41,10 @@ const maxHistoryItems = 10;
 
 export class HeightMap {
 
-	/** @type {{ position: [number, number]; terrainTypeId: string; height: number; }[]} */
+	/** @type {{ position: [number, number]; terrainTypeId: string; height: number; elevation: number; }[]} */
 	data;
 
-	/** @type {{ position: [number, number]; terrainTypeId: string | undefined; height: number | undefined; }[][]} */
+	/** @type {{ position: [number, number]; terrainTypeId: string | undefined; height: number | undefined; elevation: number; }[][]} */
 	_history = [];
 
 	/** @type {HeightMapShape[]} */
@@ -69,7 +71,8 @@ export class HeightMap {
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
 	reload() {
-		this.data = this.scene.getFlag(moduleName, flags.heightData) ?? [];
+		this.data = (this.scene.getFlag(moduleName, flags.heightData) ?? [])
+			.map(cell => ({ elevation: 0, ...cell }));
 		this._recalculateShapes();
 	}
 
@@ -94,22 +97,29 @@ export class HeightMap {
 	 * @param {boolean} [options.overwrite] Whether or not to overwrite already-painted cells with hew terrain data.
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
-	async paintCells(cells, terrainTypeId, height = 1, { overwrite = true } = {}) {
+	async paintCells(cells, terrainTypeId, height = 1, elevation = 0, { overwrite = true } = {}) {
 		/** @type {this["_history"][number]} */
 		const history = [];
 		let anyAdded = false;
 
+		const { usesHeight } = getTerrainType({ id: terrainTypeId });
+		if (usesHeight && (typeof height !== "number" || height <= 0))
+			throw new Error("`height` must be a positive, non-zero number.");
+		if (usesHeight && (typeof elevation !== "number" || elevation < 0))
+			throw new Error("`elevation` must be a positive number or zero.");
+
 		for (const cell of cells) {
 			const existing = this.get(...cell);
 			if (existing && !overwrite) continue;
-			if (existing && existing.terrainTypeId === terrainTypeId && existing.height === height) continue;
+			if (existing && existing.terrainTypeId === terrainTypeId && existing.height === height && existing.elevation === elevation) continue;
 
-			history.push({ position: cell, terrainTypeId: existing?.terrainTypeId, height: existing?.height });
+			history.push({ position: cell, terrainTypeId: existing?.terrainTypeId, height: existing?.height, elevation: existing?.elevation });
 			if (existing) {
 				existing.height = height;
+				existing.elevation = elevation;
 				existing.terrainTypeId = terrainTypeId;
 			} else {
-				this.data.push({ position: cell, terrainTypeId, height });
+				this.data.push({ position: cell, terrainTypeId, height, elevation });
 				anyAdded = true;
 			}
 		}
@@ -131,16 +141,17 @@ export class HeightMap {
 	 * @param {[number, number]} startCell The cell to start the filling from.
 	 * @param {string} terrainTypeId The ID of the terrain type to paint.
 	 * @param {number} height The height of the terrain to paint.
+	 * @param {number} height The elevation of the terrain to paint.
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
-	async fillCells(startCell, terrainTypeId, height) {
+	async fillCells(startCell, terrainTypeId, height, elevation = 0) {
 		// If we're filling the same as what's already here, do nothing
 		const { terrainTypeId: startTerrainTypeId, height: startHeight } = this.get(...startCell) ?? {};
 		if (startTerrainTypeId === terrainTypeId && startHeight === height) return [];
 
 		const cellsToPaint = this.#findFillCells(startCell);
 		if (cellsToPaint.length === 0) return false;
-		return this.paintCells(cellsToPaint, terrainTypeId, height);
+		return this.paintCells(cellsToPaint, terrainTypeId, height, elevation);
 	}
 
 	/**
@@ -200,14 +211,14 @@ export class HeightMap {
 
 		const t1 = performance.now();
 
-		for (const [, cells] of groupBy(this.data, x => `${x.terrainTypeId}.${x.height}`)) {
-			const { terrainTypeId, height } = cells[0];
+		for (const [, cells] of groupBy(this.data, x => `${x.terrainTypeId}.${x.height}.${x.elevation}`)) {
+			const { terrainTypeId, height, elevation } = cells[0];
 
 			// Get the grid-sized polygons for each cell at this terrain type and height
 			const polygons = cells.map(({ position }) => ({ cell: position, poly: new Polygon(getGridCellPolygon(...position)) }));
 
 			// Combine connected grid-sized polygons into larger polygons where possible
-			this.#shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height));
+			this.#shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height, elevation));
 		}
 
 		const t2 = performance.now();
@@ -219,9 +230,10 @@ export class HeightMap {
 	 * @param {{ poly: Polygon; cell: [number, number] }[]} originalPolygons An array of polygons to merge
 	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
 	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
+	 * @param {number} elevation The elevation value of the given polygons. Only used to populate the metadata.
 	 * @returns {{ poly: Polygon; holes: Polygon[] }[]}
 	 */
-	static #combinePolygons(originalPolygons, terrainTypeId, height) {
+	static #combinePolygons(originalPolygons, terrainTypeId, height, elevation) {
 
 		// Generate a graph of all edges in all the polygons
 		const allEdges = originalPolygons.flatMap(p => p.poly.edges);
@@ -287,7 +299,8 @@ export class HeightMap {
 				polygon: p,
 				holes: [],
 				terrainTypeId,
-				height
+				height,
+				elevation
 			}));
 
 		const holePolygons = polysAreHolesMap.get(true) ?? [];
@@ -381,19 +394,31 @@ export class HeightMap {
 		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
 		// the line of sight ray would never cross at the required height for an intersection.
 		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
-		if (usesHeight && h1 > shape.height && h2 > shape.height) return [];
+		const shapeTop = usesHeight ? shape.elevation + shape.height : Infinity;
+		const shapeBottom = usesHeight ? shape.elevation : -Infinity;
+		if (usesHeight && h1 > shapeTop && h2 > shapeTop) return [];
+		if (usesHeight && h1 < shapeBottom && h2 < shapeBottom) return [];
 
 		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
 		const inverseLerpLosHeight = (/** @type {number} */ h) => (h - h1) / (h2 - h1);
 
 		// If the test ray extends above the height of the shape, instead stop it at that height
-		let t1 = 0, t2 = 1;
-		if (usesHeight && h1 > shape.height) {
-			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shape.height)));
-			h1 = shape.height;
-		} else if (usesHeight && h2 > shape.height) {
-			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shape.height)));
-			h2 = shape.height;
+		let t1 = 0;
+		if (usesHeight && h1 > shapeTop) {
+			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeTop)));
+			h1 = shapeTop;
+		} else if (usesHeight && h1 < shapeBottom) {
+			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeBottom)));
+			h1 = shapeBottom;
+		}
+
+		let t2 = 1;
+		if (usesHeight && h2 > shapeTop) {
+			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeTop)));
+			h2 = shapeTop;
+		} else if (usesHeight && h2 < shapeBottom) {
+			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeBottom)));
+			h2 = shapeBottom;
 		}
 
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
@@ -450,7 +475,7 @@ export class HeightMap {
 		// shape or out of the shape. If the point does not lie on an edge, then we can just use containsPoint.
 		// This code is very similar in structure to the code in handleEdgeIntersection - TODO: can we re-use that?
 		let isInside = false;
-		if (!usesHeight || h1 <= shape.height) {
+		if (!usesHeight || (h1 <= shapeTop && h1 >= shapeBottom)) {
 			const p1LiesOnEdges = allEdges
 				.map(([poly, edge]) => ({ edge, poly, ...edge.findClosestPointOnLineTo(x1, y1) }))
 				.filter(x =>
@@ -511,9 +536,9 @@ export class HeightMap {
 			}
 		}
 
-		// If the test ray is flat in the height direction and this shape's height = the test ray height, then whenever we
-		// 'enter' the shape, we're actually going to be skimming the top.
-		const isSkimmingTop = usesHeight && h1 === h2 && h1 === shape.height;
+		// If the test ray is flat in the height direction and this shape's top/bottom = the test ray height, then
+		// whenever we 'enter' the shape, we're actually going to be skimming the top or bottom.
+		const isSkimmingTopBottom = usesHeight && h1 === h2 && (h1 === shapeTop || h1 === shapeBottom);
 
 		let lastIntersectionPosition = { x: x1, y: y1, h: h1, t: 0 };
 
@@ -525,7 +550,7 @@ export class HeightMap {
 				regions.push({
 					start: lastIntersectionPosition,
 					end: position,
-					skimmed: isSkimmingTop
+					skimmed: isSkimmingTopBottom
 				});
 			}
 			lastIntersectionPosition = position;
@@ -735,17 +760,20 @@ export class HeightMap {
 
 			// If there is no active region, don't add an element to the intersections array, just move the position on.
 			// There should only be 1 or 2 active regions. If there are two, that means that the ray 'skimmed' between
-			// two adjacent shapes. In this case, we should actually only treat it as a skim if the height of the ray is
-			// equal or above one of the shapes. If it is below both, then it is instead a full intersection
+			// two adjacent shapes. In this case, this is an intersection, NOT a skim.
 			if (activeRegions.length > 0) {
+				// In the case of multiple, the resulting elevation is the lowest shape, and the height is the distance
+				// from the lowest shape to the highest shape
+				const elevation = Math.min.apply(null, activeRegions.map(r => r.shape.elevation));
+				const height = Math.max.apply(null, activeRegions.map(r => r.shape.height + r.shape.elevation)) - elevation;
+
 				flatIntersections.push({
 					start: lastPosition,
 					end: boundary,
 					terrainTypeId: activeRegions[0].shape.terrainTypeId, // there's no good way to resolve this for multiple shapes, so just use whichever happens to be first
-					height: Math.max.apply(null, activeRegions.map(r => r.shape.height)),
-					skimmed: activeRegions.length > 1
-					? (h >= activeRegions[0].shape.height || h >= activeRegions[1].shape.height)
-						: activeRegions[0].region.skimmed
+					height,
+					elevation,
+					skimmed: activeRegions.length === 1 && activeRegions[0].region.skimmed
 				});
 			}
 
@@ -793,6 +821,7 @@ export class HeightMap {
 			else if (revert.terrainTypeId !== undefined && existingIndex >= 0) {
 				this.data[existingIndex].terrainTypeId = revert.terrainTypeId;
 				this.data[existingIndex].height = revert.height;
+				this.data[existingIndex].elevation = revert.elevation;
 			}
 
 			// If the cell was painted before the change, and is now unpainted, add it
@@ -833,7 +862,7 @@ export class HeightMap {
 	 * @param {[number, number]} startCell The cell to start the filling from.
 	 */
 	#findFillCells(startCell) {
-		const { terrainTypeId: startTerrainTypeId, height: startHeight } = this.get(...startCell) ?? {};
+		const { terrainTypeId: startTerrainTypeId, height: startHeight, elevation: startElevation } = this.get(...startCell) ?? {};
 
 		// From the starting cell, visit all neighboring cells around it.
 		// If they have the same configuration (same terrain type and height), then fill it and queue it to have this
@@ -856,8 +885,8 @@ export class HeightMap {
 			visitedCells.add(cellKey);
 
 			// Check cell is the same config
-			const { terrainTypeId: nextTerrainTypeId, height: nextHeight } = this.get(...nextCell) ?? {};
-			if (nextTerrainTypeId !== startTerrainTypeId || nextHeight !== startHeight) continue;
+			const { terrainTypeId: nextTerrainTypeId, height: nextHeight, elevation: nextElevation } = this.get(...nextCell) ?? {};
+			if (nextTerrainTypeId !== startTerrainTypeId || nextHeight !== startHeight || nextElevation !== startElevation) continue;
 
 			cellsToPaint.push(nextCell);
 

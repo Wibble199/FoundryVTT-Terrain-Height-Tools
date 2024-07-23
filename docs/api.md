@@ -74,6 +74,7 @@ An array of region objects where a ray drawn from `p1` to `p2` intersects or tou
 |`skimmed`|`boolean`|If `true`, this region is an area where the line of sight ray touches but does not completely enter the shape. This will also be the case if the line of sight ray is flat and the shape is the height of the ray. For example a ray where p1.h = 1 and p2.h = 2 intersecting a height 1 object will always result in a skim. If `false`, the ray has completely entered the shape.|
 |`terrainTypeId`|`string`|The ID of the terrain type that was intersected. In cases where the ray skims two terrain types, this will be the ID of the one that is defined first.|
 |`height`|`number`|The height of the terrain type that was intersected. This is NOT the height at which the ray entered/left the shape. In cases where the ray skims two terrain types, this will be the highest of the two.|
+|`elevation`|`number`|The elevation of the terrain type that was intersected.|
 
 ### Examples
 
@@ -119,6 +120,7 @@ An array of all shapes that were intersected by a ray drawn from `p1` to `p2`, a
 |-|-|-|
 |`shape`|`Object`|An object containing details about the intersected shape.|
 |`shape.height`|`number`|The height of the shape painted to the scene.|
+|`shape.elevation`|`number`|The elevation of the shape painted to the scene.|
 |`shape.terrainTypeId`|`string`|The terrain type ID of the shape that was intersected.|
 |`region`|`Array`|An array of intersection regions with this shape. See below.|
 
@@ -332,6 +334,7 @@ Either `undefined` if the cell at the given coordinates is unpainted, or an obje
 |-|-|-|
 |`terrainTypeId`|`string`|The ID of the terrain type in this cell.|
 |`height`|`number`|The height of the terrain in this cell.|
+|`elevation`|`number`|The elevation of the terrain in this cell.|
 
 ### Example
 ```js
@@ -438,6 +441,7 @@ Users must have permissions to update the scene to use this.
 |`terrain.id`|`string`|`undefined`|If provided, will attempt to find a terrain type with this ID.
 |`terrain.name`|`string`|`undefined`|If provided, will attempt to find a terrain type with this name. Note that this is case-sensitive. If multiple terrain types have the same name, the first will be returned.|
 |`terrain.height`|`number`|`undefined`|The height of the terrain to paint onto the scene. Required when the specified terrain type uses height, ignored if the terrain type does not.|
+|`terrain.elevation`|`number`|`undefined`|The elevation of the terrain to paint onto the scene (how heigh it is off the ground). Defaults to 0 when the specified terrain type uses height, ignored if the terrain type does not.|
 |`options`|`Object`||
 |`options.overwrite`|`boolean`|`true`|If `true`, cells that are already painted with a terrain will be overwritten with the given values. If `false` only unpainted cells are painted.|
 
