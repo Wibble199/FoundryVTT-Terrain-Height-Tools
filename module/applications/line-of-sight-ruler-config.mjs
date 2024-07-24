@@ -1,9 +1,7 @@
 import { moduleName } from '../consts.mjs';
+import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class LineOfSightRulerConfig extends Application {
-
-	/** @type {(() => void)[]} */
-	#subscriptions = [];
+export class LineOfSightRulerConfig extends withSubscriptions(Application) {
 
 	/** @override */
 	static get defaultOptions() {
@@ -24,9 +22,9 @@ export class LineOfSightRulerConfig extends Application {
 		/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
 		const rulerLayer = canvas.terrainHeightLosRulerLayer;
 
-		this.#subscriptions.forEach(unsubscribe => unsubscribe());
+		this._unsubscribeFromAll();
 
-		this.#subscriptions = [
+		this._subscriptions = [
 			rulerLayer._rulerStartHeight$.subscribe(v =>
 				html.find("[name='rulerStartHeight']").val(v), true),
 
@@ -61,12 +59,5 @@ export class LineOfSightRulerConfig extends Application {
 		html.find("[name='rulerIncludeNoHeightTerrain']").on("change", e => {
 			rulerLayer._rulerIncludeNoHeightTerrain$.value = e.target.checked ?? false
 		});
-	}
-
-	/** @override */
-	close(options) {
-		this.#subscriptions.forEach(unsubscribe => unsubscribe());
-		this.#subscriptions = [];
-		return super.close(options);
 	}
 }

@@ -1,8 +1,9 @@
 import { moduleName } from "../consts.mjs";
 import { getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
+import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class TerrainHeightPalette extends Application {
+export class TerrainHeightPalette extends withSubscriptions(Application) {
 
 	constructor() {
 		super();
@@ -27,18 +28,6 @@ export class TerrainHeightPalette extends Application {
 		});
 	}
 
-	get selectedHeight() {
-		return getTerrainType(this.selectedTerrainId)?.usesHeight
-			? this._selectedHeight
-			: 0;
-	}
-
-	get selectedElevation() {
-		return getTerrainType(this.selectedTerrainId)?.usesHeight
-			? this._selectedElevation
-			: 0;
-	}
-
 	/** @override */
 	_getHeaderButtons() {
 		return [
@@ -53,24 +42,17 @@ export class TerrainHeightPalette extends Application {
 
 	/** @override */
 	getData() {
-		const availableTerrains = getTerrainTypes();
-
 		return {
-			availableTerrains: availableTerrains.map(t => ({
-				...t,
+			availableTerrains: getTerrainTypes().map(t => ({
+				id: t.id,
+				name: t.name,
 
 				// Hex colors including opacity for preview boxes:
 				previewBorderColor: t.lineWidth <= 0
 					? "transparent"
 					: t.lineColor + Math.round(t.lineOpacity * 255).toString(16).padStart(2, "0"),
 				previewBackgroundColor: t.fillColor + Math.round(t.fillOpacity * 255).toString(16).padStart(2, "0"),
-			})),
-			selectedTerrainId: availableTerrains.some(t => t.id === this.selectedTerrainId)
-				? this.selectedTerrainId
-				: undefined,
-			selectedHeight: this._selectedHeight,
-			selectedElevation: this._selectedElevation,
-			isHeightEnabled: this.selectedTerrainId !== undefined && this.isHeightEnabledFor(this.selectedTerrainId)
+			}))
 		};
 	}
 
@@ -82,12 +64,48 @@ export class TerrainHeightPalette extends Application {
 	/** @override */
 	activateListeners(html) {
 		super.activateListeners(html);
-		html.find("[data-terrain-id]").on("click", this.#onTerrainSelect.bind(this))
-		html.find("[name='selectedHeight']").on("input", this.#onInputChange("_selectedHeight"));
-		html.find("[name='selectedHeight']").on("blur", this.#onInputBlur("_selectedHeight"));
-		html.find("[name='selectedElevation']").on("input", this.#onInputChange("_selectedElevation"));
-		html.find("[name='selectedElevation']").on("blur", this.#onInputBlur("_selectedElevation"));
+
+		/** @type {import("../layers/terrain-height-layer.mjs").TerrainHeightLayer} */
+		const layer = game.canvas.terrainHeightLayer;
+
+		this._unsubscribeFromAll();
+		this._subscriptions = [
+			layer._selectedPaintingTerrainTypeId$.subscribe(terrainTypeId => {
+				// Highlight the selected terrain type
+				html.find("[data-terrain-id].active").removeClass("active");
+				html.find(`[data-terrain-id='${terrainTypeId}']`).addClass("active");
+
+				// Enable/disable inputs based on whether this terrain type uses height
+				const usesHeight = getTerrainType(terrainTypeId)?.usesHeight ?? false;
+				html.find(".height-input input").prop("disabled", !usesHeight);
+			}, true),
+
+			// Update height input
+			layer._selectedPaintingHeight$.subscribe(height =>
+				html.find("[name='selectedHeight']").val(height), true),
+
+			// Update elevation input
+			layer._selectedPaintingElevation$.subscribe(elevation =>
+				html.find("[name='selectedElevation']").val(elevation), true)
+		];
+
+		html.find("[data-terrain-id]").on("click", this.#onTerrainSelect.bind(this));
+
 		html.find("[data-action='configure-terrain-types']").on("click", this.#configureTerrainTypes.bind(this));
+
+		// On input change, update the relevant Signal
+		html.find("[name='selectedHeight']").on("input", evt =>
+			layer._selectedPaintingHeight$.value = this.#getInputValue(evt));
+
+		html.find("[name='selectedElevation']").on("input", evt =>
+			layer._selectedPaintingElevation$.value = this.#getInputValue(evt));
+
+		// On blur, set the value of the input to the Signal, so that if it was left as an invalid number it resets and shows the correct value again
+		html.find("[name='selectedHeight']").on("blur", evt =>
+			evt.currentTarget.value = layer._selectedPaintingHeight$.value);
+
+		html.find("[name='selectedElevation']").on("blur", evt =>
+			evt.currentTarget.value = layer._selectedPaintingElevation$.value);
 	}
 
 	#onTerrainSelect(event) {
@@ -95,24 +113,19 @@ export class TerrainHeightPalette extends Application {
 		event.currentTarget.closest("ul").querySelectorAll("li.active").forEach(li => li.classList.remove("active"));
 		event.currentTarget.closest("li").classList.add("active");
 		this.element.find("[name='selectedHeight'],[name='selectedElevation']").prop("disabled", !this.isHeightEnabledFor(terrainId));
-		this.selectedTerrainId = terrainId;
+
+		/** @type {import("../layers/terrain-height-layer.mjs").TerrainHeightLayer} */
+		const layer = game.canvas.terrainHeightLayer;
+		layer._selectedPaintingTerrainTypeId$.value = terrainId;
 	}
 
-	/** @param {keyof this} prop */
-	#onInputChange(prop) {
-		return event => {
-			const value = +event.currentTarget.value;
-			this[prop] = isNaN(value) ? 0 : value;
-		}
-	}
-
-	/** @param {keyof this} prop */
-	#onInputBlur(prop) {
-		return event => {
-			// When the textbox blurs, set the height again. This is to ensure that if the user types an invalid value,
-			// it defaults back to 0.
-			event.currentTarget.value = this[prop];
-		}
+	/**
+	 * @param {KeyboardEvent} event
+	 * @param {number} min
+	 */
+	#getInputValue(event) {
+		const value = +event.currentTarget.value;
+		return Math.max(isNaN(value) ? 0 : value, 0);
 	}
 
 	#configureTerrainTypes() {

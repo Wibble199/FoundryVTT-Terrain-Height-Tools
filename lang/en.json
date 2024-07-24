@@ -8,6 +8,7 @@
 		"TerrainHeightToolsLineOfSightRuler": "Terrain Height Tools Line of Sight Ruler",
 		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Map",
 		"TerrainHeightToolsPaint": "Paint",
+		"TerrainHeightToolsPipette": "Copy Terrain Configuration",
 		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight"
 	},
 	"KEYBINDINGS": {

@@ -3,7 +3,7 @@
 		<li><a data-action="configure-terrain-types">{{localize "TERRAINHEIGHTTOOLS.NoTerrainTypesWarn"}}</a></li>
 	{{/if}}
 	{{#each availableTerrains as |terrain|}}
-		<li {{#if (eq ../selectedTerrainId terrain.id)}}class="active"{{/if}} data-terrain-id="{{terrain.id}}">
+		<li data-terrain-id="{{terrain.id}}">
 			<div class="preview-box" style="border-color: {{terrain.previewBorderColor}}; background: {{previewBackgroundColor}};"></div>
 			<label class="terrain-type-name">{{terrain.name}}</label>
 		</li>
@@ -15,10 +15,10 @@
 <div class="flex0">
 	<div class="height-input flexrow">
 		<label>{{localize "TERRAINHEIGHTTOOLS.Height"}}</label>
-		<input type="number" name="selectedHeight" value="{{selectedHeight}}" min="1" {{#unless isHeightEnabled}}disabled{{/unless}}>
+		<input type="number" name="selectedHeight" min="1">
 	</div>
 	<div class="height-input flexrow">
 		<label>{{localize "TERRAINHEIGHTTOOLS.Elevation"}}</label>
-		<input type="number" name="selectedElevation" value="{{selectedElevation}}" min="0" {{#unless isHeightEnabled}}disabled{{/unless}}>
+		<input type="number" name="selectedElevation" min="0">
 	</div>
 </div>

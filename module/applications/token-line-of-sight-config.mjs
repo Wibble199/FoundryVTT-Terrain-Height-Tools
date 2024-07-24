@@ -1,10 +1,8 @@
 import { moduleName, tokenRelativeHeights } from "../consts.mjs";
 import { Signal } from "../utils/signal.mjs";
+import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class TokenLineOfSightConfig extends Application {
-
-	/** @type {(() => void)[]} */
-	#subscriptions = [];
+export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 
 	/** @type {Signal<1 | 2 | undefined>} */
 	#selectingToken$ = new Signal(undefined);
@@ -42,9 +40,9 @@ export class TokenLineOfSightConfig extends Application {
 		// Not sure if there's a better way to do this, but it seems to work.
 		Hooks.on("hoverToken", this.#onTokenHover);
 
-		this.#subscriptions.forEach(unsubscribe => unsubscribe());
+		this._unsubscribeFromAll();
 
-		this.#subscriptions = [
+		this._subscriptions = [
 			this.#losLayer._rulerIncludeNoHeightTerrain$.subscribe(v =>
 				html.find("[name='rulerIncludeNoHeightTerrain']").prop("checked", v), true),
 
@@ -189,8 +187,7 @@ export class TokenLineOfSightConfig extends Application {
 		// If waiting for user to select a token, stop
 		this.#selectingToken$.value = undefined;
 
-		this.#subscriptions.forEach(unsubscribe => unsubscribe());
-		this.#subscriptions = [];
+		this._unsubscribeFromAll();
 
 		return super.close(options);
 	}

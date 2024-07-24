@@ -1,6 +1,7 @@
-import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
+import { Signal } from "../utils/signal.mjs";
+import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
 
@@ -37,6 +38,15 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @type {[number, number][]} */
 	_pendingChanges = [];
 
+	/** @type {Signal<string | undefined>} */
+	_selectedPaintingTerrainTypeId$ = new Signal(undefined);
+
+	/** @type {Signal<number>} */
+	_selectedPaintingHeight$ = new Signal(1);
+
+	/** @type {Signal<number>} */
+	_selectedPaintingElevation$ = new Signal(0);
+
 	constructor() {
 		super();
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
@@ -48,6 +58,14 @@ export class TerrainHeightLayer extends InteractionLayer {
 			baseClass: InteractionLayer,
 			zIndex: 300
 		});
+	}
+
+	get paintingConfig() {
+		const selectedTerrainId = this._selectedPaintingTerrainTypeId$.value;
+		const usesHeight = getTerrainType(selectedTerrainId)?.usesHeight ?? false;
+		const selectedHeight = usesHeight ? this._selectedPaintingHeight$.value : 0;
+		const selectedElevation = usesHeight ? this._selectedPaintingElevation$.value : 0;
+		return { selectedTerrainId, selectedHeight, selectedElevation };
 	}
 
 	// -------------- //
@@ -168,7 +186,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		// Set highlight colours depending on the tool
 		switch (this._pendingTool) {
 			case tools.paint:
-				this._highlightGraphics._setColorFromTerrainTypeId(sceneControls.terrainHeightPalette?.selectedTerrainId);
+				this._highlightGraphics._setColorFromTerrainTypeId(this._selectedPaintingTerrainTypeId$.value);
 				break;
 
 			case tools.erase:
@@ -192,7 +210,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		switch (tool ?? this._pendingTool) {
 			case tools.paint: {
 				const existing = this._heightMap.get(...cell);
-				const { selectedTerrainId, selectedHeight, selectedElevation } = sceneControls.terrainHeightPalette ?? {};
+				const { selectedTerrainId, selectedHeight, selectedElevation } = this.paintingConfig;
 
 				if (!this.#cellIsPending(...cell)
 					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight || existing.elevation !== selectedElevation)
@@ -205,9 +223,25 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 			case tools.fill: {
 				this._pendingTool = undefined;
-				const { selectedTerrainId, selectedHeight, selectedElevation } = sceneControls.terrainHeightPalette ?? {};
+				const { selectedTerrainId, selectedHeight, selectedElevation } = this.paintingConfig;
 				if (selectedTerrainId && await this._heightMap.fillCells(cell, selectedTerrainId, selectedHeight, selectedElevation))
 					await this._updateGraphics();
+				break;
+			}
+
+			case tools.pipette: {
+				const cellData = this._heightMap.get(...cell);
+				if (!cellData) break;
+
+				this._selectedPaintingTerrainTypeId$.value = cellData.terrainTypeId;
+				this._selectedPaintingHeight$.value = Math.max(cellData.height, 1);
+				this._selectedPaintingElevation$.value = Math.max(cellData.elevation, 0);
+
+				// Select the paintbrush tool. This feels like a horrible dirty way of doing this, but there doesn't
+				// seem to be any API exposed by Foundry to set the tool without pretending to click the button.
+				document.querySelector(`#tools-panel-${moduleName} [data-tool="${tools.paint}"]`)?.click();
+				this._pendingTool = undefined;
+
 				break;
 			}
 
@@ -246,10 +280,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		switch (pendingTool) {
 			case tools.paint:
-				const terrainId = sceneControls.terrainHeightPalette?.selectedTerrainId;
-				const height = sceneControls.terrainHeightPalette?.selectedHeight;
-				const elevation = sceneControls.terrainHeightPalette?.selectedElevation;
-				if (terrainId && await this._heightMap.paintCells(pendingChanges, terrainId, height, elevation))
+				const { selectedTerrainId, selectedHeight, selectedElevation } = this.paintingConfig;
+				if (selectedTerrainId && await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation))
 					await this._updateGraphics();
 				break;
 

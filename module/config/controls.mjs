@@ -79,6 +79,11 @@ export function registerSceneControls(controls) {
 				icon: "fas fa-fill-drip"
 			},
 			{
+				name: tools.pipette,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPipette"),
+				icon: "fas fa-eye-dropper"
+			},
+			{
 				name: tools.erase,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErase"),
 				icon: "fas fa-eraser"

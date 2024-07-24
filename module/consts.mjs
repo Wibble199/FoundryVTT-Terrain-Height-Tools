@@ -7,6 +7,7 @@ export const socketName = `module.${moduleName}`;
 export const tools = /** @type {const} */ ({
 	paint: "paint",
 	fill: "fill",
+	pipette: "pipette",
 	erase: "erase",
 	eraseFill: "eraseFill",
 	lineOfSight: "terrainHeightToolsLineOfSight",
