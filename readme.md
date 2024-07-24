@@ -29,7 +29,7 @@ Once installed, the first thing you need to do is configure the paintable terrai
 
 See [below](#configuring-terrain-types) for more details about configuring terrain types.
 
-Once at least one type of terrain has been configured, you can then use the tools in the '_Terrain Height Tools_' menu to paint terrain onto the map. To do this, you need to click the type of terrain you want to paint in the '_Terrain Palette_' window and choose a height for the terrain. Adjacent grid cells will merge together if both their terrain types and their heights are the same.
+Once at least one type of terrain has been configured, you can then use the tools in the '_Terrain Height Tools_' menu to paint terrain onto the map. To do this, you need to click the type of terrain you want to paint in the '_Terrain Palette_' window and choose a height for the terrain. You can also optionally enter an elevation. Adjacent grid cells will merge together if their terrain types, their heights, and their elevations are the same.
 
 ### Line of Sight
 
@@ -39,17 +39,17 @@ Terrain Height Tools provides two tools for testing line of sight (LoS) against 
 
 The first, is the humble '_Line of Sight Ruler_'. The ruler behaves similarlly to the standard ruler built in to Foundry. You can click and drag between two points, and it will test the line of sight along this line, and highlight any intersections with the terrain. You will also see a 'H' number next to either end of the ruler. This represents the height of that endpoint. You can change this either by using the `+` and `-` keys on your keyboard, or typing values into the config window that appears.
 
-The second tool is the '_Token Line of Sight_' tool. When you click this tool, you will see a config window appear. Click on the bullseye icon and then click on a token on the scene, for both the boxes that appear. Terrain Height Tools will then draw 3 LoS rays: one from the centre of the first token to the centre of the second; one between the left-most edges of the tokens; and one between the right-most edges. The H value of these lines is based on the token's elevation + the token's width; For example a token with an elevation of 3 and a size of 2, the H would be 5. This represents the top of the token. (Note: I intend to add options to configure how this tool works in future).
+The second tool is the '_Token Line of Sight_' tool. When you click this tool, you will see a config window appear. Click on the bullseye icon and then click on a token on the scene, for both the boxes that appear. Terrain Height Tools will then draw 3 LoS rays: one from the centre of the first token to the centre of the second; one between the left-most edges of the tokens; and one between the right-most edges. The H value of these lines depends on how the LoS is configured, but it is based on the token's elevation + a modifier multiplied by the token's width (there is no 'vertical height' field for tokens in Foundry, so tokens are assumed to be as tall as they are wide); For example in the default configuration a token with an elevation of 3 and a size of 2, the H would be 5; This represents the top of the token. The tool can instead draw the LoS from the middle or the bottom of a token.
 
 ![Examples of the lines](docs/los-ray-examples.webp)
 
 When the LoS rays are drawn to the scene, you will see a line drawn from the source point to the target point. This line is formatted depending on what state it is in at that point:
 - A solid white line means that the line is not intersecting with anything.
 - A coloured line means that the line is touching or intersecting with some terrain. The colour matches the terrain's colour.
-- A solid coloured line means that the ray touches a terrain shape, but does not actually intersect it.
-- A dashed line means that the ray completely intersects a shape.
+	- If a coloured line is solid, it means that the ray touches a terrain shape, but does not actually intersect it.
+	- If a coloured line is dashed, it means that the ray completely intersects a shape.
 
-It's also worth noting that the ray is calculated in 3D space, so if you see it abruptly stop intersecting a shape part way through, it has likely impacted the top of the shape.
+It's also worth noting that the ray is calculated in 3D space, so if you see it abruptly stop intersecting a shape part way through, it has likely impacted the top or bottom of the shape.
 
 ### Configuring Terrain Types
 
@@ -58,7 +58,7 @@ It's also worth noting that the ray is calculated in 3D space, so if you see it 
 To add a new terrain type simply:
 1. Click the "Add Terrain Type" button in the bottom left.
 2. Give it a name (labelled 2 in the above image). Note that this is what shows in the palette window, NOT what is shown to players on the scene canvas.
-3. Select whether or not the terrain type should have a height.
+3. Select whether or not the terrain type should have a height/elevation.
 	- This is the default, however for some types (e.g. objective/control zones) it may not make sense to give them a height. This setting will disable the height option in the palette, and prevent you from accidentally having areas with different heights. Note that disabling this will NOT affect already-painted grid cells.
 4. Configure the style of the area that will be painted on the scene - these settings should be familiar if you have used the default Foundry drawing tool before.
 	- One thing to note though is that the '_Text Label_' (number 8 in the above image), which is what the area will be labelled as, allows a `%h%` and/or a `%e%` placeholder to be used. These will be replaced with the height value of the painted terrain or the elevation respectively. For example, if you create a type with a label of `H%h%`, when painted on the scene at height 2, it will have a label of `H2`. If painted at height 4, it will have a label of `H4`, etc. Likewise, a label of `%e%/%h%` would show `3/2` if it was a height 3 terrain at an elevation of 4.
