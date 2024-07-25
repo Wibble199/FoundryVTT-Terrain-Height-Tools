@@ -27,6 +27,7 @@ export const settings = /** @type {const} */ ({
 	terrainTypes: "terrainTypes",
 	tokenLosToolPreselectToken1: "tokenLosToolPreselectToken1",
 	tokenLosToolPreselectToken2: "tokenLosToolPreselectToken2",
+	useFractionsForLabels: "useFractionsForLabels"
 });
 
 /** @enum {keyof typeof keybindings} */

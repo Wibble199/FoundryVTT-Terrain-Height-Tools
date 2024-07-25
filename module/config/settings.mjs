@@ -113,6 +113,16 @@ export function registerSettings() {
 		default: true
 	});
 
+	game.settings.register(moduleName, settings.useFractionsForLabels, {
+		name: "SETTINGS.UseFractionsForLabels.Name",
+		hint: "SETTINGS.UseFractionsForLabels.Hint",
+		scope: "world",
+		type: Boolean,
+		config: true,
+		default: true,
+		onChange: () => game.canvas.terrainHeightLayer._updateGraphics()
+	});
+
 	game.settings.register(moduleName, settings.smartLabelPlacement, {
 		name: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Name",
 		hint: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Hint",

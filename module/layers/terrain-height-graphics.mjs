@@ -2,6 +2,7 @@ import { flags, lineTypes, moduleName, settings } from "../consts.mjs";
 import { HeightMap, LineSegment, Point, Polygon } from "../geometry/index.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { debug } from "../utils/log.mjs";
+import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
@@ -95,7 +96,9 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			if (!terrainStyle) continue;
 
 			const label = terrainStyle.usesHeight
-				? terrainStyle.textFormat.replace(/\%h\%/g, shape.height).replace(/\%e\%/g, shape.elevation)
+				? terrainStyle.textFormat
+					.replace(/\%h\%/g, prettyFraction(shape.height))
+					.replace(/\%e\%/g, prettyFraction(shape.elevation))
 				: terrainStyle.textFormat;
 			const textStyle = this.#getTextStyle(terrainStyle);
 

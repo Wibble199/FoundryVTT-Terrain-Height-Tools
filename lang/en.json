@@ -41,7 +41,9 @@
 		"TokenLosToolPreselectToken1.Name": "Token LoS: Auto-populate Primary Token",
 		"TokenLosToolPreselectToken1.Hint": "If enabled, when selecting the Token Line of Sight tool, will automatically populate the primary token with your owned token (or selected token if you do not own one).",
 		"TokenLosToolPreselectToken2.Name": "Token LoS: Auto-populate Secondary Token",
-		"TokenLosToolPreselectToken2.Hint": "If enabled, when selecting the Token Line of Sight tool, will automatically populate the secondary token with your first targeted token."
+		"TokenLosToolPreselectToken2.Hint": "If enabled, when selecting the Token Line of Sight tool, will automatically populate the secondary token with your first targeted token.",
+		"UseFractionsForLabels.Name": "Use Fractions in Labels",
+		"UseFractionsForLabels.Hint": "If turned on, values such as 0.5 will be replaced with ½ when used for terrain labels or ruler heights."
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",
