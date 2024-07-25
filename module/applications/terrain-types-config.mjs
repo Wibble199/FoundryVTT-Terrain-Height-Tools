@@ -1,6 +1,7 @@
 import { lineTypes, moduleName, settings } from "../consts.mjs";
 import { error } from "../utils/log.mjs";
 import { createDefaultTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
+import { TerrainTypesPreset } from "./terrain-types-presets.mjs";
 
 export class TerrainTypesConfig extends FormApplication {
 
@@ -79,6 +80,7 @@ export class TerrainTypesConfig extends FormApplication {
 		html.find("[data-action='duplicate']").on("click", this.#duplicateTerrainType.bind(this));
 		html.find("[data-action='delete']").on("click", this.#deleteTerrainType.bind(this));
 		html.find("[data-action='terrain-type-add']").on("click", this.#addTerrainType.bind(this));
+		html.find("[data-action='terrain-types-import-preset']").on("click", this.#showImportPresetsDialog.bind(this));
 		html.find("[data-action='terrain-types-import']").on("click", this.#showImportTerrainTypeSettingsDialog.bind(this));
 		html.find("[data-action='terrain-types-export']").on("click", this.#showExportTerrainTypeSettingsDialog.bind(this));
 	}
@@ -136,10 +138,22 @@ export class TerrainTypesConfig extends FormApplication {
 	// ------------- //
 	// Import/export //
 	// ------------- //
+	async #showImportPresetsDialog() {
+		this.sync();
+
+		// Ask user to select a preset
+		try {
+			const { data, replace } = await TerrainTypesPreset.show();
+			this._importTerrainTypeSettings(data, replace);
+		} catch {
+			return; // User cancelled
+		}
+	}
+
 	#showImportTerrainTypeSettingsDialog() {
 		this.sync();
 		new Dialog({
-			title: game.i18n.localize("ImportTerrainTypes"),
+			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ImportTerrainTypes"),
 			content: `<textarea placeholder="${game.i18n.localize("TERRAINHEIGHTTOOLS.ImportTextPlaceholder")}"></textarea>`,
 			buttons: {
 				importCombine: {
@@ -164,7 +178,7 @@ export class TerrainTypesConfig extends FormApplication {
 				}
 			}
 		}, {
-			id: "tht_terrainTypesExport",
+			id: "tht_terrainTypesImport",
 			width: 720,
 			height: 350,
 			resizable: true
@@ -174,7 +188,7 @@ export class TerrainTypesConfig extends FormApplication {
 	#showExportTerrainTypeSettingsDialog() {
 		this.sync();
 		new Dialog({
-			title: game.i18n.localize("ExportTerrainTypes"),
+			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ExportTerrainTypes"),
 			content: `<textarea readonly>${JSON.stringify(this.object)}</textarea>`,
 			buttons: {
 				close: {
@@ -190,10 +204,16 @@ export class TerrainTypesConfig extends FormApplication {
 		}).render(true);
 	}
 
+	/**
+	 * @param {string | Partial<import("../utils/terrain-types.mjs").TerrainType>[]} data Data to import. Either a JSON
+	 * string or an already-parsed array.
+	 * @param {boolean} replace Whether or not to delete all existing terrain types on a successful import.
+	 * @returns {boolean} Boolean indicating if the import was successful.
+	 */
 	_importTerrainTypeSettings(data, replace = false) {
 		if (!data?.length) return;
 
-		const parsed = JSON.parse(data);
+		const parsed = Array.isArray(data) ? data : JSON.parse(data);
 
 		if (!Array.isArray(parsed)) {
 			error("Failed to import terrain type data: Expected JSON to be an array.");

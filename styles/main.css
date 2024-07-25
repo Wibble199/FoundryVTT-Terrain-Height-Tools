@@ -173,6 +173,55 @@
 	resize: none;
 }
 
+#tht_terrainTypesPresets .preset-list {
+	list-style: none;
+	margin: 0 40px 8px;
+	padding: 0;
+	overflow-y: auto;
+	max-height: 500px;
+}
+
+#tht_terrainTypesPresets .preset-list li {
+	display: flex;
+	flex-direction: column;
+	position: relative;
+	padding: 6px;
+	margin: 8px;
+	min-height: 150px;
+
+	border: 1px solid var(--color-border-light-primary);
+	border-radius: 3px;
+	box-shadow: 0px 0px 4px -1px rgba(0, 0, 0, 0.5),
+		0px 0px 60px 0px #FFFFFF inset;
+
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+#tht_terrainTypesPresets .preset-header {
+	margin: -6px;
+    padding: 6px;
+	background: rgba(255, 255, 255, 0.7);
+}
+
+#tht_terrainTypesPresets .preset-name {
+	font-size: 1.25rem;
+}
+
+#tht_terrainTypesPresets .preset-author {
+	opacity: 0.8;
+}
+
+#tht_terrainTypesPresets .preset-import-buttons {
+	text-align: right;
+}
+
+#tht_terrainTypesPresets .preset-import-buttons button {
+	display: inline-block;
+	width: auto;
+}
+
 
 /* -------------------------- */
 /* Line of Sight Ruler Config */

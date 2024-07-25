@@ -14,7 +14,9 @@ Designed for LANCER, _Terrain Height Tools_ takes inspiration from the way paint
 
 ## Installation
 
-Paste this URL into the 'Manifest URL' field of the 'Install Module' dialog in the Foundry configuration: `https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/latest/download/module.json`, then enable the module in your world.
+Simply search for 'Terrain Height Tools' in the Foundry 'Install Module' screen and install it from there.
+
+Alternatively, paste this URL into the 'Manifest URL' field of the 'Install Module' dialog in the Foundry configuration: `https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/latest/download/module.json`, then enable the module in your world.
 
 > [!IMPORTANT]
 > Note that the latest version this module currently only supports Foundry v11.x.
@@ -69,8 +71,9 @@ There are some other useful buttons:
 - Buttons 3 and 4 on the above image are to move the terrain types up and down. This only affects their order in the palette, but you can shift your most-used terrain types to the top if you wish.
 - Button 5 allows you to duplicate an existing terrain type, copying all the configuration.
 - Button 6 is to delete the terrain type.
-- '_Import Terrain Types_' (button 9) allows you to paste JSON in to import some terrain types that have been exported previously.
-- '_Export Terrain Types_' (button 10) will give you a JSON that you can share with other people, or copy to other worlds and will copy all your terrain types.
+- '_Import Preset_' (button 9) allows you to easily import a config preset that has been submitted by members of the community. If you would like to submit a preset, please create an issue or pull request on GitHub.
+- '_Import JSON_' (button 10) allows you to paste JSON in to import some terrain types that have been exported previously.
+- '_Export JSON_' (button 11) will give you a JSON that you can share with other people, or copy to other worlds and will copy all your terrain types.
 
 ### Module Settings
 
