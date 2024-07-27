@@ -20,7 +20,7 @@ jobs:
       - name: Zip module files
         run: |
           sudo apt-get install zip &&
-          zip -r release.zip lang/ module/ styles/ templates/ textures/ license.md module.json readme.md
+          zip -r release.zip lang/ module/ presets/ styles/ templates/ textures/ license.md module.json readme.md
 
       - name: Create Release
         id: create_release
