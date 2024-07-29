@@ -37,6 +37,8 @@ Represents a point in 3D space.
 
 ## calculateLineOfSight
 
+![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
+
 Computes a line sight test between two points in 3d space.
 
 Note that this will always return an empty array if the line of sight ray is zero-length, even if the start/end point is within a shape.
@@ -95,6 +97,8 @@ const hasIntersectedWithHardCover = result.some(r => r.terrainTypeId == hardCove
 
 ## calculateLineOfSightByShape
 
+![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
+
 A more verbose version of `calculateLineOfSight`. Takes the same parameters but returns the intersections grouped by the shape that it occured on.
 
 Regions are not merged with other shapes' regions, so in a case where two different shapes are touching and the line of sight ray skims between the two, this function will be able to detail both, whereas `calculateLineOfSight` would only show one.
@@ -146,6 +150,8 @@ The `regions` array is an array of objects.
 |`skimmed`|`boolean`|If `true`, this region is an area where the line of sight ray touches but does not completely enter the shape. This will also be the case if the line of sight ray is flat and the shape is the height of the ray. For example a ray where p1.h = 1 and p2.h = 2 intersecting a height 1 object will always result in a skim. If `false`, the ray has completely entered the shape.|
 
 ## calculateLineOfSightRaysBetweenTokens
+
+![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
 
 Calculates the pairs of points to calculate line of sight rays between two tokens. These can then be used with other
 functions such as [calculateLineOfSight](#calculatelineofsight).
@@ -206,11 +212,15 @@ terrainHeightTools.drawLineOfSightRays([
 
 ## clearLineOfSightRays
 
+![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
+
 Clears line of sight rays drawn by the current user.
 
 Takes no parameters and has no return value.
 
 ## drawLineOfSightRay
+
+![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
 
 Draws a single line of sight ray between the given points.
 
@@ -239,6 +249,8 @@ terrainHeightTools.drawLineOfSightRay(
 
 ## drawLineOfSightRays
 
+![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
+
 Draws any number of line of sight rays between pairs of points.
 
 Note that calling this function will clear any previously drawn line of sight ruler, including those drawn using the tools in the toolbox, except those drawn by other players.
@@ -262,6 +274,8 @@ terrainHeightTools.drawLineOfSightRays([
 ```
 
 ## drawLineOfSightRaysBetweenTokens
+
+![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
 
 Calculates and draws line of sight rays between the given two tokens, as per the _Token Line of Sight_ tool.
 
@@ -293,6 +307,8 @@ terrainHeightTools.drawLineOfSightRaysBetweenTokens(controlledToken, targetedTok
 
 ## eraseCells
 
+![Available Since v0.1.4](https://img.shields.io/badge/Available%20Since-v0.1.4-blue?style=flat-square)
+
 Erases terrain data from the given cells.
 
 Users must have permissions to update the scene to use this.
@@ -316,6 +332,8 @@ await terrainHeightTools.eraseCells([
 ```
 
 ## getCell
+
+![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
 
 Fetches the terrain data from a specific cell.
 
@@ -349,6 +367,8 @@ if (cell === undefined) {
 ```
 
 ## getTerrainType
+
+![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
 
 Attempts to find a specific terrain type by its name or its ID.
 
@@ -399,6 +419,8 @@ console.log(typeById?.name);
 
 ## getTerrainTypes
 
+![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
+
 Gets an array of all terrain types that have been configured in the system.
 
 ### Returns
@@ -427,6 +449,8 @@ An array of objects with the following properties:
 |`textRotation`|`boolean`|Whether or not the text label can be rotated to fit better.|
 
 ## paintCells
+
+![Available Since v0.1.4](https://img.shields.io/badge/Available%20Since-v0.1.4-blue?style=flat-square)
 
 Paints new terrain data onto the specified cells.
 
