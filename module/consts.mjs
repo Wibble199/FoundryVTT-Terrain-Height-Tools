@@ -3,6 +3,13 @@ export const moduleName = "terrain-height-tools";
 export const socketName = `module.${moduleName}`;
 
 
+/** @enum {keyof typeof layers} */
+export const layers = /** @type {const} */ ({
+	graphics: "terrainHeightToolsGraphicsLayer",
+	lineOfSightRuler: "terrainHeightToolsLosRulerLayer",
+	heightMapEditor: "terrainHeightToolsHeightMapEditorLayer"
+});
+
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
 	paint: "paint",

@@ -1,9 +1,11 @@
+import { sceneControls } from "../config/controls.mjs";
 import { flags, lineTypes, moduleName, settings } from "../consts.mjs";
-import { HeightMap, LineSegment, Point, Polygon } from "../geometry/index.mjs";
+import { LineSegment, Point, Polygon } from "../geometry/index.mjs";
+import { terrainData } from "../geometry/terrain-providers.mjs";
 import { chunk } from '../utils/array-utils.mjs';
-import { debug } from "../utils/log.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
+import { Observable, Signal } from "../utils/reactive.mjs";
 import { getTerrainTypes } from '../utils/terrain-types.mjs';
 
 /**
@@ -13,32 +15,102 @@ import { getTerrainTypes } from '../utils/terrain-types.mjs';
 const labelPositionAnchors = [0.5, 0.4, 0.6, 0.2, 0.8];
 
 /**
- * Specialised PIXI.Graphics instance for rendering a scene's terrain height data to the canvas.
+ * Specialised CanvasLayer for rendering HeightMapShapes to the canvas.
  */
-export class TerrainHeightGraphics extends PIXI.Container {
+export class TerrainHeightGraphics extends CanvasLayer {
+
+	#ready = false;
+
+	/** @type {import("../types").HeightMapShape[]} */
+	#data = [];
+
+	/** @type {PIXI.Graphics} */
+	#graphics;
+
+	/** @type {PIXI.Container} */
+	#labels;
 
 	/** @type {PIXI.Texture} */
-	cursorRadiusMaskTexture;
+	#cursorRadiusMaskTexture;
 
 	/** @type {PIXI.Sprite} */
-	cursorRadiusMask;
+	#cursorRadiusMask;
+
+	/**
+	 * The purpose of this object is to get the mouse move events for moving the radius mask to work.
+	 * We cannot listen to events on this object as it does not always have its events turned on.
+	 * We cannot listen to canvas.stage because some parts of core Foundry functionality calls `removeAllListeners`
+	 * sometimes, which then causes the events to get unbound.
+	 * @type {PIXI.Container}
+	*/
+	#cursorRadiusMaskListenerTarget;
+
+	#isTokenObjectsHighlighted$ = new Signal(false);
+
+	/** @type {(() => void)[]} */
+	#subscriptions = [];
 
 	constructor() {
 		super();
+
 		this.eventMode = "static";
 		this.interactive = true;
 
-		/** @type {PIXI.Graphics} */
-		this.graphics = new PIXI.Graphics();
-		this.addChild(this.graphics);
+	}
 
-		/** @type {PIXI.Container} */
-		this.labels = new PIXI.Container();
-		this.addChild(this.labels);
+	/** @override */
+	async _draw() {
+		this.#graphics = this.addChild(new PIXI.Graphics());
+		this.#labels = this.addChild(new PIXI.Container());
 
-		this.alpha = game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer) ? 1 : 0;
-		this._setMaskRadius(this.terrainHeightLayerVisibilityRadius);
-		Hooks.on("highlightObjects", this.#onHighlightObjects.bind(this));
+		this.#cursorRadiusMaskListenerTarget = canvas.interface.addChild(new PIXI.Container());
+		this.#cursorRadiusMaskListenerTarget.eventMode = "static";
+
+		this.#ready = true;
+
+		this.#subscriptions = [
+			// Update the terrain graphics when any of the providers supply new data
+			terrainData.$.subscribe(data => {
+				this.#data = data;
+				this.redraw();
+			}, true),
+
+			// Show/hide the graphics based on the settings and selected layers/tools
+			Observable.join(
+				/** @type {Signal<boolean>} */ (Signal.fromSetting(moduleName, settings.showTerrainHeightOnTokenLayer)),
+				sceneControls.activeControl$
+			).subscribe(([showOnTokenLayer, activeControl]) => {
+				this.#setVisible(showOnTokenLayer || activeControl === moduleName);
+			}, true),
+
+			// Update the mask radius, depending on settings
+			Observable.join(
+				/** @type {Signal<number>} */ (Signal.fromSetting(moduleName, settings.terrainHeightLayerVisibilityRadius)),
+				this.#isTokenObjectsHighlighted$,
+				sceneControls.activeControl$
+			).subscribe(([radius, isTokenObjectsHighlighted, activeControl]) => {
+				const forceShow = isTokenObjectsHighlighted || activeControl === moduleName;
+				this.#setMaskRadius(forceShow ? 0 : radius);
+			}, true),
+
+			// Redraw when settings change
+			Signal.fromSetting(moduleName, settings.terrainTypes).subscribe(() => this.redraw()),
+			Signal.fromSetting(moduleName, settings.useFractionsForLabels).subscribe(() => this.redraw()),
+			Signal.fromSetting(moduleName, settings.smartLabelPlacement).subscribe(() => this.redraw())
+		];
+
+		Hooks.on("highlightObjects", this.#onHighlightObjects);
+	}
+
+	/** @override */
+	_tearDown() {
+		if (!this.#ready) return;
+
+		this.#subscriptions.forEach(unsubscribe => unsubscribe());
+		this.#subscriptions = [];
+		Hooks.off("highlightObjects", this.#onHighlightObjects);
+
+		this.#ready = false;
 	}
 
 	// Sorting within the PrimaryCanvasGroup works by the `elevation`, then by whether it is a token, then by whether it
@@ -53,24 +125,20 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 	get sort() {
 		/** @type {boolean} */
-		const renderAboveTiles = game.canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
+		const renderAboveTiles = canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
 			?? game.settings.get(moduleName, settings.terrainLayerAboveTilesDefault);
 
 		return renderAboveTiles ? 9999999999 : -9999999998;
 	}
 
-	/** @type {number} */
-	get terrainHeightLayerVisibilityRadius() {
-		return game.settings.get(moduleName, settings.terrainHeightLayerVisibilityRadius);
-	}
-
 	/**
-	 * Redraws the graphics layer using the supplied height map data.
-	 * @param {HeightMap} heightMap
+	 * Redraws the graphics layer.
 	 */
-	async update(heightMap) {
+	async redraw() {
+		if (!this.#ready) return;
+
 		// If there are no shapes on the map, just clear it and return
-		if (heightMap.shapes.length === 0) {
+		if (this.#data.length === 0) {
 			this._clear();
 			return;
 		}
@@ -91,7 +159,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		/** @type {boolean} */
 		const smartLabelPlacement = game.settings.get(moduleName, settings.smartLabelPlacement);
 
-		for (const shape of heightMap.shapes) {
+		for (const shape of this.#data) {
 			const terrainStyle = terrainTypes.find(t => t.id === shape.terrainTypeId);
 			if (!terrainStyle) continue;
 
@@ -107,14 +175,14 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			// Instead, do the fill now, then the holes, THEN draw the dashed lines.
 			// If we're using solid or no lines, we don't need to worry about this.
 			this.#setGraphicsStyleFromTerrainStyle(terrainStyle, textures);
-			if (terrainStyle.lineType === lineTypes.dashed) this.graphics.lineStyle({ width: 0 });
+			if (terrainStyle.lineType === lineTypes.dashed) this.#graphics.lineStyle({ width: 0 });
 
 			this.#drawTerrainPolygon(shape.polygon, terrainStyle, textures);
 
 			for (const hole of shape.holes) {
-				this.graphics.beginHole();
+				this.#graphics.beginHole();
 				this.#drawTerrainPolygon(hole, terrainStyle, textures, true);
-				this.graphics.endHole();
+				this.#graphics.endHole();
 			}
 
 			// After drawing fill, then do the dashed lines
@@ -126,8 +194,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 					gapSize: terrainStyle.lineGapSize ?? 10
 				};
 
-				drawDashedPath(this.graphics, shape.polygon.vertices, dashedLineStyle);
-				for (const hole of shape.holes) drawDashedPath(this.graphics, hole.vertices, dashedLineStyle);
+				drawDashedPath(this.#graphics, shape.polygon.vertices, dashedLineStyle);
+				for (const hole of shape.holes) drawDashedPath(this.#graphics, hole.vertices, dashedLineStyle);
 			}
 
 			// Finally, do the label
@@ -137,9 +205,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	}
 
 	_clear() {
-		this.graphics.clear();
-		this.labels.removeChildren();
-		this.parent.sortChildren();
+		this.#graphics?.clear();
+		this.#labels?.removeChildren();
 	}
 
 	/**
@@ -150,15 +217,15 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	#setGraphicsStyleFromTerrainStyle(terrainStyle, textureMap) {
 		const color = Color.from(terrainStyle?.fillColor ?? "#000000");
 		if (terrainStyle?.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && textureMap[terrainStyle.id])
-			this.graphics.beginTextureFill({
+			this.#graphics.beginTextureFill({
 				texture: textureMap[terrainStyle.id],
 				color,
 				alpha: terrainStyle.fillOpacity
 			});
 		else
-			this.graphics.beginFill(color, terrainStyle?.fillOpacity ?? 0.4);
+			this.#graphics.beginFill(color, terrainStyle?.fillOpacity ?? 0.4);
 
-		this.graphics.lineStyle({
+		this.#graphics.lineStyle({
 			width: terrainStyle?.lineType === lineTypes.none ? 0 : terrainStyle?.lineWidth ?? 0,
 			color: Color.from(terrainStyle?.lineColor ?? "#000000"),
 			alpha: terrainStyle?.lineOpacity ?? 1,
@@ -171,21 +238,21 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * @param {Polygon} polygon
 	 */
 	#drawTerrainPolygon(polygon) {
-		this.graphics.moveTo(polygon.vertices[0].x, polygon.vertices[0].y);
+		this.#graphics.moveTo(polygon.vertices[0].x, polygon.vertices[0].y);
 		for (let i = 1; i < polygon.vertices.length; i++) {
-			this.graphics.lineTo(polygon.vertices[i].x, polygon.vertices[i].y);
+			this.#graphics.lineTo(polygon.vertices[i].x, polygon.vertices[i].y);
 		}
-		this.graphics.lineTo(polygon.vertices[0].x, polygon.vertices[0].y);
-		this.graphics.closePath();
+		this.#graphics.lineTo(polygon.vertices[0].x, polygon.vertices[0].y);
+		this.#graphics.closePath();
 
-		this.graphics.endFill();
+		this.#graphics.endFill();
 	}
 
 	/**
 	 * Draws a polygon's label at the given position.
 	 * @param {string} label
 	 * @param {PIXI.TextStyle} textStyle
-	 * @param {import("../geometry/height-map.mjs").HeightMapShape} shape
+	 * @param {import("../types").HeightMapShape} shape
 	 * @param {Object} [options={}]
 	 * @param {boolean} [options.smartPlacement=true] If true and the text does not fit at the centroid of the shape, then
 	 * this function will do some additional calculations to try fit the label in at the widest point instead.
@@ -196,14 +263,14 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// Create the text - with this we can get the width and height of the label
 		const text = new PreciseText(label, textStyle);
 		text.anchor.set(0.5);
-		this.labels.addChild(text);
+		this.#labels.addChild(text);
 
 		/** Sets the position of the text label so that it's center is at the given positions. */
 		const setTextPosition = (x, y, rotated) => {
 			text.x = x;
 			text.y = y;
 			text.rotation = rotated
-				? (x < game.canvas.dimensions.width / 2 ? -1 : 1) * Math.PI / 2
+				? (x < canvas.dimensions.width / 2 ? -1 : 1) * Math.PI / 2
 				: 0;
 		};
 
@@ -238,7 +305,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		/** @type {number[]} */
 		const testPoints = [...new Set(labelPositionAnchors
 			.map(y => y * shape.polygon.boundingBox.h + shape.polygon.boundingBox.y1)
-			.map(y => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXODDR].includes(game.canvas.grid.type)
+			.map(y => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXODDR].includes(canvas.grid.type)
 				? canvas.grid.grid.getCenter(shape.polygon.boundingBox.xMid, y)[1]
 				: y))];
 
@@ -265,7 +332,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			/** @type {number[]} */
 			const testPoints = [...new Set(labelPositionAnchors
 				.map(x => x * shape.polygon.boundingBox.w + shape.polygon.boundingBox.x1)
-				.map(x => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(game.canvas.grid.type)
+				.map(x => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(canvas.grid.type)
 					? canvas.grid.grid.getCenter(x, shape.polygon.boundingBox.yMid)[0]
 					: x))];
 
@@ -312,7 +379,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		return style;
 	}
 
-	setVisible(visible) {
+	/** @param {boolean} visible */
+	#setVisible(visible) {
 		return CanvasAnimation.animate([
 			{
 				parent: this,
@@ -323,35 +391,27 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	}
 
 	/**
-	 * Turns on or off the mask used to only show the height around the user's cursor.
-	 * @param {boolean} active
-	 */
-	_setMaskRadiusActive(active) {
-		this._setMaskRadius(active ? this.terrainHeightLayerVisibilityRadius : 0);
-	}
-
-	/**
 	 * Sets the radius of the mask used to only show the height around the user's cursor.
 	 * @param {number} radius The radius of the height map mask. Use <=0 to disable.
 	 */
-	_setMaskRadius(radius) {
-		debug(`Updating terrain height layer graphics mask size to ${radius}`);
+	#setMaskRadius(radius) {
+		if (!this.#ready) return;
 
 		// Remove previous mask
 		this.mask = null;
-		if (this.cursorRadiusMask) this.removeChild(this.cursorRadiusMask);
-		game.canvas.terrainHeightLayer._eventListenerObj.off("globalmousemove", this.#updateCursorMaskPosition);
+		if (this.#cursorRadiusMask) this.removeChild(this.#cursorRadiusMask);
+		this.#cursorRadiusMaskListenerTarget.off("globalmousemove", this.#updateCursorMaskPosition);
 
 		// Stop here if not applying a new mask
 		if (radius <= 0) return;
 
 		// Create a radial gradient texture
-		radius *= game.canvas.grid.size;
+		radius *= canvas.grid.size;
 
-		const canvas = document.createElement("canvas");
-		canvas.width = canvas.height = radius * 2;
+		const canvasElement = document.createElement("canvas");
+		canvasElement.width = canvasElement.height = radius * 2;
 
-		const context = canvas.getContext("2d");
+		const context = canvasElement.getContext("2d");
 		const gradient = context.createRadialGradient(radius, radius, 0, radius, radius, radius);
 		gradient.addColorStop(0.8, "rgba(255, 255, 255, 1)");
 		gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -359,32 +419,34 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		context.fillStyle = gradient;
 		context.fillRect(0, 0, radius * 2, radius * 2);
 
-		const texture = PIXI.Texture.from(canvas);
+		// TODO: dispose old texture?
+		this.#cursorRadiusMaskTexture = PIXI.Texture.from(canvasElement);
 
 		// Create sprite
-		this.cursorRadiusMask = new PIXI.Sprite(texture);
-		this.cursorRadiusMask.anchor.set(0.5);
-		this.addChild(this.cursorRadiusMask);
+		this.#cursorRadiusMask = new PIXI.Sprite(this.#cursorRadiusMaskTexture);
+		this.#cursorRadiusMask.anchor.set(0.5);
+		this.addChild(this.#cursorRadiusMask);
 
 		// Get current mouse coordinates
-		const pos = game.canvas.mousePosition;
-		this.cursorRadiusMask.position.set(pos.x, pos.y);
+		const pos = canvas.mousePosition;
+		this.#cursorRadiusMask.position.set(pos.x, pos.y);
 
 		// Set mask
-		this.mask = this.cursorRadiusMask;
-		game.canvas.terrainHeightLayer._eventListenerObj.on("globalmousemove", this.#updateCursorMaskPosition);
+		this.mask = this.#cursorRadiusMask;
+		this.#cursorRadiusMaskListenerTarget.on("globalmousemove", this.#updateCursorMaskPosition);
 	}
 
 	#updateCursorMaskPosition = event => {
 		const pos = this.toLocal(event.data.global);
-		this.cursorRadiusMask.position.set(pos.x, pos.y);
-	}
+		this.#cursorRadiusMask.position.set(pos.x, pos.y);
+	};
 
-	#onHighlightObjects(active) {
+	/** @param {boolean} active */
+	#onHighlightObjects = active => {
 		// When using the "highlight objects" keybind, if the user has the radius option enabled and we're on the token
 		// layer, show the entire height map
-		if (game.canvas.activeLayer.name === "TokenLayer" && this.terrainHeightLayerVisibilityRadius > 0) {
-			this._setMaskRadiusActive(!active);
+		if (canvas.activeLayer.name === "TokenLayer") {
+			this.#isTokenObjectsHighlighted$.value = active;
 		}
-	}
+	};
 }

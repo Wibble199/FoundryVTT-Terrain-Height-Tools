@@ -1,4 +1,4 @@
-import { keybindings, moduleName, settings } from "../consts.mjs";
+import { keybindings, layers, moduleName, settings } from "../consts.mjs";
 import { sceneControls } from "./controls.mjs";
 
 export function registerKeybindings() {
@@ -23,7 +23,7 @@ export function registerKeybindings() {
 		editable: [{ key: "Equal" }],
 		onDown: () => {
 			/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
-			const ruler = canvas.terrainHeightLosRulerLayer;
+			const ruler = canvas[layers.lineOfSightRuler];
 			ruler._handleHeightChangeKeybinding(1);
 		}
 	});
@@ -33,7 +33,7 @@ export function registerKeybindings() {
 		editable: [{ key: "Minus" }],
 		onDown: () => {
 			/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
-			const ruler = canvas.terrainHeightLosRulerLayer;
+			const ruler = canvas[layers.lineOfSightRuler];
 			ruler._handleHeightChangeKeybinding(-1);
 		}
 	});

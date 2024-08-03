@@ -1,12 +1,26 @@
 // ! These are functions specifically for macros and scripts.
 // ! Changing these functions should always be done in a backwards-compatible way.
 
-import { moduleName, settings } from "./consts.mjs";
+import { layers, moduleName, settings } from "./consts.mjs";
 import { HeightMap } from "./geometry/height-map.mjs";
+import { calculateLineOfSight as calculateLineOfSightImpl, flattenLineOfSightIntersectionRegions } from "./geometry/line-of-sight.mjs";
+import { Point } from "./geometry/point.mjs";
+import { Polygon } from "./geometry/polygon.mjs";
+import { terrainData, terrainProviders$ } from "./geometry/terrain-providers.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
+import { Observable, Signal, SignalSet } from "./utils/reactive.mjs";
 import { getTerrainTypes } from "./utils/terrain-types.mjs";
 
 export { getTerrainTypes } from "./utils/terrain-types.mjs";
+
+export const terrainProviders = {
+	registry: terrainProviders$
+};
+
+export const classes = {
+	geometry: { HeightMap, Point, Polygon, PolygonEdge },
+	reactive: { Observable, Signal, SignalSet }
+};
 
 /**
  * Attempts to find a terrain type with the given name or ID.
@@ -30,9 +44,7 @@ export function getTerrainType(terrain) {
  * @param {{ terrainTypeId: string; height: number; } | undefined}
  */
 export function getCell(x, y) {
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.get(y, x);
+	return HeightMap.current.get(y, x);
 }
 
 /**
@@ -60,9 +72,7 @@ export function paintCells(cells, terrain, { overwrite = true } = {}) {
 	if (terrainType.usesHeight && typeof terrain.height !== "number")
 		throw new Error(`Terrain "${terrainType.name}' requires a height, but one was not provided.`);
 
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { overwrite });
+	return HeightMap.current.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { overwrite });
 }
 
 /**
@@ -75,39 +85,35 @@ export function eraseCells(cells) {
 		throw new Error("Expected `cells` to be an array of arrays.");
 	if (cells.length === 0) return;
 
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.eraseCells(cells);
+	return HeightMap.current.eraseCells(cells);
 }
 
 /**
  * Calculates the line of sight between the two given pixel coordinate points and heights.
  * Returns an array of all shapes that were intersected, along with the regions where those shapes were intersected.
- * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
- * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
+ * @param {import("./types").Point3D} p1 The first point, where `x` and `y` are pixel coordinates.
+ * @param {import("./types").Point3D} p2 The second point, where `x` and `y` are pixel coordinates.
  * @param {Object} [options={}] Options that change how the calculation is done.
  * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
  * height value will be included in the return list. They are treated as having infinite height.
- * @returns {(import('./geometry/height-map.mjs').LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]}
+ * @returns {(import("./types").LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]}
  */
 export function calculateLineOfSight(p1, p2, options = {}) {
-	return HeightMap.flattenLineOfSightIntersectionRegions(calculateLineOfSightByShape(p1, p2, options));
+	return flattenLineOfSightIntersectionRegions(calculateLineOfSightByShape(p1, p2, options));
 }
 
 /**
  * Calculates the line of sight between the two given pixel coordinate points and heights.
  * Returns an array of all shapes that were intersected, along with the regions where those shapes were intersected.
- * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
- * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
+ * @param {import("./types").Point3D} p1 The first point, where `x` and `y` are pixel coordinates.
+ * @param {import("./types").Point3D} p2 The second point, where `x` and `y` are pixel coordinates.
  * @param {Object} [options={}] Options that change how the calculation is done.
  * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
  * height value will be included in the return list. They are treated as having infinite height.
- * @returns {{ shape: import('./geometry/height-map.mjs').HeightMapShape; regions: import('./geometry/height-map.mjs').LineOfSightIntersectionRegion[]; }[]}
+ * @returns {{ shape: import("./types").HeightMapShape; regions: import("./types").LineOfSightIntersectionRegion[]; }[]}
  */
 export function calculateLineOfSightByShape(p1, p2, options = {}) {
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.calculateLineOfSight(p1, p2, options);
+	return calculateLineOfSightImpl(terrainData.current, p1, p2, options);
 }
 
 /**
@@ -136,8 +142,8 @@ export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1Re
 /**
  * Calculates and draws a line of sight ray between the given points.
  * Note that this will clear all previously drawn lines, INCLUDING those drawn by the tools in the side bar.
- * @param {import("./layers/line-of-sight-ruler-layer.mjs").Point3D} p1 The first point (where the line is drawn from).
- * @param {import("./layers/line-of-sight-ruler-layer.mjs").Point3D} p2 The second point (where the line is drawn to).
+ * @param {import("./types").Point3D} p1 The first point (where the line is drawn from).
+ * @param {import("./types").Point3D} p2 The second point (where the line is drawn to).
  * @param {Object} [options={}] Options that change for the lines are drawn.
  * @param {boolean} [options.drawForOthers=true] Whether to draw these rays for other users connected to the game.
  * @param {} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a height
@@ -153,13 +159,13 @@ export function drawLineOfSightRay(p1, p2, { drawForOthers = true, includeNoHeig
 /**
  * Calculates and draws any number of line of sight rays between the given points.
  * Note that this will clear all previously drawn lines, INCLUDING those drawn by the tools in the side bar.
- * @param {({ p1: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; p2: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; } & import("./layers/line-of-sight-ruler-layer.mjs").RulerOptions)[]} rays
+ * @param {({ p1: import("./types").Point3D; p2: import("./types").Point3D; } & import("./layers/line-of-sight-ruler-layer.mjs").RulerOptions)[]} rays
  * @param {Object} [options={}] Options that change for the lines are drawn.
  * @param {boolean} [options.drawForOthers=true] Whether to draw these rays for other users connected to the game.
  */
 export function drawLineOfSightRays(rays, { drawForOthers = true } = {}) {
 	/** @type {LineOfSightRulerLayer} */
-	const ruler = game.canvas.terrainHeightLosRulerLayer;
+	const ruler = canvas[layers.lineOfSightRuler];
 	ruler._drawLineOfSightRays(rays.map(({ p1, p2, ...options }) => [p1, p2, options]), { drawForOthers });
 }
 
@@ -184,7 +190,7 @@ export function drawLineOfSightRaysBetweenTokens(token1, token2, { token1Relativ
 	const { left, centre, right } = calculateLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight });
 
 	/** @type {LineOfSightRulerLayer} */
-	const ruler = game.canvas.terrainHeightLosRulerLayer;
+	const ruler = canvas[layers.lineOfSightRuler];
 	ruler._drawLineOfSightRays([
 		[left.p1, left.p2, { includeNoHeightTerrain, showLabels: false }],
 		[centre.p1, centre.p2, { includeNoHeightTerrain, showLabels: true }],
@@ -197,6 +203,6 @@ export function drawLineOfSightRaysBetweenTokens(token1, token2, { token1Relativ
  */
 export function clearLineOfSightRays() {
 	/** @type {LineOfSightRulerLayer} */
-	const ruler = game.canvas.terrainHeightLosRulerLayer;
+	const ruler = canvas[layers.lineOfSightRuler];
 	ruler._clearLineOfSightRays({ clearForOthers: true });
 }

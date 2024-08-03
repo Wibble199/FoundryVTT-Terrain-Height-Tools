@@ -1,4 +1,5 @@
-import { moduleName } from "../consts.mjs";
+import { layers, moduleName, settings } from "../consts.mjs";
+import { Signal } from "../utils/reactive.mjs";
 import { getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
@@ -65,8 +66,8 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 	activateListeners(html) {
 		super.activateListeners(html);
 
-		/** @type {import("../layers/terrain-height-layer.mjs").TerrainHeightLayer} */
-		const layer = game.canvas.terrainHeightLayer;
+		/** @type {import("../layers/height-map-editor-layer.mjs").HeightMapEditorLayer} */
+		const layer = canvas[layers.heightMapEditor];
 
 		this._unsubscribeFromAll();
 		this._subscriptions = [
@@ -86,7 +87,11 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 
 			// Update elevation input
 			layer._selectedPaintingElevation$.subscribe(elevation =>
-				html.find("[name='selectedElevation']").val(elevation), true)
+				html.find("[name='selectedElevation']").val(elevation), true),
+
+			// Redraw if the terrain types setting changes
+			Signal.fromSetting(moduleName, settings.terrainTypes).subscribe(() =>
+				this.render(false))
 		];
 
 		html.find("[data-terrain-id]").on("click", this.#onTerrainSelect.bind(this));
@@ -114,8 +119,8 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 		event.currentTarget.closest("li").classList.add("active");
 		this.element.find("[name='selectedHeight'],[name='selectedElevation']").prop("disabled", !this.isHeightEnabledFor(terrainId));
 
-		/** @type {import("../layers/terrain-height-layer.mjs").TerrainHeightLayer} */
-		const layer = game.canvas.terrainHeightLayer;
+		/** @type {import("../layers/height-map-editor-layer.mjs").HeightMapEditorLayer} */
+		const layer = canvas[layers.heightMapEditor];
 		layer._selectedPaintingTerrainTypeId$.value = terrainId;
 	}
 

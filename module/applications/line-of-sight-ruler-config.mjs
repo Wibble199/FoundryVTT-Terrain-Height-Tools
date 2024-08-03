@@ -1,4 +1,4 @@
-import { moduleName } from '../consts.mjs';
+import { layers, moduleName } from '../consts.mjs';
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 export class LineOfSightRulerConfig extends withSubscriptions(Application) {
@@ -20,7 +20,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(Application) {
 		super.activateListeners(html);
 
 		/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
-		const rulerLayer = canvas.terrainHeightLosRulerLayer;
+		const rulerLayer = canvas[layers.lineOfSightRuler];
 
 		this._unsubscribeFromAll();
 

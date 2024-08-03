@@ -1,8 +1,8 @@
 import { LineOfSightRulerConfig } from '../applications/line-of-sight-ruler-config.mjs';
 import { TerrainHeightPalette } from "../applications/terrain-height-palette.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
-import { moduleName, settings, tools } from "../consts.mjs";
-import { Signal } from "../utils/signal.mjs";
+import { layers, moduleName, settings, tools } from "../consts.mjs";
+import { Signal } from "../utils/reactive.mjs";
 
 export const sceneControls = {
 	/** @type {Signal<string>} */
@@ -30,7 +30,7 @@ export const sceneControls = {
  */
 export function registerSceneControls(controls) {
 	// Don't show the controls on gridless scenes as they are not supported
-	if (game.canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
+	if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
 
 	// Add a LOS ruler and toggle map button in the token controls
 	controls.find(grp => grp.name === "token").tools.push(
@@ -45,7 +45,7 @@ export function registerSceneControls(controls) {
 			icon: "fas fa-compass-drafting",
 			onClick: () => {
 				/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
-				const ruler = game.canvas.terrainHeightLosRulerLayer;
+				const ruler = canvas[layers.lineOfSightRuler];
 				ruler._autoSelectTokenLosTargets();
 			}
 		},
@@ -64,7 +64,7 @@ export function registerSceneControls(controls) {
 		name: moduleName,
 		title: game.i18n.localize("CONTROLS.GroupTerrainHeightTools"),
 		icon: "fas fa-chart-simple",
-		layer: "terrainHeightLayer",
+		layer: layers.heightMapEditor,
 		activeTool: tools.paint,
 		visible: game.user.can("UPDATE_SCENE"),
 		tools: [
@@ -100,7 +100,7 @@ export function registerSceneControls(controls) {
 				onClick: () => Dialog.confirm({
 					title: game.i18n.localize("TERRAINHEIGHTTOOLS.ClearConfirmTitle"),
 					content: `<p>${game.i18n.format("TERRAINHEIGHTTOOLS.ClearConfirmContent")}</p>`,
-					yes: () => game.canvas.terrainHeightLayer?.clear()
+					yes: () => canvas.terrainHeightLayer?.clear()
 				}),
 				button: true
 			}

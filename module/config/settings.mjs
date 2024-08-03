@@ -1,6 +1,5 @@
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
 import { flags, moduleName, settings, tokenRelativeHeights } from "../consts.mjs";
-import { sceneControls } from "./controls.mjs";
 
 export function registerSettings() {
 
@@ -18,11 +17,7 @@ export function registerSettings() {
 		scope: "world",
 		default: [],
 		type: Array,
-		config: false,
-		onChange: () => {
-			sceneControls.terrainHeightPalette?.render(false);
-			game.canvas.terrainHeightLayer._updateGraphics();
-		}
+		config: false
 	});
 
 	game.settings.register(moduleName, settings.terrainLayerAboveTilesDefault, {
@@ -33,8 +28,8 @@ export function registerSettings() {
 		default: true,
 		config: true,
 		onChange: () => {
-			if (game.canvas?.ready)
-				game.canvas.primary?.sortChildren();
+			if (canvas?.ready)
+				canvas.primary?.sortChildren();
 		}
 	});
 
@@ -71,8 +66,7 @@ export function registerSettings() {
 		scope: "client",
 		type: Boolean,
 		config: false,
-		default: true,
-		onChange: value => game.canvas.terrainHeightLayer._graphics.setVisible(value)
+		default: true
 	});
 
 	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {
@@ -82,8 +76,7 @@ export function registerSettings() {
 		type: Number,
 		range: { min: 0, max: 40, step: 1 },
 		config: true,
-		default: 0,
-		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
+		default: 0
 	});
 
 	game.settings.register(moduleName, settings.otherUserLineOfSightRulerOpacity, {
@@ -119,8 +112,7 @@ export function registerSettings() {
 		scope: "world",
 		type: Boolean,
 		config: true,
-		default: true,
-		onChange: () => game.canvas.terrainHeightLayer._updateGraphics()
+		default: true
 	});
 
 	game.settings.register(moduleName, settings.smartLabelPlacement, {
@@ -129,8 +121,7 @@ export function registerSettings() {
 		scope: "world",
 		type: Boolean,
 		config: true,
-		default: true,
-		onChange: () => game.canvas.terrainHeightLayer._updateGraphics()
+		default: true
 	});
 }
 

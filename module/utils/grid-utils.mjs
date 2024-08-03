@@ -6,17 +6,17 @@
  */
 export function getGridCellPolygon(row, col) {
 	// Gridless is not supported
-	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
 
 	// For hex grids, use the custom getHexPolyAligned function to generate them for us
-	if (game.canvas.grid.isHex) {
+	if (canvas.grid.isHex) {
 		const pointsFlat = getHexPolyAligned(row, col);
 		return pointArrayToObjects(pointsFlat);
 	}
 
 	// Can get the points for a square grid easily
-	const [x, y] = game.canvas.grid.grid.getPixelsFromGridPosition(row, col);
-	const { w, h } = game.canvas.grid;
+	const [x, y] = canvas.grid.grid.getPixelsFromGridPosition(row, col);
+	const { w, h } = canvas.grid;
 	return [
 		{ x, y },
 		{ x: x + w, y },
@@ -78,13 +78,13 @@ function getHexPolyAligned(row, col, points = undefined) {
  */
 export function getGridVerticesFromToken(token) {
 	// Gridless is not supported
-	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
 
 	/** @type {TokenDocument} */
 	const { x, y, width, height } = token.document;
 
 	// For hex grids, use the getBorderPolygon method
-	if (game.canvas.grid.isHex) {
+	if (canvas.grid.isHex) {
 		const pointsFlat = game.modules.get("hex-size-support")?.api?.isAltOrientation(token) === true
 			? canvas.grid.grid.getAltBorderPolygon(width, height, 0)
 			: canvas.grid.grid.getBorderPolygon(width, height, 0);
@@ -92,7 +92,7 @@ export function getGridVerticesFromToken(token) {
 	}
 
 	// Can get the vertices for a square grid easily
-	const w = width * game.canvas.grid.w, h = height * game.canvas.grid.h;
+	const w = width * canvas.grid.w, h = height * canvas.grid.h;
 	return [
 		{ x: x, y: y },
 		{ x: x + w, y: y },

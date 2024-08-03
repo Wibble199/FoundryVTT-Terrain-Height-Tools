@@ -1,5 +1,5 @@
-import { moduleName, tokenRelativeHeights } from "../consts.mjs";
-import { Signal } from "../utils/signal.mjs";
+import { layers, moduleName, tokenRelativeHeights } from "../consts.mjs";
+import { Signal } from "../utils/reactive.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 export class TokenLineOfSightConfig extends withSubscriptions(Application) {
@@ -23,7 +23,7 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 
 	/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
 	get #losLayer() {
-		return canvas.terrainHeightLosRulerLayer;
+		return canvas[layers.lineOfSightRuler];
 	}
 
 	/** Whether or not the user is currently selecting a token. */
