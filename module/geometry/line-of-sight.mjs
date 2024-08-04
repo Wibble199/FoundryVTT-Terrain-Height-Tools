@@ -1,7 +1,7 @@
 import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { error } from "../utils/log.mjs";
 import { roundTo } from "../utils/misc-utils.mjs";
-import { getTerrainTypeMap } from "../utils/terrain-types.mjs";
+import { getTerrainTypeMap, getTerrainTypes } from "../utils/terrain-types.mjs";
 import { LineSegment } from "./line-segment.mjs";
 
 /**
@@ -88,6 +88,10 @@ export class LineOfSight {
 			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeBottom)));
 			h2 = shapeBottom;
 		}
+
+		// If, after vertically clamping the line to within the same, we get a zero length line, then there are no
+		// intersections.
+		if (Math.abs(t1 - t2) < Number.EPSILON) return [];
 
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
 		const inverseTestRay = testRay.inverse();
@@ -200,7 +204,8 @@ export class LineOfSight {
 
 		// If the test ray is flat in the height direction and this shape's top/bottom = the test ray height, then
 		// whenever we 'enter' the shape, we're actually going to be skimming the top or bottom.
-		const isSkimmingTopBottom = usesHeight && h1 === h2 && (h1 === shapeTop || h1 === shapeBottom);
+		// Not skimming if the elevation is 0 and the height is 0 though, as this means the shape is on the ground.
+		const isSkimmingTopBottom = usesHeight && h1 === h2 && h1 !== 0 && (h1 === shapeTop || h1 === shapeBottom);
 
 		let lastIntersectionPosition = { x: x1, y: y1, h: h1, t: 0 };
 
@@ -212,7 +217,8 @@ export class LineOfSight {
 				regions.push({
 					start: lastIntersectionPosition,
 					end: position,
-					skimmed: isSkimmingTopBottom
+					skimmed: isSkimmingTopBottom,
+					skimSide: isSkimmingTopBottom ? 0 : undefined
 				});
 			}
 			lastIntersectionPosition = position;
@@ -291,28 +297,31 @@ export class LineOfSight {
 		// Only edges that are (approximately) parallel to the test ray could cause a skimming to occur
 		const parallelThreshold = 0.05; // radians
 		const parallelEdges = allEdges
-			.map(([, e]) => e)
-			.filter(e =>
-				Math.abs(testRay.angle - e.angle) < parallelThreshold ||
-				Math.abs(inverseTestRay.angle - e.angle) < parallelThreshold);
+			.map(([, edge]) => ({
+				edge,
+				isParallel: Math.abs(testRay.angle - edge.angle) < parallelThreshold,
+				isInverseParallel: Math.abs(inverseTestRay.angle - edge.angle) < parallelThreshold
+			}))
+			.filter(x => x.isParallel || x.isInverseParallel);
 
 		// For each edge that is parallel, check how far the ends are from the testRay (assuming testRay had
 		// infinite length). If both are within a small threshold, then add it as a skimming region.
 		const skimDistThresholdSquared = 16; // pixels
-		/** @type {{ t1: number; t2: number }[]} */
+		/** @type {{ t1: number; t2: number; skimSide: -1 | 1; }[]} */
 		const skimRegions = [];
-		for (const edge of parallelEdges) {
+		for (const { edge, isParallel } of parallelEdges) {
 			// Cap the t values to 0-1 (i.e. on the testRay), but don't alter the distances.
-			let { t: t1, distanceSquared: d1, point: point1 } = testRay.findClosestPointOnLineTo(edge.p1.x, edge.p1.y);
+			let { t: t1, distanceSquared: d1 } = testRay.findClosestPointOnLineTo(edge.p1.x, edge.p1.y);
 			t1 = Math.max(Math.min(t1, 1), 0);
-			let { t: t2, distanceSquared: d2, point: point2 } = testRay.findClosestPointOnLineTo(edge.p2.x, edge.p2.y);
+			let { t: t2, distanceSquared: d2 } = testRay.findClosestPointOnLineTo(edge.p2.x, edge.p2.y);
 			t2 = Math.max(Math.min(t2, 1), 0);
 
 			// If the two ends of the edge wouldn't be skimming, continue to next edge
 			if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
 				continue;
 
-			skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
+			const skimSide = isParallel ? 1 : -1;
+			skimRegions.push(t1 < t2 ? { t1, t2, skimSide } : { t1: t2, t2: t1, skimSide });
 		}
 
 		skimRegions.sort((a, b) => a.t1 - b.t2);
@@ -325,7 +334,7 @@ export class LineOfSight {
 
 			// Merge adjacent skim regions. The combined skim region is from skimStartT -> skimRegions[i].t2.
 			skimStartT ??= skimRegions[i].t1;
-			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON) {
+			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON || skimRegions[i].skimSide !== skimRegions[i + 1].skimSide) {
 				const skimEndT = skimRegions[i].t2;
 
 				// We need to figure out which, if any, of the intersection regions to remove.
@@ -367,23 +376,16 @@ export class LineOfSight {
 				/** @type {import("../types").LineOfSightIntersectionRegion[]} */
 				const newElements = [
 					overlappingStartRegion
-						? {
-							start: overlappingStartRegion.start,
-							end: skimStartObject,
-							skimmed: overlappingStartRegion.skimmed
-						}
+						? { ...overlappingStartRegion, end: skimStartObject }
 						: undefined,
 					{
 						start: skimStartObject,
 						end: skimEndObject,
-						skimmed: true
+						skimmed: true,
+						skimSide: isSkimmingTopBottom ? 0 : skimRegions[i].skimSide
 					},
 					overlappingEndRegion
-						? {
-							start: skimEndObject,
-							end: overlappingEndRegion.end,
-							skimmed: overlappingEndRegion.skimmed
-						}
+						? { ...overlappingEndRegion, start: skimEndObject }
 						: undefined
 				].filter(Boolean);
 
@@ -407,10 +409,10 @@ export class LineOfSight {
 	/**
 	 * Flattens an array of line of sight intersection regions into a single collection of regions.
 	 * @param {{ shape: import("../types").HeightMapShape; regions: import("../types").LineOfSightIntersectionRegion[] }[]} shapeRegions
-	 * @returns {(import("../types").LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]}
+	 * @returns {import("../types").FlatLineOfSightIntersectionRegion[]}
 	 */
 	static flattenIntersectionRegions(shapeRegions) {
-		/** @type {(import("../types").LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]} */
+		/** @type {import("../types").FlatLineOfSightIntersectionRegion[]} */
 		const flatIntersections = [];
 
 		// Find all points where a change happens - this may be entering, leaving or touching a shape.
@@ -421,6 +423,10 @@ export class LineOfSight {
 
 		/** @type {{ x: number; y: number; h: number; t: number; }} */
 		let lastPosition = undefined; // first boundary should always have 0 'active regions'
+
+		// Array of terrainTypeIds ordered by their order defined in the settings. We use this to determine which should
+		// be shown in the case of multiple overlapping shapes.
+		const terrainTypeIdPriority = getTerrainTypes().map(t => t.id);
 
 		for (const boundary of boundaries) {
 			// Collect a list of intersection regions 'active' at this boundary.
@@ -434,27 +440,39 @@ export class LineOfSight {
 			// At boundary x=3, one region would be 'active', the skimming region against shape 2.
 			// At boundary x=4, one region would be 'active', the shape entry into shape 2.
 			// At boundary x=5, one region would be 'active', another skimming region against shape 2.
-			const { t, h } = boundary;
+			const { t } = boundary;
 			const activeRegions = shapeRegions
 				.map(({ shape, regions }) => ({ shape, region: regions.find(r => r.start.t < t && r.end.t >= t) }))
 				.filter(({ region }) => !!region);
 
 			// If there is no active region, don't add an element to the intersections array, just move the position on.
-			// There should only be 1 or 2 active regions. If there are two, that means that the ray 'skimmed' between
-			// two adjacent shapes. In this case, this is an intersection, NOT a skim.
 			if (activeRegions.length > 0) {
-				// In the case of multiple, the resulting elevation is the lowest shape, and the height is the distance
-				// from the lowest shape to the highest shape
+				// With custom terrain providers, it is possible for there to be multiple active regions simultaneously.
+				// In this case, the resulting elevation is the lowest shape, and the height is the distance from the
+				// bottom (elevation) of the lowest shape to the top (height + elevation) of the highest shape
 				const elevation = Math.min.apply(null, activeRegions.map(r => r.shape.elevation));
 				const height = Math.max.apply(null, activeRegions.map(r => r.shape.height + r.shape.elevation)) - elevation;
+
+				// Prioritise the IDs based on the index the ID is defined in the settings.
+				// I.E. terrain types that appear higher in the list in the palette have priority here.
+				const prioritisedIds = [...new Set(activeRegions.map(r => r.shape.terrainTypeId))]
+					.sort((a, b) => terrainTypeIdPriority.indexOf(a) - terrainTypeIdPriority.indexOf(b));
+
+				// To determine if the resulting flattened region has skimmed there are a few cases to account for.
+				// - If any of the constituent regions are not skimmed, then the flat region is a non-skim
+				// - If all of the constituent regions are skims, AND if there is a skim on either side of the test ray,
+				//   then the flat region is effectively not a skim as it goes through terrain.
+				const skimmed = activeRegions.every(r => r.region.skimmed)
+					&& !(activeRegions.some(r => r.region.skimSide === 1) && activeRegions.some(r => r.region.skimSide === -1));
 
 				flatIntersections.push({
 					start: lastPosition,
 					end: boundary,
-					terrainTypeId: activeRegions[0].shape.terrainTypeId, // there's no good way to resolve this for multiple shapes, so just use whichever happens to be first
+					terrainTypeId: prioritisedIds[0],
+					terrainTypeIds: prioritisedIds,
 					height,
 					elevation,
-					skimmed: activeRegions.length === 1 && activeRegions[0].region.skimmed
+					skimmed
 				});
 			}
 

@@ -23,10 +23,25 @@ export interface HeightMapShape {
 }
 
 /** An object detailing the region of an intersection of a line of sight ray and a shape on the height map. */
-interface LineOfSightIntersectionRegion {
+export interface LineOfSightIntersectionRegion {
 	/** The start position of the intersection region. */
-	start: Point3D;
+	start: { x: number; y: number; h: number; t: number; };
 	/** The end position of the intersection region. */
-	end: Point3D;
+	end: { x: number; y: number; h: number; t: number; };
+	skimmed: boolean;
+
+	/** If a skim occured, which side of the test ray it occured. -1 = left, 1 = right, 0 = top skim. */
+	skimSide: undefined | -1 | 0 | 1;
+}
+
+export interface FlatLineOfSightIntersectionRegion {
+	/** The start position of the intersection region. */
+	start: { x: number; y: number; h: number; t: number; };
+	/** The end position of the intersection region. */
+	end: { x: number; y: number; h: number; t: number; };
+	terrainTypeId: string;
+	terrainTypeIds: string[];
+	height: number;
+	elevation: number;
 	skimmed: boolean;
 }

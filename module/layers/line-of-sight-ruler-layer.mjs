@@ -515,7 +515,7 @@ class LineOfSightRuler extends PIXI.Container {
 
 	#includeNoHeightTerrain = false;
 
-	/** @type {ReturnType<typeof LineOfSight.flattenIntersectionRegions>} */
+	/** @type {import("../types").FlatLineOfSightIntersectionRegion[]} */
 	#intersectionRegions = [];
 
 	/** @type {PIXI.Graphics} */

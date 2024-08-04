@@ -75,6 +75,7 @@ An array of region objects where a ray drawn from `p1` to `p2` intersects or tou
 |`end.t`|`number`|How far along the line of sight ray the intersection ended. Will always be a value between 0 and 1 inclusive. E.G. on a ray that is 200px long, a `t` value of 0.3 would mean that it ended 60 pixels along the ray.|
 |`skimmed`|`boolean`|If `true`, this region is an area where the line of sight ray touches but does not completely enter the shape. This will also be the case if the line of sight ray is flat and the shape is the height of the ray. For example a ray where p1.h = 1 and p2.h = 2 intersecting a height 1 object will always result in a skim. If `false`, the ray has completely entered the shape.|
 |`terrainTypeId`|`string`|The ID of the terrain type that was intersected. In cases where the ray skims two terrain types, this will be the ID of the one that is defined first.|
+|`terrainTypeIds`|`string[]`|The distinct IDs of the terrain types that were intersected. (Available since v0.4.0)|
 |`height`|`number`|The height of the terrain type that was intersected. This is NOT the height at which the ray entered/left the shape. In cases where the ray skims two terrain types, this will be the highest of the two.|
 |`elevation`|`number`|The elevation of the terrain type that was intersected.|
 
@@ -148,6 +149,7 @@ The `regions` array is an array of objects.
 |`end.h`|`number`|The height where the intersection ended.|
 |`end.t`|`number`|How far along the line of sight ray the intersection ended. Will always be a value between 0 and 1 inclusive. E.G. on a ray that is 200px long, a `t` value of 0.3 would mean that it ended 60 pixels along the ray.|
 |`skimmed`|`boolean`|If `true`, this region is an area where the line of sight ray touches but does not completely enter the shape. This will also be the case if the line of sight ray is flat and the shape is the height of the ray. For example a ray where p1.h = 1 and p2.h = 2 intersecting a height 1 object will always result in a skim. If `false`, the ray has completely entered the shape.|
+|`skimSide`|`undefined \| -1 \| 0 \| 1`|Which side of the shape (if any) the skim occured on. `undefined` means it did not skim, `0` means a skim on the top or the bottom, `-1` means a skim where the shape was on the left-hand side of the ray, and `1` means a skim where the shape is on the right-hand side of the ray. (Available since v0.4.0)|
 
 ## calculateLineOfSightRaysBetweenTokens
 
