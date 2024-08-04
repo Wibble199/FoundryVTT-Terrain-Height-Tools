@@ -177,11 +177,11 @@ export class TerrainHeightGraphics extends CanvasLayer {
 			this.#setGraphicsStyleFromTerrainStyle(terrainStyle, textures);
 			if (terrainStyle.lineType === lineTypes.dashed) this.#graphics.lineStyle({ width: 0 });
 
-			this.#drawTerrainPolygon(shape.polygon, terrainStyle, textures);
+			this.#drawTerrainPolygon(shape.polygon);
 
-			for (const hole of shape.holes) {
+			for (const hole of shape.holes ?? []) {
 				this.#graphics.beginHole();
-				this.#drawTerrainPolygon(hole, terrainStyle, textures, true);
+				this.#drawTerrainPolygon(hole);
 				this.#graphics.endHole();
 			}
 
@@ -195,7 +195,7 @@ export class TerrainHeightGraphics extends CanvasLayer {
 				};
 
 				drawDashedPath(this.#graphics, shape.polygon.vertices, dashedLineStyle);
-				for (const hole of shape.holes) drawDashedPath(this.#graphics, hole.vertices, dashedLineStyle);
+				for (const hole of shape.holes ?? []) drawDashedPath(this.#graphics, hole.vertices, dashedLineStyle);
 			}
 
 			// Finally, do the label
@@ -274,7 +274,7 @@ export class TerrainHeightGraphics extends CanvasLayer {
 				: 0;
 		};
 
-		const allEdges = shape.polygon.edges.concat(shape.holes.flatMap(h => h.edges));
+		const allEdges = shape.polygon.edges.concat(shape.holes?.flatMap(h => h.edges) ?? []);
 
 		/** Tests that if the text was position centrally at the given point, if it fits in the shape entirely. */
 		const testTextPosition = (x, y, rotated = false) => {
@@ -283,7 +283,7 @@ export class TerrainHeightGraphics extends CanvasLayer {
 				: new LineSegment(new Point(x - text.width / 2, y), new Point(x + text.width / 2, y));
 
 			return shape.polygon.containsPoint(x, y)
-				&& shape.holes.every(h => !h.containsPoint(x, y, false))
+				&& (shape.holes?.every(h => !h.containsPoint(x, y, false)) ?? true)
 				&& allEdges.every(e => !e.intersectsAt(testEdge));
 		};
 
@@ -314,7 +314,7 @@ export class TerrainHeightGraphics extends CanvasLayer {
 			/** @type {number[]} */
 			const intersections = shape.polygon.edges
 				.map(e => e.intersectsYAt(y))
-				.concat(shape.holes.flatMap(h => h.edges.flatMap(e => e.intersectsYAt(y))))
+				.concat(shape.holes?.flatMap(h => h.edges.flatMap(e => e.intersectsYAt(y))) ?? [])
 				.filter(Number)
 				.sort((a, b) => a - b);
 
@@ -341,7 +341,7 @@ export class TerrainHeightGraphics extends CanvasLayer {
 				/** @type {number[]} */
 				const intersections = shape.polygon.edges
 					.map(e => e.intersectsXAt(x))
-					.concat(shape.holes.flatMap(h => h.edges.flatMap(e => e.intersectsXAt(x))))
+					.concat(shape.holes?.flatMap(h => h.edges.flatMap(e => e.intersectsXAt(x))) ?? [])
 					.filter(Number)
 					.sort((a, b) => a - b);
 

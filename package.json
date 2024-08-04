@@ -1,0 +1,10 @@
+{
+  "name": "terrain-height-tools",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/**/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.1.0"
+  }
+}

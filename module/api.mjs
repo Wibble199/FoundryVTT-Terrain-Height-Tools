@@ -3,7 +3,8 @@
 
 import { layers, moduleName, settings } from "./consts.mjs";
 import { HeightMap } from "./geometry/height-map.mjs";
-import { calculateLineOfSight as calculateLineOfSightImpl, flattenLineOfSightIntersectionRegions } from "./geometry/line-of-sight.mjs";
+import { LineOfSight } from "./geometry/line-of-sight.mjs";
+import { LineSegment } from "./geometry/line-segment.mjs";
 import { Point } from "./geometry/point.mjs";
 import { Polygon } from "./geometry/polygon.mjs";
 import { terrainData, terrainProviders$ } from "./geometry/terrain-providers.mjs";
@@ -18,7 +19,7 @@ export const terrainProviders = {
 };
 
 export const classes = {
-	geometry: { HeightMap, Point, Polygon, PolygonEdge },
+	geometry: { HeightMap, LineOfSight, LineSegment, Point, Polygon },
 	reactive: { Observable, Signal, SignalSet }
 };
 
@@ -99,7 +100,7 @@ export function eraseCells(cells) {
  * @returns {(import("./types").LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]}
  */
 export function calculateLineOfSight(p1, p2, options = {}) {
-	return flattenLineOfSightIntersectionRegions(calculateLineOfSightByShape(p1, p2, options));
+	return LineOfSight.flattenIntersectionRegions(calculateLineOfSightByShape(p1, p2, options));
 }
 
 /**
@@ -113,7 +114,7 @@ export function calculateLineOfSight(p1, p2, options = {}) {
  * @returns {{ shape: import("./types").HeightMapShape; regions: import("./types").LineOfSightIntersectionRegion[]; }[]}
  */
 export function calculateLineOfSightByShape(p1, p2, options = {}) {
-	return calculateLineOfSightImpl(terrainData.current, p1, p2, options);
+	return LineOfSight.calculate(terrainData.current, p1, p2, options);
 }
 
 /**

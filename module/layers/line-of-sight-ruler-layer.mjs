@@ -1,6 +1,6 @@
 import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.mjs";
-import { calculateLineOfSight, flattenLineOfSightIntersectionRegions } from "../geometry/line-of-sight.mjs";
+import { LineOfSight } from "../geometry/line-of-sight.mjs";
 import { LineSegment } from "../geometry/line-segment.mjs";
 import { Polygon } from "../geometry/polygon.mjs";
 import { terrainData } from "../geometry/terrain-providers.mjs";
@@ -77,7 +77,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		this.eventMode = "static";
 	}
 
-	get isToolSelected() {
+	get #isToolSelected() {
 		return game.activeTool === tools.lineOfSight;
 	}
 
@@ -85,7 +85,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		return this._rulerStartPoint$.value !== undefined;
 	}
 
-	/** @override */
+	/** @override @protected */
 	async _draw() {
 		if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
 
@@ -157,18 +157,18 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 				sceneControls.activeControl$,
 				sceneControls.activeTool$
 			).subscribe(([rulerStartPoint]) => {
-				this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
+				this.#lineStartIndicator.visible = this.#isToolSelected && !rulerStartPoint;
 			})
 		];
 	}
 
-	/** @override */
+	/** @override @protected */
 	async _tearDown() {
 		await super._tearDown();
 		this.#setupEventListeners("off");
 
 		// Ensure this user's rulers are cleared for others when this user changes scenes
-		this._clearAllCurrentUserRulers();
+		this.#clearAllCurrentUserRulers();
 
 		this.removeChild(this.#lineStartIndicator);
 
@@ -320,7 +320,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		];
 	}
 
-	_clearAllCurrentUserRulers() {
+	#clearAllCurrentUserRulers() {
 		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r)));
 		this.#rulers.clear();
 
@@ -369,7 +369,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	#onMouseDown = event => {
-		if (!this.isToolSelected || event.button !== 0) return;
+		if (!this.#isToolSelected || event.button !== 0) return;
 
 		const [x, y] = this.#getDragPosition(event);
 		this._rulerStartPoint$.value = { x, y };
@@ -377,9 +377,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	};
 
 	#onMouseMove = event => {
-		if (!this.isToolSelected) return;
+		if (!this.#isToolSelected) return;
 
-		if (!this.isToolSelected) return;
+		if (!this.#isToolSelected) return;
 
 		// Get the drag position, which may include snapping
 		const [x, y] = this.#getDragPosition(event);
@@ -396,7 +396,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	};
 
 	#onMouseUp = event => {
-		if (!this.isToolSelected || !this.#isDraggingRuler || event.button !== 0) return;
+		if (!this.#isToolSelected || !this.#isDraggingRuler || event.button !== 0) return;
 
 		this._rulerStartPoint$.value = this._rulerEndPoint$.value = undefined;
 	};
@@ -428,9 +428,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		return [nearestSnapPoint[0], nearestSnapPoint[1]];
 	}
 
-	/** @param {number} delta  */
+	/** @param {1 | -1} delta The sign of the height change to apply. */
 	_handleHeightChangeKeybinding(delta) {
-		if (!this.isToolSelected) return;
+		if (!this.#isToolSelected) return;
 
 		// When increasing or decreasing the height, snap to the nearest whole number.
 		// Special case: we also want to snap to 0.5 height.
@@ -515,7 +515,7 @@ class LineOfSightRuler extends PIXI.Container {
 
 	#includeNoHeightTerrain = false;
 
-	/** @type {ReturnType<typeof flattenLineOfSightIntersectionRegions>} */
+	/** @type {ReturnType<typeof LineOfSight.flattenIntersectionRegions>} */
 	#intersectionRegions = [];
 
 	/** @type {PIXI.Graphics} */
@@ -567,17 +567,17 @@ class LineOfSightRuler extends PIXI.Container {
 		}
 
 		if (hasChanged) {
-			this._recalculateLos();
-			this._draw();
+			this.#recalculateLos();
+			this.#draw();
 		}
 	}
 
-	_recalculateLos() {
-		const intersectionRegions = calculateLineOfSight(terrainData.current, this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
-		this.#intersectionRegions = flattenLineOfSightIntersectionRegions(intersectionRegions);
+	#recalculateLos() {
+		const intersectionRegions = LineOfSight.calculate(terrainData.current, this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
+		this.#intersectionRegions = LineOfSight.flattenIntersectionRegions(intersectionRegions);
 	}
 
-	_draw() {
+	#draw() {
 		this.#line.clear();
 
 		const terrainTypes = getTerrainTypeMap();

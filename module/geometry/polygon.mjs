@@ -1,4 +1,4 @@
-import { distinctBy } from '../utils/array-utils.mjs';
+import { chunk, distinctBy } from '../utils/array-utils.mjs';
 import { LineSegment } from "./line-segment.mjs";
 import { Point } from "./point.mjs";
 
@@ -55,6 +55,10 @@ export class Polygon {
 		const vertex = x instanceof Point ? x
 			: typeof x === "object" ? new Point(x.x, x.y)
 			: new Point(x, y);
+
+		// Check that the point is not identical to the previous, as this would cause a 0 length edge.
+		if (this.#vertices.length > 0 && vertex.equals(this.#vertices[this.#vertices.length - 1], { precision: Number.EPSILON }))
+			throw new Error("Cannot add vertex. It is identical to the previous vertex.");
 
 		this.#vertices.push(vertex);
 
@@ -235,6 +239,49 @@ export class Polygon {
 			if (idx === startIdx) return;
 			yield this.#edges[idx];
 		}
+	}
+
+	/**
+	 * Given a set of distinct edges belonging to this Polygon, attempts to pair them up by which ones are adjacent to
+	 * one another. An even number of edges must be provided. The edge pairs yielded from this generator are ordered
+	 * based on the defined order in the Polygon. The edges are also ordered within each pair.
+	 * @param {LineSegment[]} edges
+	 * @returns {[LineSegment, LineSegment][]}
+	 */
+	pairEdges(edges) {
+		if (edges.length === 0) return [];
+
+		// If there are as many edges provided as there are in the poly, we don't know where the pairs start. E.G. if
+		// there were 4 edges in the poly and 4 are provided, they could be paired [[0, 1], [2, 3]] OR [[1, 2], [3, 0]].
+		if (edges.length >= this.#edges.length)
+			throw new Error("Cannot perform edge pairing when there are an equal or greater number of edges than exist in the Polygon.");
+
+		const edgesIndices = [...edges].map(e => this.#edges.indexOf(e)).sort((a, b) => a - b);
+
+		// If any of the indices are -1, then we failed to find it in this polygon
+		if (edgesIndices.includes(-1))
+			throw new Error("At least one of the edges provided do not exist within the Polygon.");
+
+		// There is an edge case when pairing that if edge 0 is in the provided edges, this could either be the first or
+		// last edge in a pair. In this case, we iterate backwards over the edge indices from the end of the array. If
+		// that index value is the total number of egdes - i, then that edge is relevant to us. Keep going until we find
+		// an edge that isn't relevant, toggling a flag each time. If we hit an odd number of relevant edges, then we
+		// move the 0 from the start of the array to the end of the array so that it can be handled properly by `chunk`.
+		if (edgesIndices[0] === 0) {
+			let i = 1;
+			let shouldMove0 = false;
+			while (edgesIndices[edgesIndices.length - i] === this.#edges.length - i) {
+				i++;
+				shouldMove0 = !shouldMove0;
+			}
+
+			if (shouldMove0) {
+				edgesIndices.shift();
+				edgesIndices.push(0);
+			}
+		}
+
+		return chunk(edgesIndices.map(idx => this.#edges[idx]), 2);
 	}
 
 	/**
