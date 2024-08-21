@@ -220,7 +220,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			userRulers.push(this.addChild(new LineOfSightRuler(Color.from(game.users.get(userId).color))));
 
 		while (userRulers.length > rulers.length)
-			this.removeChild(userRulers.pop());
+			this.removeChild(userRulers.pop()).destroy();
 
 		// Update the rulers
 		for (let i = 0; i < rulers.length; i++) {
@@ -321,7 +321,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	#clearAllCurrentUserRulers() {
-		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r)));
+		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r).destroy()));
 		this.#rulers.clear();
 
 		this._rulerStartPoint$.value = undefined;
@@ -527,6 +527,9 @@ class LineOfSightRuler extends PIXI.Container {
 	/** @type {LineOfSightRulerLineCap} */
 	#endCap;
 
+	/** @type {() => void} */
+	#terrainDataUnsubscribe;
+
 	/** @param {number} color */
 	constructor(color = 0xFFFFFF) {
 		super();
@@ -534,6 +537,15 @@ class LineOfSightRuler extends PIXI.Container {
 		this.#line = this.addChild(new PIXI.Graphics());
 		this.#startCap = this.addChild(new LineOfSightRulerLineCap(color));
 		this.#endCap = this.addChild(new LineOfSightRulerLineCap(color));
+
+		this.#terrainDataUnsubscribe = terrainData.$.subscribe(() => {
+			this.#recalculateLos();
+			this.#draw();
+		});
+	}
+
+	destroy() {
+		this.#terrainDataUnsubscribe();
 	}
 
 	/** @param {boolean} value */

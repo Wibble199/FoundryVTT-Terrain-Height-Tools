@@ -214,7 +214,7 @@ export class HeightMap {
 	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
 	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
 	 * @param {number} elevation The elevation value of the given polygons. Only used to populate the metadata.
-	 * @returns {{ poly: Polygon; holes: Polygon[] }[]}
+	 * @returns {import("../types").HeightMapShape[]}
 	 */
 	static #combinePolygons(originalPolygons, terrainTypeId, height, elevation) {
 
