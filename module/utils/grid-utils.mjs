@@ -114,3 +114,21 @@ function pointArrayToObjects(arr, xOffset = 0, yOffset = 0) {
 		points.push({ x: arr[i] + xOffset, y: arr[i + 1] + yOffset });
 	return points;
 }
+
+/**
+ * Converts a value in from grid cells into scene units.
+ * For example, if the canvas was set to 0.5, passing 3 to this function would return 1.5.
+ * @param {number} val
+ */
+export function toSceneUnits(val) {
+	return val * game.canvas.scene.dimensions.distance;
+}
+
+/**
+ * Converts a value in scene units into grid cells.
+ * For example, if the canvas was set to 5ft, passing 10 to this function would return 2.
+ * @param {number} val
+ */
+export function fromSceneUnits(val) {
+	return val / game.canvas.scene.dimensions.distance;
+}

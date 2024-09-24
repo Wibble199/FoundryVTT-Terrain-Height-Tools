@@ -1,4 +1,5 @@
 import { moduleName } from "../consts.mjs";
+import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
@@ -82,11 +83,11 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 
 			// Update height input
 			layer._selectedPaintingHeight$.subscribe(height =>
-				html.find("[name='selectedHeight']").val(height), true),
+				html.find("[name='selectedHeight']").val(toSceneUnits(height)), true),
 
 			// Update elevation input
 			layer._selectedPaintingElevation$.subscribe(elevation =>
-				html.find("[name='selectedElevation']").val(elevation), true)
+				html.find("[name='selectedElevation']").val(toSceneUnits(elevation)), true)
 		];
 
 		html.find("[data-terrain-id]").on("click", this.#onTerrainSelect.bind(this));
@@ -95,17 +96,17 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 
 		// On input change, update the relevant Signal
 		html.find("[name='selectedHeight']").on("input", evt =>
-			layer._selectedPaintingHeight$.value = this.#getInputValue(evt));
+			layer._selectedPaintingHeight$.value = fromSceneUnits(this.#getInputValue(evt)));
 
 		html.find("[name='selectedElevation']").on("input", evt =>
-			layer._selectedPaintingElevation$.value = this.#getInputValue(evt));
+			layer._selectedPaintingElevation$.value = fromSceneUnits(this.#getInputValue(evt)));
 
 		// On blur, set the value of the input to the Signal, so that if it was left as an invalid number it resets and shows the correct value again
 		html.find("[name='selectedHeight']").on("blur", evt =>
-			evt.currentTarget.value = layer._selectedPaintingHeight$.value);
+			evt.currentTarget.value = toSceneUnits(layer._selectedPaintingHeight$.value));
 
 		html.find("[name='selectedElevation']").on("blur", evt =>
-			evt.currentTarget.value = layer._selectedPaintingElevation$.value);
+			evt.currentTarget.value = toSceneUnits(layer._selectedPaintingElevation$.value));
 	}
 
 	#onTerrainSelect(event) {

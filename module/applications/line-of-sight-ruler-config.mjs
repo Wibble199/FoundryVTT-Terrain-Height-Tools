@@ -1,4 +1,5 @@
 import { moduleName } from '../consts.mjs';
+import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 export class LineOfSightRulerConfig extends withSubscriptions(Application) {
@@ -26,10 +27,10 @@ export class LineOfSightRulerConfig extends withSubscriptions(Application) {
 
 		this._subscriptions = [
 			rulerLayer._rulerStartHeight$.subscribe(v =>
-				html.find("[name='rulerStartHeight']").val(v), true),
+				html.find("[name='rulerStartHeight']").val(toSceneUnits(v)), true),
 
 			rulerLayer._rulerEndHeight$.subscribe(v =>
-				html.find("[name='rulerEndHeight']").val(v ?? ''), true),
+				html.find("[name='rulerEndHeight']").val(v ? toSceneUnits(v) : ''), true),
 
 			rulerLayer._rulerIncludeNoHeightTerrain$.subscribe(v =>
 				html.find("[name='rulerIncludeNoHeightTerrain']").prop("checked", v), true)
@@ -37,7 +38,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(Application) {
 
 		// Start height
 		html.find("[name='rulerStartHeight']").on("input", e => {
-			const val = +e.target.value;
+			const val = fromSceneUnits(+e.target.value);
 			if (!isNaN(val) && rulerLayer._rulerStartHeight$.value !== val)
 				rulerLayer._rulerStartHeight$.value = val;
 		});
@@ -50,7 +51,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(Application) {
 				return;
 			}
 
-			const val = +e.target.value;
+			const val = fromSceneUnits(+e.target.value);
 			if (!isNaN(val) && rulerLayer._rulerEndHeight$.value !== val)
 				rulerLayer._rulerEndHeight$.value = val;
 		});

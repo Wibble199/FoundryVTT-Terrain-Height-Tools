@@ -3,7 +3,7 @@ import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.
 import { HeightMap } from "../geometry/height-map.mjs";
 import { LineSegment } from "../geometry/line-segment.mjs";
 import { Polygon } from "../geometry/polygon.mjs";
-import { getGridCellPolygon, getGridCenter, getGridVerticesFromToken } from "../utils/grid-utils.mjs";
+import { getGridCellPolygon, getGridCenter, getGridVerticesFromToken, toSceneUnits } from "../utils/grid-utils.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { Signal } from "../utils/signal.mjs";
@@ -480,7 +480,7 @@ class LineOfSightRulerLineCap extends PIXI.Container {
 
 	/** @param {number} value */
 	set height(value) {
-		this.#text.text = `H${prettyFraction(value)}`;
+		this.#text.text = `H${prettyFraction(toSceneUnits(value))}`;
 	}
 
 	/** @param {boolean} value */
