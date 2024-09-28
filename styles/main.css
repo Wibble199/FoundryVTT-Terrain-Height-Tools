@@ -143,10 +143,18 @@
 	border-left: 2px groove #FFFFFF;
 }
 
-#tht_terrainTypesConfig .terrain-type-content .uses-height-checkbox {
+#tht_terrainTypesConfig .terrain-type-content .terrain-type-content-full-width {
 	grid-column: 1 / 6;
 	display: flex;
+}
+
+#tht_terrainTypesConfig .terrain-type-content .terrain-type-content-full-width > div {
+	display: flex;
 	align-items: center;
+}
+
+#tht_terrainTypesConfig .terrain-type-content .terrain-type-content-full-width > div:not(:first-child) {
+	margin-left: 16px;
 }
 
 #tht_terrainTypesConfig .terrain-type-content .form-group input[type="checkbox"] {

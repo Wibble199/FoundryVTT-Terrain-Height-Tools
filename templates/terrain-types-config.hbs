@@ -20,9 +20,15 @@
 				</div>
 
 				<div class="terrain-type-content {{#unless (lookup ../expandedTypes terrainType.id)}}collapsed{{/unless}}">
-					<div class="uses-height-checkbox">
-						<input id="{{idx}}_usesHeight" type="checkbox" name="{{idx}}.usesHeight" {{checked terrainType.usesHeight}}>
-						<label for="{{idx}}_usesHeight">Has height</label>
+					<div class="terrain-type-content-full-width">
+						<div>
+							<input id="{{idx}}_usesHeight" type="checkbox" name="{{idx}}.usesHeight" {{checked terrainType.usesHeight}}>
+							<label for="{{idx}}_usesHeight">{{localize "TERRAINHEIGHTTOOLS.HasHeight"}}</label>
+						</div>
+						<div>
+							<input id="{{idx}}_isSolid" type="checkbox" name="{{idx}}.isSolid" {{checked terrainType.isSolid}}>
+							<label for="{{idx}}_isSolid">{{localize "TERRAINHEIGHTTOOLS.IsSolid"}}</label>
+						</div>
 					</div>
 
 					<div>

@@ -25,6 +25,7 @@ export const settings = /** @type {const} */ ({
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
 	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
 	terrainTypes: "terrainTypes",
+	tokenElevationChange: "tokenElevationChange",
 	tokenLosToolPreselectToken1: "tokenLosToolPreselectToken1",
 	tokenLosToolPreselectToken2: "tokenLosToolPreselectToken2",
 	useFractionsForLabels: "useFractionsForLabels"

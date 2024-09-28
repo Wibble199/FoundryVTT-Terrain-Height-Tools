@@ -89,6 +89,7 @@ export function registerSettings() {
 	game.settings.register(moduleName, settings.otherUserLineOfSightRulerOpacity, {
 		name: "SETTINGS.OtherUserLineOfSightRulerOpacity.Name",
 		hint: "SETTINGS.OtherUserLineOfSightRulerOpacity.Hint",
+		scope: "client",
 		type: Number,
 		range: { min: 0, max: 1, step: 0.05 },
 		config: true,
@@ -111,6 +112,15 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: true
+	});
+
+	game.settings.register(moduleName, settings.tokenElevationChange, {
+		name: "SETTINGS.TokenElevationChange.Name",
+		hint: "SETTINGS.TokenElevationChange.Hint",
+		scope: "client",
+		type: Boolean,
+		config: true,
+		default: false
 	});
 
 	game.settings.register(moduleName, settings.useFractionsForLabels, {

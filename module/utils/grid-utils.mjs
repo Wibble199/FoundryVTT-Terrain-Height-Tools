@@ -132,3 +132,143 @@ export function toSceneUnits(val) {
 export function fromSceneUnits(val) {
 	return val / game.canvas.scene.dimensions.distance;
 }
+
+/**
+ * Returns an array of grid cells underneath the given token poisition.
+ * If the token does not lie exactly on a cell (i.e. it's not snapped), then the closest cells will be returned.
+ * When working with hex grids, does not support tokens larger than size 4.
+ * @param {{ x: number; y: number; width: number; height: number; }} position
+ * @param {boolean} isAltOrientation Hex size support module alt orientation flag.
+ * @returns {{ x: number; y: number; }[]}
+ */
+export function getCellsUnderTokenPosition(position, isAltOrientation) {
+	// Gridless: (not supported)
+	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+
+	// Square grids:
+	if (!game.canvas.grid.isHex) {
+		const topLeftCell = game.canvas.grid.grid.getGridPositionFromPixels(
+			position.x + game.canvas.grid.grid.w / 2,
+			position.y + game.canvas.grid.grid.h / 2);
+
+		const tokenCells = [];
+		for (let xOffset = 0; xOffset < position.width; xOffset++)
+		for (let yOffset = 0; yOffset < position.height; yOffset++)
+			tokenCells.push({ x: topLeftCell[0] + xOffset, y: topLeftCell[1] + yOffset });
+
+		return tokenCells;
+	}
+
+	// Hex grids:
+	/** @type {{ width: number; }} */
+	const { width: size } = position;
+
+	// Tokens above size 4 aren't supported
+	if (size > 4) return [];
+
+	// If HSS is not enabled, size 2 hex tokens seem to behave as alt orientation?
+	if (size === 2 && game.modules.get("hex-size-support")?.active !== true)
+		isAltOrientation = true;
+
+	// Find the center of the token
+	// This will be our "anchor" cell, which, for sizes > 1, other cells will be added around it
+	const tokenRect = game.canvas.grid.grid.getRect(position.width, position.height);
+	const tokenAnchorCellPosPx = {
+		x: position.x + tokenRect.width / 2,
+		y: position.y + tokenRect.height / 2
+	};
+
+	// If the token is even-sized (2 or 4), then it has no central cell so we can offset the "anchor" cell.
+	// The exact direction we need to offset it by is dependant on whether it's using the alternate orientation.
+	if (size % 2 === 0) {
+		// Center Y will actually not lie on a vertex exactly, but half the height of the sloped part of the hex.
+		// So, the amount we need to move is 0.5 * 0.75 * `h` or `w` (true height/width of the cells).
+		// FOR POINTY HEXES: if alt orientation, move up, otherwise move down
+		// FOR FLAT HEXES: if alt orientation, move left, otherwise right
+		const isColumnar = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(game.canvas.grid.type);
+		if (isColumnar)
+			tokenAnchorCellPosPx.x += (0.375 * game.canvas.grid.grid.w) * (isAltOrientation ? -1 : 1);
+		else
+			tokenAnchorCellPosPx.y += (0.375 * game.canvas.grid.grid.h) * (isAltOrientation ? -1 : 1);
+	}
+
+	/** @type {[number, number]} */
+	const tokenAnchorCellPosGc = game.canvas.grid.grid.getGridPositionFromPixels(tokenAnchorCellPosPx.x, tokenAnchorCellPosPx.y);
+
+	const tokenCells = [{ x: tokenAnchorCellPosGc[0], y: tokenAnchorCellPosGc[1] }];
+
+	// Grow the tokens based on the token size:
+	const adjustHexCellOffsets = createAdjustHexCellOffsets(tokenAnchorCellPosGc, isAltOrientation);
+	if (size >= 2) {
+		tokenCells.push(...[
+			{ x: -1, y: 0 },
+			{ x: -1, y: 1 }
+		].map(adjustHexCellOffsets));
+	}
+
+	if (size >= 3) {
+		tokenCells.push(...[
+			{ x: 0, y: -1 },
+			{ x: 0, y: 1 },
+			{ x: 1, y: 0 },
+			{ x: 1, y: 1 }
+		].map(adjustHexCellOffsets));
+	}
+
+	if (size >= 4) {
+		tokenCells.push(...[
+			{ x: -1, y: -1 },
+			{ x: -2, y: -1 },
+			{ x: -2, y: 0 },
+			{ x: -2, y: 1 },
+			{ x: -1, y: 2 },
+		].map(adjustHexCellOffsets));
+	}
+
+	return tokenCells;
+}
+
+/**
+ * Returns an array of grid cells underneath the given token.
+ * If the token does not lie exactly on a cell (i.e. it's not snapped), then the closest cells will be returned.
+ * When working with hex grids, does not support tokens larger than size 4.
+ * @param {Token} token
+ */
+export function getCellsUnderToken(token) {
+	return getCellsUnderTokenPosition(token.document, game.modules.get("hex-size-support")?.api?.isAltOrientation(token) === true);
+}
+
+/**
+ * Creates a function to adjusts the given hex cell offsets based on the current grid settings and given alt orientation
+ * @param {[number, number]} anchor
+ * @param {boolean} isAltOrientation
+ * @returns {(offset: { x: number; y: number }) => { x: number; y: number }}
+ */
+function createAdjustHexCellOffsets([anchorX, anchorY], isAltOrientation) {
+
+	// I wish I could describe more accurately what's going on here and why, but it basically just involved a lot of
+	// trial and error. Good luck and god bless if anyone needs to make any adjustments in future.
+
+	const isColumnar = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(game.canvas.grid.type);
+	const isGridEven = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXEVENR].includes(game.canvas.grid.type);
+
+	return ({ x: offsetX, y: offsetY }) => {
+		// Swap offsets for columnar grids
+		if (isColumnar)
+			[offsetX, offsetY] = [offsetY, offsetX];
+
+		// Account for token alternate orientations
+		if (isColumnar && isAltOrientation)
+			offsetY *= -1;
+		else if (!isColumnar && isAltOrientation)
+			offsetX *= -1;
+
+		// Even/odd rows offset differently, so account for that
+		if (isColumnar && Math.abs(offsetY % 2) === 1 && Math.abs(anchorY % 2) === (isGridEven ? 1 : 0))
+			offsetX--;
+		else if (!isColumnar && Math.abs(offsetX % 2) === 1 && Math.abs(anchorX % 2) === (isGridEven ? 1 : 0))
+			offsetY--;
+
+		return { x: anchorX + offsetX, y: anchorY + offsetY };
+	};
+}

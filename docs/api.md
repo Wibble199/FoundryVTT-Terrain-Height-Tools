@@ -390,6 +390,7 @@ If it was found, an object with the following properties:
 |`id`|`string`|A unique ID for this terrain type.|
 |`name`|`string`|The name of this terrain type, as shown in the palette.|
 |`usesHeight`|`boolean`|Whether or not the terrain type has a height value.|
+|`isSolid`|`boolean`|Whether or not the terrain type is considered solid for the purposes of automatically adjusting token height (since v0.3.6).|
 |`fillType`|`number`|The fill type used by the terrain type: 0 = none; 1 = solid; 2 = texture.|
 |`fillColor`|`string`|A hex string for the fill color.|
 |`fillOpacity`|`number`|The opacity of the fill. 0 = transparent, 1 = opaque.|
@@ -432,6 +433,7 @@ An array of objects with the following properties:
 |`id`|`string`|A unique ID for this terrain type.|
 |`name`|`string`|The name of this terrain type, as shown in the palette.|
 |`usesHeight`|`boolean`|Whether or not the terrain type has a height value.|
+|`isSolid`|`boolean`|Whether or not the terrain type is considered solid for the purposes of automatically adjusting token height (since v0.3.6).|
 |`fillType`|`number`|The fill type used by the terrain type: 0 = none; 1 = solid; 2 = texture.|
 |`fillColor`|`string`|A hex string for the fill color.|
 |`fillOpacity`|`number`|The opacity of the fill. 0 = transparent, 1 = opaque.|
