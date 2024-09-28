@@ -62,9 +62,10 @@ To add a new terrain type simply:
 2. Give it a name (labelled 2 in the above image). Note that this is what shows in the palette window, NOT what is shown to players on the scene canvas.
 3. Select whether or not the terrain type should have a height/elevation.
 	- This is the default, however for some types (e.g. objective/control zones) it may not make sense to give them a height. This setting will disable the height option in the palette, and prevent you from accidentally having areas with different heights. Note that disabling this will NOT affect already-painted grid cells.
-4. Configure the style of the area that will be painted on the scene - these settings should be familiar if you have used the default Foundry drawing tool before.
+4. Select whether or not the terrain type should be considered 'solid'. At the moment this is only used for the optional functionality to change a token's elevation when moving over terrain; If the terrain type is considered non-solid, then tokens will be able to pass through it (e.g. smoke/dust).
+5. Configure the style of the area that will be painted on the scene - these settings should be familiar if you have used the default Foundry drawing tool before.
 	- One thing to note though is that the '_Text Label_' (number 8 in the above image), which is what the area will be labelled as, allows a `%h%` and/or a `%e%` placeholder to be used. These will be replaced with the height or elevation value of the painted terrain respectively. For example, if you create a type with a label of `H%h%`, when painted on the scene at height 2, it will have a label of `H2`. If painted at height 4, it will have a label of `H4`, etc. Likewise, a label of `H%h%+%e%` would show `H3+4` if it was a height 3 terrain at an elevation of 4.
-5. Click '_Save Changes_' in the bottom right, and your new terrain type will show up in the palette.
+6. Click '_Save Changes_' in the bottom right, and your new terrain type will show up in the palette.
 
 There are some other useful buttons:
 - Button 1 expands/collapses the terrain type configuration. Just helps keep the menu tidy!
@@ -85,10 +86,11 @@ Here is a quick reference of the settings module presents in the 'Configure Sett
 - `Other User's LoS Ruler Opacity` - How opaque/transparent other user's line of sight rulers will appear to you.
 - `Token LoS: Auto-populate Primary Token` - If true, when selecting the Token Line of Sight tool, THT will attempt to populate the first token for LoS measurement. It will prioritise a selected token on the scene if you have one, or if there isn't one it'll attempt to fallback to the token that represents the actor you have configured as your character.
 - `Token LoS: Auto-populate Secondary Token` - If true, when selecting the Token Line of Sight tool, THT will attempt to populate the second token for LoS measurement. It will use the first targeted token on the scene, if there is one.
+- `Automatic Token Elevation Change` - If true, when you move tokens, the token's elevation will be adjusted when moved over terrain. The relative height above the ground for a token is maintained. For example, if a token was at elevation 1, when moving it over H2 terrain, it's elevation will become 3. Non-solid terrain is excluded from this. If the token occupies multiple different terrains, the highest one takes precedence.
 
 #### GM Only
 
-- `Terrain Types` - Button to open the terrain type configuration (see [above]((#configuring-terrain-types)))
+- `Terrain Types` - Button to open the terrain type configuration (see [above](#configuring-terrain-types))
 - `Terrain Height Map Above Tiles` - This determines whether or not the terrain height map is shown above or below ground-level tiles. The height map is ALWAYS shown below overhead tiles. This can also be configured on a per-scene basis using the 'Terrain Height Map Layer' option on the 'Grid' tab of the scene config settings.
 - `Display Line of Sight Ruler (GM)` - If true, the GM's Line of Sight measurements will be shown to other players.
 - `Display Line of Sight Ruler (Player)` - If true, players' Line of Sight measurements will be shown to other players.
