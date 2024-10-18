@@ -36,6 +36,18 @@ export function getCell(x, y) {
 }
 
 /**
+ * Gets the terrain shape at the given grid coordinates.
+ * @param {number} x
+ * @param {number} y
+ * @param {import("./geometry/height-map.mjs").HeightMapShape | undefined}
+ */
+export function getShape(x, y) {
+	/** @type {import("./geometry/height-map.mjs").HeightMap} */
+	const hm = game.canvas.terrainHeightLayer._heightMap;
+	return hm.getShape(y, x);
+}
+
+/**
  * Paints the target cells on the current scene with the provided terrain data.
  * @param {[number, number][]} cells The grid cells to paint as [X,Y] coordinate pairs. The cells do not have to be
  * connected.

@@ -26,3 +26,46 @@ export function prettyFraction(v) {
 		default: return v + "";
 	}
 }
+
+/**
+ * A Set that can be iterated in order the items were added. When iterating, any additional items added to the set while
+ * iterating over it will also be included in the current iterator.
+ * @template T
+ */
+export class OrderedSet {
+
+	/** @type {Set<T>} */
+	#itemsSet = new Set();
+
+	/** @type {T[]} */
+	#itemsArray = [];
+
+	/** @param {Iterable<T>} initialItems */
+	constructor(initialItems = undefined) {
+		this.addRange(initialItems);
+	}
+
+	/** @param {T} item */
+	add(item) {
+		if (this.#itemsSet.has(item)) return;
+
+		this.#itemsSet.add(item);
+		this.#itemsArray.push(item);
+	}
+
+	/** @param {Iterable<T> | undefined} items */
+	addRange(items) {
+		if (items)
+			for (const item of items)
+				this.add(item);
+	}
+
+	[Symbol.iterator]() {
+		let index = 0;
+		return {
+			next: () => index < this.#itemsArray.length
+				? { value: this.#itemsArray[index++], done: false }
+				: { value: undefined, done: true }
+		};
+	}
+}

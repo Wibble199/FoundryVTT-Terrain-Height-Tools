@@ -11,12 +11,15 @@ export const tools = /** @type {const} */ ({
 	erase: "erase",
 	eraseFill: "eraseFill",
 	lineOfSight: "terrainHeightToolsLineOfSight",
-	tokenLineOfSight: "terrainHeightToolsTokenLineOfSight"
+	tokenLineOfSight: "terrainHeightToolsTokenLineOfSight",
+	toDrawing: "toDrawing",
+	toWalls: "toWalls"
 });
 
 /** @enum {keyof typeof settings} */
 export const settings = /** @type {const} */ ({
 	defaultTokenLosTokenHeight: "defaultTokenLosTokenHeight",
+	deleteShapeAfterConvert: "deleteShapeAfterConvert",
 	displayLosMeasurementGm: "displayLosMeasurementGm",
 	displayLosMeasurementPlayer: "displayLosMeasurementPlayer",
 	otherUserLineOfSightRulerOpacity: "otherUserLineOfSightRulerOpacity",

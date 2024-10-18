@@ -5,11 +5,13 @@
 		"TerrainHeightToolsErase": "Erase",
 		"TerrainHeightToolsEraseFill": "Erase fill (Erase connected)",
 		"TerrainHeightToolsFill": "Fill",
-		"TerrainHeightToolsLineOfSightRuler": "Terrain Height Tools Line of Sight Ruler",
 		"TerrainHeightToolsLayerToggle": "Toggle Terrain Height Map",
+		"TerrainHeightToolsLineOfSightRuler": "Terrain Height Tools Line of Sight Ruler",
 		"TerrainHeightToolsPaint": "Paint",
 		"TerrainHeightToolsPipette": "Copy Terrain Configuration",
-		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight"
+		"TerrainHeightToolsToDrawing": "Convert Shapes to Drawings",
+		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight",
+		"TerrainHeightToolsToWalls": "Convert Shapes to Walls"
 	},
 	"KEYBINDINGS": {
 		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Height",
@@ -22,6 +24,8 @@
 		"DefaultTokenLosHeight.Choice.Bottom": "Bottom of token",
 		"DefaultTokenLosHeight.Choice.Middle": "Middle of token",
 		"DefaultTokenLosHeight.Choice.Top": "Top of token",
+		"DeleteTerrainShapeAfterConvert.Name": "Delete Terrain Shape after Converting",
+		"DeleteTerrainShapeAfterConvert.Hint": "If true, after using the 'Convert Shapes to Drawings' or 'Convert Shapes to Walls' tool, the shape that was converted will be deleted.",
 		"DisplayLosMeasurementGm.Name": "Display Line of Sight Ruler (GM)",
 		"DisplayLosMeasurementGm.Hint": "Whether to display the GM's line of sight measurement ruler to other connected players or not.",
 		"DisplayLosMeasurementPlayer.Name": "Display Line of Sight Ruler (Player)",
@@ -81,6 +85,7 @@
 		"MoveDown": "Move down (affects palette list only)",
 		"MoveUp": "Move up (affects palette list only)",
 		"NoTerrainTypesWarn": "No terrain types configured. Click to configure.",
+		"NotifyShapeToXComplete": "Successfully converted clicked shape to {type}",
 		"NoTokenSelected": "No token selected",
 		"PaletteTitle": "Terrain Palette",
 		"SameAsStart": "Same as start",

@@ -19,6 +19,7 @@ Functions:
 - [`drawLineOfSightRaysBetweenTokens`](#drawlineofsightraysbetweentokens)
 - [`eraseCells`](#erasecells)
 - [`getCell`](#getcell)
+- [`getShape`](#getshape)
 - [`getTerrainType`](#getterraintype)
 - [`getTerrainTypes`](#getterraintypes)
 - [`paintCells`](#paintcells)
@@ -363,6 +364,46 @@ if (cell === undefined) {
 } else {
 	const terrainType = terrainHeightTools.getTerrainType({ id: cell.terrainTypeId });
 	console.log(`${terrainType.name} is painted in this cell, at a height of ${cell.height}.`);
+}
+```
+
+## getShape
+
+![Available Since v0.3.7](https://img.shields.io/badge/Available%20Since-v0.3.7-blue?style=flat-square)
+
+Fetches the terrain shape of the shape that exists at a specific cell.
+
+### Parameters
+
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`x`|`number`|*Required*|The X coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`y`|`number`|*Required*|The Y coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+
+### Returns
+
+Either `undefined` if the cell at the given coordinates is unpainted, or an object with the following properties.
+
+|Name|Type|Description|
+|-|-|-|
+|`polygon`|`Polygon`|The polygon that defines the outer perimeter of this shape.|
+|`holes`|`Polygon[]`|An array of polygons that define holes within this shape.|
+|`terrainTypeId`|`string`|The ID of the terrain type in this cell.|
+|`height`|`number`|The height of the terrain in this cell.|
+|`elevation`|`number`|The elevation of the terrain in this cell.|
+
+### Example
+```js
+const shape = terrainHeightTools.getShape(2, 3);
+
+if (shape === undefined) {
+	console.log("This cell is unpainted.");
+} else {
+	const terrainType = terrainHeightTools.getTerrainType({ id: shape.terrainTypeId });
+	console.group(`The edges of this ${terrainType.name} shape are:`);
+	for (const edge of shape.polygon.edges)
+		console.log(edge.toString());
+	console.groupEnd();
 }
 ```
 

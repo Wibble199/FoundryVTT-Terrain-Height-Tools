@@ -3,7 +3,7 @@ import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 import { debug, error, warn } from '../utils/log.mjs';
-import { roundTo } from '../utils/misc-utils.mjs';
+import { OrderedSet, roundTo } from '../utils/misc-utils.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from './polygon.mjs';
@@ -16,6 +16,7 @@ import { Polygon } from './polygon.mjs';
  * @property {string} terrainTypeId
  * @property {number} height
  * @property {number} elevation
+ * @property {Set<string>} cells A Set of all cells that this HeightMapShape consists of, stored as `row.col`.
  */
 
 /**
@@ -83,6 +84,16 @@ export class HeightMap {
 	 */
 	get(row, col) {
 		return this.data.find(({ position }) => position[0] === row && position[1] === col);
+	}
+
+	/**
+	 * Returns the shape that exists at the given position, or `undefined` if there isn't one.
+	 * @param {number} row
+	 * @param {number} col
+	 */
+	getShape(row, col) {
+		const cellKey = `${row}.${col}`;
+		return this.#shapes.find(s => s.cells.has(cellKey));
 	}
 
 	// -------------- //
@@ -231,17 +242,30 @@ export class HeightMap {
 	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
 	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
 	 * @param {number} elevation The elevation value of the given polygons. Only used to populate the metadata.
-	 * @returns {{ poly: Polygon; holes: Polygon[] }[]}
+	 * @returns {HeightMapShape[]}
 	 */
 	static #combinePolygons(originalPolygons, terrainTypeId, height, elevation) {
 
 		// Generate a graph of all edges in all the polygons
-		const allEdges = originalPolygons.flatMap(p => p.poly.edges);
+		const allEdges = originalPolygons.flatMap(({ poly, cell: [r, c] }) =>
+			poly.edges.map(edge => ({ edge, cell: `${r}.${c}` })));
+
+		// Maintain a record of which cells are adjacent (caused by pairs of edges destructing)
+		/** @type {Map<string, Set<string>>} */
+		const connectedCells = new Map();
+
+		const connectCell = (c1, c2) => {
+			const set = connectedCells.get(c1);
+			if (set) set.add(c2);
+			else connectedCells.set(c1, new Set([c2]));
+		}
 
 		// Remove any duplicate edges
 		for (let i = 0; i < allEdges.length; i++) {
 			for (let j = i + 1; j < allEdges.length; j++) {
-				if (allEdges[i].equals(allEdges[j])) {
+				if (allEdges[i].edge.equals(allEdges[j].edge)) {
+					connectCell(allEdges[j].cell, allEdges[i].cell);
+					connectCell(allEdges[i].cell, allEdges[j].cell);
 					allEdges.splice(j, 1);
 					allEdges.splice(i, 1);
 					i--;
@@ -253,20 +277,20 @@ export class HeightMap {
 		// From some start edge, keep finding the next edge that joins it until we are back at the start.
 		// If there are multiple edges starting at a edge's endpoint (e.g. two squares touch by a corner), then
 		// use the one that most clockwise.
-		/** @type {Polygon[]} */
+		/** @type {{ polygon: Polygon; cells: Set<string>; }[]} */
 		const combinedPolygons = [];
 		while (allEdges.length) {
 			// Find the next unvisited edge, and follow the edges until we join back up with the first
 			const edges = allEdges.splice(0, 1);
-			while (!edges[0].p1.equals(edges[edges.length - 1].p2)) {
+			while (!edges[0].edge.p1.equals(edges[edges.length - 1].edge.p2)) {
 				// To find the next edge, we find edges that start where the last edge ends.
 				// For hex grids (where a max of 3 edges can meet), there will only ever be 1 other edge here (as if
 				// there were 4 edges, 2 would've overlapped and been removed) so we can just use that edge.
 				// But for square grids, there may be two edges that start here. In that case, we want to find the one
 				// that is next when rotating counter-clockwise.
 				const nextEdgeCandidates = allEdges
-					.map((edge, idx) => ({ edge, idx }))
-					.filter(({ edge }) => edge.p1.equals(edges[edges.length - 1].p2));
+					.map(({ edge }, idx) => ({ edge, idx }))
+					.filter(({ edge }) => edge.p1.equals(edges[edges.length - 1].edge.p2));
 
 				if (nextEdgeCandidates.length === 0)
 					throw new Error("Invalid graph detected. Missing edge.");
@@ -274,15 +298,28 @@ export class HeightMap {
 				const nextEdgeIndex = nextEdgeCandidates.length === 1
 					? nextEdgeCandidates[0].idx
 					: nextEdgeCandidates
-						.map(({ edge, idx }) => ({ angle: edges[edges.length - 1].angleBetween(edge), idx }))
+						.map(({ edge, idx }) => ({ angle: edges[edges.length - 1].edge.angleBetween(edge), idx }))
 						.sort((a, b) => a.angle - b.angle)[0].idx;
 
 				const [nextEdge] = allEdges.splice(nextEdgeIndex, 1);
 				edges.push(nextEdge);
 			}
 
+			// Work out which cells are part of this polygon
+			// We initialise this set with the known cells - but these will only be cells that have at least one edge
+			// that has not been destructed - e.g. in a hex with 2 polygons per side, the central hex would not be in
+			// this list.
+			// We then visit all the cells in this Set, and check to see if they are in the destruction map. If so, add
+			// the cells from inner set to this set. Keep doing that until we've visited all cells (inc. newly added).
+			const polygonCells = new OrderedSet(edges.map(({ cell }) => cell));
+			for (const cell of polygonCells)
+				polygonCells.addRange(connectedCells.get(cell));
+
 			// Add completed polygon to the list
-			combinedPolygons.push(new Polygon(edges.map(v => v.p1)));
+			combinedPolygons.push({
+				polygon: new Polygon(edges.map(({ edge }) => edge.p1)),
+				cells: new Set(polygonCells)
+			});
 		}
 
 		// To determine if a polygon is a "hole" we need to check whether it is inside another polygon.
@@ -292,15 +329,16 @@ export class HeightMap {
 		// To find the hole's parent, we search back up the sorted list of polygons in reverse for the first one that
 		// contains it.
 		/** @type {Map<boolean, typeof combinedPolygons>} */
-		const polysAreHolesMap = groupBy(combinedPolygons, polygon => !polygon.edges[0].clockwise);
+		const polysAreHolesMap = groupBy(combinedPolygons, ({ polygon }) => !polygon.edges[0].clockwise);
 
 		const solidPolygons = (polysAreHolesMap.get(false) ?? [])
-			.map(p => /** @type {HeightMapShape} */ ({
-				polygon: p,
+			.map(({ polygon, cells }) => /** @type {HeightMapShape} */ ({
+				polygon,
 				holes: [],
 				terrainTypeId,
 				height,
-				elevation
+				elevation,
+				cells
 			}));
 
 		const holePolygons = polysAreHolesMap.get(true) ?? [];
@@ -309,7 +347,7 @@ export class HeightMap {
 		// contains it. If there is only one, we have found which poly it is a hole of. If there are more, we imagine a
 		// horizontal line drawn from the topmost point of the inner polygon (with a little Y offset added so that we
 		// don't have to worry about vertex collisions) to the left and find the first polygon that it intersects.
-		for (const holePolygon of holePolygons) {
+		for (const { polygon: holePolygon } of holePolygons) {
 			const containingPolygons = solidPolygons.filter(p => p.polygon.containsPolygon(holePolygon));
 
 			if (containingPolygons.length === 0) {

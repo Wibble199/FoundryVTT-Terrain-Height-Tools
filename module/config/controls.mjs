@@ -94,6 +94,17 @@ export function registerSceneControls(controls) {
 				icon: "fas fa-fill"
 			},
 			{
+				name: tools.toDrawing,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsToDrawing"),
+				icon: "fas fa-draw-polygon"
+			},
+			{
+				name: tools.toWalls,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsToWalls"),
+				tooltip: "TOOLTIP",
+				icon: "fas fa-block-brick"
+			},
+			{
 				name: "clear",
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsClear"),
 				icon: "fas fa-trash",

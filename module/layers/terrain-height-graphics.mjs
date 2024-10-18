@@ -96,12 +96,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			const terrainStyle = terrainTypes.find(t => t.id === shape.terrainTypeId);
 			if (!terrainStyle) continue;
 
-			const label = terrainStyle.usesHeight
-				? terrainStyle.textFormat
-					.replace(/\%h\%/g, prettyFraction(toSceneUnits(shape.height)))
-					.replace(/\%e\%/g, prettyFraction(toSceneUnits(shape.elevation)))
-				: terrainStyle.textFormat;
-			const textStyle = this.#getTextStyle(terrainStyle);
+			const label = TerrainHeightGraphics._getLabel(shape, terrainStyle);
+			const textStyle = TerrainHeightGraphics.#getTextStyle(terrainStyle);
 
 			// If the line style is dashed, don't draw the lines straight away, as the moveTo/lineTo used to draw the
 			// dashed line makes the holes not work properly.
@@ -133,7 +129,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 			// Finally, do the label
 			if (label?.length)
-				this.#drawPolygonLabel(label, textStyle, shape, { smartPlacement: smartLabelPlacement, allowRotation: terrainStyle.textRotation });
+				this.labels.addChild(
+					TerrainHeightGraphics.#createPolygonLabel(label, textStyle, shape, { smartPlacement: smartLabelPlacement, allowRotation: terrainStyle.textRotation }));
 		}
 	}
 
@@ -193,11 +190,10 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * @param {boolean} [options.allowRotation=false] If both this and smartPlacement are true, the placement may also
 	 * rotate text to try get it to fit.
 	 */
-	#drawPolygonLabel(label, textStyle, shape, { smartPlacement = true, allowRotation = false } = {}) {
+	static #createPolygonLabel(label, textStyle, shape, { smartPlacement = true, allowRotation = false } = {}) {
 		// Create the text - with this we can get the width and height of the label
 		const text = new PreciseText(label, textStyle);
 		text.anchor.set(0.5);
-		this.labels.addChild(text);
 
 		/** Sets the position of the text label so that it's center is at the given positions. */
 		const setTextPosition = (x, y, rotated) => {
@@ -225,13 +221,13 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// positioning is disabled, then position it at the centroid.
 		if (!smartPlacement || testTextPosition(...shape.polygon.centroid, false)) {
 			setTextPosition(...shape.polygon.centroid);
-			return;
+			return text;
 		}
 
 		// If we can rotate the text, then check if rotating it 90 degrees at the centroid would allow it to fit entirely.
 		if (allowRotation && testTextPosition(...shape.polygon.centroid, true)) {
 			setTextPosition(...shape.polygon.centroid, true);
-			return;
+			return text;
 		}
 
 		// If the points fall outside of the polygon, we'll pick a few rays and find the widest and place the label there.
@@ -288,18 +284,33 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 			if (tallestPoint.height > widestPoint.width) {
 				setTextPosition(tallestPoint.x, tallestPoint.y, true);
-				return;
+				return text;
 			}
 		}
 
 		setTextPosition(widestPoint.x, widestPoint.y);
+
+		return text;
+	}
+
+	/**
+	 * @param {{ height: number; elevation: number; }} shape
+	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainStyle
+	 * @returns
+	 */
+	static _getLabel(shape, terrainStyle) {
+		return terrainStyle.usesHeight
+			? terrainStyle.textFormat
+				.replace(/\%h\%/g, prettyFraction(toSceneUnits(shape.height)))
+				.replace(/\%e\%/g, prettyFraction(toSceneUnits(shape.elevation)))
+			: terrainStyle.textFormat;
 	}
 
 	/**
 	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainStyle
 	 * @returns {PIXI.TextStyle}
 	 */
-	#getTextStyle(terrainStyle) {
+	static #getTextStyle(terrainStyle) {
 		const style = CONFIG.canvasTextStyle.clone();
 
 		style.fontFamily = terrainStyle.font ?? CONFIG.defaultFontFamily;

@@ -133,6 +133,15 @@ export function registerSettings() {
 		onChange: () => game.canvas.terrainHeightLayer._updateGraphics()
 	});
 
+	game.settings.register(moduleName, settings.deleteShapeAfterConvert, {
+		name: "SETTINGS.DeleteTerrainShapeAfterConvert.Name",
+		hint: "SETTINGS.DeleteTerrainShapeAfterConvert.Hint",
+		scope: "world",
+		type: Boolean,
+		config: true,
+		default: false
+	});
+
 	game.settings.register(moduleName, settings.smartLabelPlacement, {
 		name: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Name",
 		hint: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Hint",
