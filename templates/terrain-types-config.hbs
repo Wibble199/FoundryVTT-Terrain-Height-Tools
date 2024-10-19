@@ -21,17 +21,17 @@
 
 				<div class="terrain-type-content {{#unless (lookup ../expandedTypes terrainType.id)}}collapsed{{/unless}}">
 					<div class="terrain-type-content-full-width">
-						<div>
+						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.HasHeight.Hint"}}">
 							<input id="{{idx}}_usesHeight" type="checkbox" name="{{idx}}.usesHeight" {{checked terrainType.usesHeight}}>
-							<label for="{{idx}}_usesHeight">{{localize "TERRAINHEIGHTTOOLS.HasHeight"}}</label>
+							<label for="{{idx}}_usesHeight">{{localize "TERRAINHEIGHTTOOLS.HasHeight.Name"}}</label>
 						</div>
-						<div>
+						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Hint"}}">
 							<input id="{{idx}}_isAlwaysVisible" type="checkbox" name="{{idx}}.isAlwaysVisible" {{checked terrainType.isAlwaysVisible}}>
-							<label for="{{idx}}_isAlwaysVisible">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible"}}</label>
+							<label for="{{idx}}_isAlwaysVisible">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Name"}}</label>
 						</div>
-						<div>
+						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.IsSolid.Hint"}}">
 							<input id="{{idx}}_isSolid" type="checkbox" name="{{idx}}.isSolid" {{checked terrainType.isSolid}}>
-							<label for="{{idx}}_isSolid">{{localize "TERRAINHEIGHTTOOLS.IsSolid"}}</label>
+							<label for="{{idx}}_isSolid">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Name"}}</label>
 						</div>
 					</div>
 
