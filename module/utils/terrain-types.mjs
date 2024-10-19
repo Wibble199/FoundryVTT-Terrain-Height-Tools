@@ -6,6 +6,7 @@ import { lineTypes, moduleName, settings } from '../consts.mjs';
  * @property {string} name
  * @property {boolean} usesHeight
  * @property {boolean} isSolid
+ * @property {boolean} isAlwaysVisible
  * @property {boolean} textRotation
  * @property {lineTypes} lineType
  * @property {number} lineWidth
@@ -35,6 +36,7 @@ export function createDefaultTerrainType(id = undefined) {
 		name: "New Terrain Type",
 		usesHeight: true,
 		isSolid: true,
+		isAlwaysVisible: false,
 		textRotation: false,
 		lineType: lineTypes.solid,
 		lineWidth: 4,

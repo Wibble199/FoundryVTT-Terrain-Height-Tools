@@ -73,8 +73,9 @@ export class Signal {
 	/**
 	 * Subscribes to multiple Signals, and calls the given callback when any of them change.
 	 * The current values of the subscriptions are passed to the callback in the order passed to this method.
-	 * @param {(...values: any[]) => void} callback The callback to invoke when any of the Signals' values change.
-	 * @param {...Signal<any>} signals The Signals to subscribe to.
+	 * @template {any[]} U
+	 * @param {(...values: U) => void} callback The callback to invoke when any of the Signals' values change.
+	 * @param {{ [K in keyof U]: Signal<U[K]> }} signals The Signals to subscribe to.
 	 * @returns A function used to unsubscribe from all signals.
 	 */
 	static join(callback, ...signals) {

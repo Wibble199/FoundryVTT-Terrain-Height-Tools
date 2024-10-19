@@ -72,7 +72,11 @@ export function registerSettings() {
 		type: Boolean,
 		config: false,
 		default: true,
-		onChange: value => game.canvas.terrainHeightLayer._graphics.setVisible(value)
+		onChange: value => {
+			/** @type {import("../layers/terrain-height-graphics.mjs").TerrainHeightGraphics} */
+			const graphicsLayer = game.canvas.terrainHeightLayer._graphics;
+			graphicsLayer.showOnTokenLayer$.value = value;
+		}
 	});
 
 	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {
@@ -83,7 +87,11 @@ export function registerSettings() {
 		range: { min: 0, max: 40, step: 1 },
 		config: true,
 		default: 0,
-		onChange: value => game.canvas.terrainHeightLayer._graphics._setMaskRadius(value)
+		onChange: value => {
+			/** @type {import("../layers/terrain-height-graphics.mjs").TerrainHeightGraphics} */
+			const graphicsLayer = game.canvas.terrainHeightLayer._graphics;
+			graphicsLayer.maskRadius$.value = value;
+		}
 	});
 
 	game.settings.register(moduleName, settings.otherUserLineOfSightRulerOpacity, {

@@ -1,4 +1,4 @@
-import { moduleName, settings, tools } from "../consts.mjs";
+import { moduleName, tools } from "../consts.mjs";
 import { HeightMap, unpackCellKey } from "../geometry/height-map.mjs";
 import { Signal } from "../utils/signal.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
@@ -99,8 +99,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @override */
 	_activate() {
 		// When this layer is activated (via the menu sidebar), always show the height map
-		this._graphics.setVisible(true);
-		this._graphics._setMaskRadiusActive(false);
+		this._graphics.isLayerActive$.value = true;
 
 		// Start mouse event listeners
 		this.#setupEventListeners("on");
@@ -109,8 +108,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @override */
 	_deactivate() {
 		// When this layer is deactivated (via the menu sidebar), hide the height map unless configured to show
-		this._graphics.setVisible(game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer));
-		this._graphics._setMaskRadiusActive(true);
+		this._graphics.isLayerActive$.value = false;
 
 		// Stop mouse event listeners
 		this.#setupEventListeners("off");
@@ -123,6 +121,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		if (this._eventListenerObj) this._eventListenerObj.parent.removeChild(this._eventListenerObj);
 		this._eventListenerObj = undefined;
 
+		this._graphics?._tearDown();
 		if (this._graphics) this._graphics.parent.removeChild(this._graphics);
 		this._graphics = undefined;
 
@@ -367,7 +366,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 					strokeAlpha: terrainData.lineOpacity,
 					strokeColor: terrainData.lineColor,
 					strokeWidth: terrainData.lineWidth,
-					text: TerrainHeightGraphics._getLabel(shape, terrainData),
+					text: TerrainHeightGraphics._getLabelText(shape, terrainData),
 					textAlpha: terrainData.textOpacity,
 					textColor: terrainData.textColor,
 					fontFamily: terrainData.font,

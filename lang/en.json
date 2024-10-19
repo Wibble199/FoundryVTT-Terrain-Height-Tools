@@ -73,6 +73,7 @@
 		"ImportTerrainTypesPresetHint": "Here are some terrain presets that you can quickly import, which have been kindly submitted by the community.",
 		"ImportTextPlaceholder": "Paste your terrain type export here...",
 		"IncludeFlatTerrain": "Include Flat Terrain",
+		"IsAlwaysVisible": "Always Visible",
 		"IsSolid": "Is solid",
 		"LabelFormatHint": "Use <u>%h%</u> for the numeric height of the terrain, and <u>%e%</u> for the elevation",
 		"LineDashSize": "Dash Size",
