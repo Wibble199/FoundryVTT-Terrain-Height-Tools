@@ -960,3 +960,12 @@ export class HeightMap {
 		];
 	}
 }
+
+/**
+ * Converts a cell string key used for a map/set ("row.col") back into coordinate pairs.
+ * @param {string} key
+ */
+export function unpackCellKey(key) {
+	const [row, col] = key.split(".");
+	return [+row, +col];
+}

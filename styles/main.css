@@ -286,3 +286,11 @@
 #tht_tokenLineOfSightConfig .token-selection-container .token-action {
 	font-size: 1.2rem;
 }
+
+
+/* ------- */
+/* Utility */
+/* ------- */
+.align-items-center {
+	align-items: center;
+}

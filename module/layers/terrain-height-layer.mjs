@@ -1,5 +1,5 @@
 import { moduleName, settings, tools } from "../consts.mjs";
-import { HeightMap } from "../geometry/height-map.mjs";
+import { HeightMap, unpackCellKey } from "../geometry/height-map.mjs";
 import { Signal } from "../utils/signal.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
@@ -46,6 +46,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	/** @type {Signal<number>} */
 	_selectedPaintingElevation$ = new Signal(0);
+
+	_convertConfig$ = new Signal({ toDrawings: true, toWalls: false, deleteAfter: true });
 
 	constructor() {
 		super();
@@ -261,101 +263,16 @@ export class TerrainHeightLayer extends InteractionLayer {
 				break;
 			}
 
-			case tools.toDrawing: {
+			case tools.convert: {
 				this._pendingTool = undefined;
+
 				const shape = this._heightMap.getShape(...cell);
 				if (!shape) return;
 
-				const terrainData = getTerrainType(shape.terrainTypeId);
-				if (!terrainData) return;
-
-				const { x1, y1, w, h } = shape.polygon.boundingBox;
-				await canvas.scene.createEmbeddedDocuments("Drawing", [
-					{
-						x: x1,
-						y: y1,
-						shape: {
-							type: "p",
-							width: w,
-							height: h,
-							points: [
-								...shape.polygon.vertices.flatMap(v => [v.x - x1, v.y - y1]),
-								shape.polygon.vertices[0].x - x1,
-								shape.polygon.vertices[0].y - y1
-							]
-						},
-						fillAlpha: terrainData.fillOpacity,
-						fillColor: terrainData.fillColor,
-						fillType: terrainData.fillType,
-						texture: terrainData.fillTexture,
-						strokeAlpha: terrainData.lineOpacity,
-						strokeColor: terrainData.lineColor,
-						strokeWidth: terrainData.lineWidth,
-						text: TerrainHeightGraphics._getLabel(shape, terrainData),
-						textAlpha: terrainData.textOpacity,
-						textColor: terrainData.textColor,
-						fontFamily: terrainData.font,
-						fontSize: terrainData.textSize
-					},
-					...shape.holes.map(hole => {
-						const { x1, y1, w, h } = hole.boundingBox;
-						return {
-							x: x1,
-							y: y1,
-							shape: {
-								type: "p",
-								width: w,
-								height: h,
-								points: [
-									...hole.vertices.flatMap(v => [v.x - x1, v.y - y1]),
-									hole.vertices[0].x - x1,
-									hole.vertices[0].y - y1
-								]
-							},
-							fillType: CONST.DRAWING_FILL_TYPES.NONE,
-							texture: terrainData.fillTexture,
-							strokeAlpha: terrainData.lineOpacity,
-							strokeColor: terrainData.lineColor,
-							strokeWidth: terrainData.lineWidth
-						};
-					})
-				].filter(Boolean));
-
-				if (game.settings.get(moduleName, settings.deleteShapeAfterConvert) && await this._heightMap.eraseFillCells(cell))
-					await this._updateGraphics();
+				await this._convertShape(shape, this._convertConfig$.value);
 
 				// Notify user, because it may not be obvious that it's worked.
-				ui.notifications.info(game.i18n.format("TERRAINHEIGHTTOOLS.NotifyShapeToXComplete", { type: game.i18n.localize("DOCUMENT.Drawing") }));
-
-				break;
-			}
-
-			case tools.toWalls: {
-				this._pendingTool = undefined;
-				const shape = this._heightMap.getShape(...cell);
-				if (!shape) return;
-
-				await canvas.scene.createEmbeddedDocuments("Wall", [...shape.polygon.edges, ...shape.holes.flatMap(h => h.edges)]
-					.map(edge => ({
-						c: [
-							edge.p1.x,
-							edge.p1.y,
-							edge.p2.x,
-							edge.p2.y
-						],
-						dir: CONST.WALL_DIRECTIONS.BOTH,
-						door: CONST.WALL_DOOR_TYPES.NONE,
-						light: CONST.WALL_SENSE_TYPES.NORMAL,
-						move: CONST.WALL_SENSE_TYPES.NORMAL,
-						sight: CONST.WALL_SENSE_TYPES.NORMAL,
-						sound: CONST.WALL_SENSE_TYPES.NORMAL
-					})));
-
-				if (game.settings.get(moduleName, settings.deleteShapeAfterConvert) && await this._heightMap.eraseFillCells(cell))
-					await this._updateGraphics();
-
-				// Notify user, because it may not be obvious that it's worked.
-				ui.notifications.info(game.i18n.format("TERRAINHEIGHTTOOLS.NotifyShapeToXComplete", { type: game.i18n.localize("DOCUMENT.Walls") }));
+				ui.notifications.info(game.i18n.localize("TERRAINHEIGHTTOOLS.NotifyShapeConversionComplete"));
 
 				break;
 			}
@@ -413,5 +330,95 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 */
 	#cellIsPending(row, col) {
 		return this._pendingChanges.some(cell => cell[0] === row && cell[1] === col);
+	}
+
+	/**
+	 * Converts a shape to drawings and/or walls.
+	 * @param {import("../geometry/height-map.mjs").HeightMapShape} shape
+	 * @param {Object} [options]
+	 * @param {boolean} [options.toDrawings] Whether to convert the shape to drawings.
+	 * @param {boolean} [options.toWalls] Whether to convert the shape to walls.
+	 * @param {boolean} [options.deleteAfter] Whether to delete the shape after the conversion.
+	 */
+	async _convertShape(shape, { toDrawings = false, toWalls = false, deleteAfter = false } = {}) {
+		const terrainData = getTerrainType(shape.terrainTypeId);
+		if (!terrainData) return;
+
+		if (toDrawings) {
+			const { x1, y1, w, h } = shape.polygon.boundingBox;
+			await canvas.scene.createEmbeddedDocuments("Drawing", [
+				{
+					x: x1,
+					y: y1,
+					shape: {
+						type: "p",
+						width: w,
+						height: h,
+						points: [
+							...shape.polygon.vertices.flatMap(v => [v.x - x1, v.y - y1]),
+							shape.polygon.vertices[0].x - x1,
+							shape.polygon.vertices[0].y - y1
+						]
+					},
+					fillAlpha: terrainData.fillOpacity,
+					fillColor: terrainData.fillColor,
+					fillType: terrainData.fillType,
+					texture: terrainData.fillTexture,
+					strokeAlpha: terrainData.lineOpacity,
+					strokeColor: terrainData.lineColor,
+					strokeWidth: terrainData.lineWidth,
+					text: TerrainHeightGraphics._getLabel(shape, terrainData),
+					textAlpha: terrainData.textOpacity,
+					textColor: terrainData.textColor,
+					fontFamily: terrainData.font,
+					fontSize: terrainData.textSize
+				},
+				...shape.holes.map(hole => {
+					const { x1, y1, w, h } = hole.boundingBox;
+					return {
+						x: x1,
+						y: y1,
+						shape: {
+							type: "p",
+							width: w,
+							height: h,
+							points: [
+								...hole.vertices.flatMap(v => [v.x - x1, v.y - y1]),
+								hole.vertices[0].x - x1,
+								hole.vertices[0].y - y1
+							]
+						},
+						fillType: CONST.DRAWING_FILL_TYPES.NONE,
+						texture: terrainData.fillTexture,
+						strokeAlpha: terrainData.lineOpacity,
+						strokeColor: terrainData.lineColor,
+						strokeWidth: terrainData.lineWidth
+					};
+				})
+			].filter(Boolean));
+		}
+
+		if (toWalls) {
+			await canvas.scene.createEmbeddedDocuments("Wall", [...shape.polygon.edges, ...shape.holes.flatMap(h => h.edges)]
+				.map(edge => ({
+					c: [
+						edge.p1.x,
+						edge.p1.y,
+						edge.p2.x,
+						edge.p2.y
+					],
+					dir: CONST.WALL_DIRECTIONS.BOTH,
+					door: CONST.WALL_DOOR_TYPES.NONE,
+					light: CONST.WALL_SENSE_TYPES.NORMAL,
+					move: CONST.WALL_SENSE_TYPES.NORMAL,
+					sight: CONST.WALL_SENSE_TYPES.NORMAL,
+					sound: CONST.WALL_SENSE_TYPES.NORMAL
+				})));
+		}
+
+		if (deleteAfter) {
+			await this._heightMap.eraseFillCells(unpackCellKey([...shape.cells][0]));
+			await this._updateGraphics();
+		}
 	}
 }

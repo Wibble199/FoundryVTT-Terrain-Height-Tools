@@ -1,4 +1,5 @@
 import { LineOfSightRulerConfig } from '../applications/line-of-sight-ruler-config.mjs';
+import { ShapeConversionConifg } from "../applications/shape-conversion-config.mjs";
 import { TerrainHeightPalette } from "../applications/terrain-height-palette.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
@@ -21,7 +22,10 @@ export const sceneControls = {
 	lineOfSightRulerConfig: undefined,
 
 	/** @type {TokenLineOfSightConfig | undefined} */
-	tokenLineOfSightConfig: undefined
+	tokenLineOfSightConfig: undefined,
+
+	/** @type {ShapeConversionConifg | undefined} */
+	shapeConversionConfig: undefined
 };
 
 /**
@@ -94,15 +98,9 @@ export function registerSceneControls(controls) {
 				icon: "fas fa-fill"
 			},
 			{
-				name: tools.toDrawing,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsToDrawing"),
-				icon: "fas fa-draw-polygon"
-			},
-			{
-				name: tools.toWalls,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsToWalls"),
-				tooltip: "TOOLTIP",
-				icon: "fas fa-block-brick"
+				name: tools.convert,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsShapeConvert"),
+				icon: "fas fa-arrow-turn-right"
 			},
 			{
 				name: "clear",
@@ -147,6 +145,12 @@ export function renderToolSpecificApplications(controls) {
 		controls.activeControl === "token" && controls.activeTool === tools.tokenLineOfSight,
 		sceneControls.tokenLineOfSightConfig,
 		() => sceneControls.tokenLineOfSightConfig = new TokenLineOfSightConfig());
+
+	// Show the conversion config if the convert tool is selected
+	renderToolSpecificApplication(
+		controls.activeControl === moduleName && controls.activeTool === tools.convert,
+		sceneControls.shapeConversionConfig,
+		() => sceneControls.shapeConversionConfig = new ShapeConversionConifg());
 }
 
 /**
