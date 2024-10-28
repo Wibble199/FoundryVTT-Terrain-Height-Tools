@@ -1,4 +1,5 @@
 import { moduleName } from '../consts.mjs';
+import { includeNoHeightTerrain$, lineOfSightRulerConfig$ } from "../stores/line-of-sight.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
@@ -20,45 +21,42 @@ export class LineOfSightRulerConfig extends withSubscriptions(Application) {
 	activateListeners(html) {
 		super.activateListeners(html);
 
-		/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
-		const rulerLayer = canvas.terrainHeightLosRulerLayer;
-
 		this._unsubscribeFromAll();
 
 		this._subscriptions = [
-			rulerLayer._rulerStartHeight$.subscribe(v =>
+			lineOfSightRulerConfig$.h1$.subscribe(v =>
 				html.find("[name='rulerStartHeight']").val(toSceneUnits(v)), true),
 
-			rulerLayer._rulerEndHeight$.subscribe(v =>
-				html.find("[name='rulerEndHeight']").val(v ? toSceneUnits(v) : ''), true),
+			lineOfSightRulerConfig$.h2$.subscribe(v =>
+				html.find("[name='rulerEndHeight']").val(v !== undefined ? toSceneUnits(v) : ''), true),
 
-			rulerLayer._rulerIncludeNoHeightTerrain$.subscribe(v =>
+			includeNoHeightTerrain$.subscribe(v =>
 				html.find("[name='rulerIncludeNoHeightTerrain']").prop("checked", v), true)
 		];
 
 		// Start height
 		html.find("[name='rulerStartHeight']").on("input", e => {
 			const val = fromSceneUnits(+e.target.value);
-			if (!isNaN(val) && rulerLayer._rulerStartHeight$.value !== val)
-				rulerLayer._rulerStartHeight$.value = val;
+			if (!isNaN(val) && lineOfSightRulerConfig$.h1$.value !== val)
+				lineOfSightRulerConfig$.h1$.value = val;
 		});
 
 		// End height
 		html.find("[name='rulerEndHeight']").on("input", e => {
 			// Allow leaving blank to inherit start height
-			if (e.target.value === '' && rulerLayer._rulerEndHeight$.value !== undefined) {
-				rulerLayer._rulerEndHeight$.value = undefined;
+			if (e.target.value === '' && lineOfSightRulerConfig$.h2$.value !== undefined) {
+				lineOfSightRulerConfig$.h2.value = undefined;
 				return;
 			}
 
 			const val = fromSceneUnits(+e.target.value);
-			if (!isNaN(val) && rulerLayer._rulerEndHeight$.value !== val)
-				rulerLayer._rulerEndHeight$.value = val;
+			if (!isNaN(val) && lineOfSightRulerConfig$.h2$.value !== val)
+				lineOfSightRulerConfig$.h2$.value = val;
 		});
 
 		// Include flat terrain
 		html.find("[name='rulerIncludeNoHeightTerrain']").on("change", e => {
-			rulerLayer._rulerIncludeNoHeightTerrain$.value = e.target.checked ?? false
+			includeNoHeightTerrain$.value = e.target.checked ?? false
 		});
 	}
 }

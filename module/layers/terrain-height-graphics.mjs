@@ -5,7 +5,7 @@ import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { debug } from "../utils/log.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
-import { Signal } from "../utils/signal.mjs";
+import { join, Signal } from "../utils/signal.mjs";
 import { getTerrainTypeMap } from '../utils/terrain-types.mjs';
 
 /**
@@ -52,8 +52,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		Hooks.on("highlightObjects", this.#onHighlightObjects.bind(this));
 
 		this.#subsciptions = [
-			Signal.join(() => this.#updateShapeMasks(), this.isLayerActive$, this.isHighlightingObjects$, this.maskRadius$),
-			Signal.join(() => this.#updateShapesVisibility(), this.isLayerActive$, this.showOnTokenLayer$)
+			join(() => this.#updateShapeMasks(), this.isLayerActive$, this.isHighlightingObjects$, this.maskRadius$),
+			join(() => this.#updateShapesVisibility(), this.isLayerActive$, this.showOnTokenLayer$)
 		];
 	}
 

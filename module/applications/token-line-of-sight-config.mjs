@@ -1,4 +1,5 @@
 import { moduleName, tokenRelativeHeights } from "../consts.mjs";
+import { includeNoHeightTerrain$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
 import { Signal } from "../utils/signal.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
@@ -43,7 +44,7 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 		this._unsubscribeFromAll();
 
 		this._subscriptions = [
-			this.#losLayer._rulerIncludeNoHeightTerrain$.subscribe(v =>
+			includeNoHeightTerrain$.subscribe(v =>
 				html.find("[name='rulerIncludeNoHeightTerrain']").prop("checked", v), true),
 
 			this.#selectingToken$.subscribe(v =>
@@ -53,16 +54,16 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 				}),
 				true),
 
-			this.#losLayer._token1$.subscribe(token =>
+			tokenLineOfSightConfig$.token1$.subscribe(token =>
 				this.#updateTokenDisplay(token, html.find(".token-selection-container[data-token-index='1']")), true),
 
-			this.#losLayer._token2$.subscribe(token =>
-				this.#updateTokenDisplay(token, html.find(".token-selection-container[data-token-index='2']")), true),
-
-			this.#losLayer._token1Height$.subscribe(height =>
+			tokenLineOfSightConfig$.h1$.subscribe(height =>
 				this.#updateTokenHeightButton(height, html.find("[data-token-index='1'] [data-action='set-height']")), true),
 
-			this.#losLayer._token2Height$.subscribe(height =>
+			tokenLineOfSightConfig$.token2$.subscribe(token =>
+				this.#updateTokenDisplay(token, html.find(".token-selection-container[data-token-index='2']")), true),
+
+			tokenLineOfSightConfig$.h2$.subscribe(height =>
 				this.#updateTokenHeightButton(height, html.find("[data-token-index='2'] [data-action='set-height']")), true)
 		];
 
@@ -77,7 +78,7 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 
 		// Include flat terrain
 		html.find("[name='rulerIncludeNoHeightTerrain']").on("change", e => {
-			this.#losLayer._rulerIncludeNoHeightTerrain$.value = e.target.checked ?? false
+			includeNoHeightTerrain$.value = e.target.checked ?? false
 		});
 	}
 
@@ -137,14 +138,14 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 		if (!this._isSelecting) return;
 
 		const tokenIndex = this.#selectingToken$.value;
-		const otherToken = this.#losLayer[`_token${tokenIndex === 1 ? 2 : 1}$`].value;
+		const otherToken = tokenLineOfSightConfig$[`token${tokenIndex === 1 ? 2 : 1}$`].value;
 
 		if (otherToken === token) {
 			ui.notifications.error(game.i18n.localize("TERRAINHEIGHTTOOLS.SameTokenSelected"));
 			return;
 		}
 
-		this.#losLayer[`_token${tokenIndex}$`].value = token;
+		tokenLineOfSightConfig$[`token${tokenIndex}$`].value = token;
 		this.#selectingToken$.value = undefined;
 	}
 
@@ -181,8 +182,10 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 		Hooks.off("hoverToken", this.#onTokenHover);
 
 		// Clear the selection and the ruler on close
-		this.#losLayer._token1$.value = undefined;
-		this.#losLayer._token2$.value = undefined;
+		tokenLineOfSightConfig$.value = {
+			token1: undefined,
+			token2: undefined
+		};
 
 		// If waiting for user to select a token, stop
 		this.#selectingToken$.value = undefined;

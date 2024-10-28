@@ -3,10 +3,11 @@ import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.
 import { HeightMap } from "../geometry/height-map.mjs";
 import { LineSegment } from "../geometry/line-segment.mjs";
 import { Polygon } from "../geometry/polygon.mjs";
+import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
 import { getGridCellPolygon, getGridCenter, getGridVerticesFromToken, toSceneUnits } from "../utils/grid-utils.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
-import { Signal } from "../utils/signal.mjs";
+import { fromHook, join } from "../utils/signal.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
 /**
@@ -27,47 +28,6 @@ const heightIndicatorXOffset = 10;
 
 export class LineOfSightRulerLayer extends CanvasLayer {
 
-	// ---------------- //
-	// LoS Ruler config //
-	// ---------------- //
-	// Track the start and end heights separately so that when the user is using it, it remembers their start and end
-	// values allowing them to quickly repeat the same measurement at the same height.
-
-	/** @type {Signal<{ x: number; y: number; } | undefined>} */
-	_rulerStartPoint$ = new Signal(undefined);
-
-	/** @type {Signal<number>} */
-	_rulerStartHeight$ = new Signal(1);
-
-	/** @type {Signal<{ x: number; y: number; } | undefined>} */
-	_rulerEndPoint$ = new Signal(undefined);
-
-	// If `undefined`, then should use the start height instead.
-	/** @type {Signal<number | undefined>} */
-	_rulerEndHeight$ = new Signal(undefined);
-
-	// ---------------- //
-	// Token LoS config //
-	// ---------------- //
-	/** @type {Signal<Token | undefined>} */
-	_token1$ = new Signal(undefined);
-
-	/** @type {Signal<Token | undefined>} */
-	_token2$ = new Signal(undefined);
-
-	/** @type {Signal<number>} */
-	_token1Height$ = new Signal(game.settings.get(moduleName, settings.defaultTokenLosTokenHeight));
-
-	/** @type {Signal<number>} */
-	_token2Height$ = new Signal(game.settings.get(moduleName, settings.defaultTokenLosTokenHeight));
-
-	// ------------- //
-	// Shared config //
-	// ------------- //
-	/** @type {Signal<boolean>} */
-	_rulerIncludeNoHeightTerrain$ = new Signal(false);
-
-
 	/** @type {Map<string, LineOfSightRuler[]>} */
 	#rulers = new Map();
 
@@ -78,32 +38,34 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		super();
 		this.eventMode = "static";
 
+		tokenLineOfSightConfig$.value = {
+			h1: game.settings.get(moduleName, settings.defaultTokenLosTokenHeight),
+			h2: game.settings.get(moduleName, settings.defaultTokenLosTokenHeight)
+		};
+
 		// Ensure rulers are deleted when a user quits
 		Hooks.on("userConnected", (user, _connected) => this._clearLineOfSightRays({ userId: user.id, clearForOthers: false }));
 
 		// When any of the drag values are changed, update the ruler
-		Signal.join((p1, h1, p2, h2, includeNoHeightTerrain) => {
+		join(({ p1, h1, p2, h2 }, includeNoHeightTerrain) => {
 				if (p1 && p2)
 					this._drawLineOfSightRays([[{ ...p1, h: h1 }, { ...p2, h: h2 ?? h1 }, { includeNoHeightTerrain }]], { drawForOthers: true });
 				else
 					this._clearLineOfSightRays({ clearForOthers: true });
 			},
-			this._rulerStartPoint$,
-			this._rulerStartHeight$,
-			this._rulerEndPoint$,
-			this._rulerEndHeight$,
-			this._rulerIncludeNoHeightTerrain$);
+			lineOfSightRulerConfig$,
+			includeNoHeightTerrain$);
 
 		// When the start height is changed, update the ghost indicator
-		this._rulerStartHeight$.subscribe(v => {
+		lineOfSightRulerConfig$.h1$.subscribe(v => {
 			if (this.#lineStartIndicator)
 				this.#lineStartIndicator.height = v;
 		});
 
 		// When either of the selected tokens for the token LOS are changed, update the token LOS rulers.
-		Signal.join((token1, token2, token1Height, token2Height, includeNoHeightTerrain, _) => {
+		join(({ token1, token2, h1, h2 }, includeNoHeightTerrain, _) => {
 				if (token1 && token2) {
-					const [leftRay, centreRay, rightRay] = LineOfSightRulerLayer._calculateRaysBetweenTokens(token1, token2, token1Height, token2Height);
+					const [leftRay, centreRay, rightRay] = LineOfSightRulerLayer._calculateRaysBetweenTokens(token1, token2, h1, h2);
 					this._drawLineOfSightRays([
 						[...leftRay, { includeNoHeightTerrain, showLabels: false }],
 						[...centreRay, { includeNoHeightTerrain, showLabels: true }],
@@ -113,23 +75,20 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 					this._clearLineOfSightRays();
 				}
 			},
-			this._token1$,
-			this._token2$,
-			this._token1Height$,
-			this._token2Height$,
-			this._rulerIncludeNoHeightTerrain$,
-			Signal.fromHook("updateToken", t => this._token1$.value?.id === t.id || this._token2$.value?.id === t.id)
+			tokenLineOfSightConfig$,
+			includeNoHeightTerrain$,
+			fromHook("updateToken", t => tokenLineOfSightConfig$.token1$.value?.id === t.id || tokenLineOfSightConfig$.token2$.value?.id === t.id)
 		);
 
 		// Only enable events when the ruler layer is active, otherwise it interferes with other standard layers
-		Signal.join((activeControl, activeTool) => {
+		join((activeControl, activeTool) => {
 			this.eventMode = activeControl === "token" && activeTool === tools.lineOfSight ? "static" : "none";
 		}, sceneControls.activeControl$, sceneControls.activeTool$);
 
 		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
-		Signal.join((rulerStartPoint) => {
+		join((rulerStartPoint) => {
 			this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
-		}, this._rulerStartPoint$, sceneControls.activeControl$, sceneControls.activeTool$);
+		}, lineOfSightRulerConfig$.p1$, sceneControls.activeControl$, sceneControls.activeTool$);
 	}
 
 	get isToolSelected() {
@@ -137,7 +96,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	get #isDraggingRuler() {
-		return this._rulerStartPoint$.value !== undefined;
+		return lineOfSightRulerConfig$.p1$.value !== undefined;
 	}
 
 	/** @override */
@@ -150,7 +109,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		this.#setupEventListeners("on");
 
 		this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
-		this.#lineStartIndicator.height = this._rulerStartHeight$.value;
+		this.#lineStartIndicator.height = lineOfSightRulerConfig$.h1$.value;
 		this.#lineStartIndicator.visible = false;
 	}
 
@@ -310,11 +269,15 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r)));
 		this.#rulers.clear();
 
-		this._rulerStartPoint$.value = undefined;
-		this._rulerEndPoint$.value = undefined;
+		lineOfSightRulerConfig$.value = {
+			p1: undefined,
+			p2: undefined
+		};
 
-		this._token1$.value = undefined;
-		this._token2$.value = undefined;
+		tokenLineOfSightConfig$.value = {
+			token1: undefined,
+			token2: undefined
+		};
 	}
 
 	get #shouldShowUsersRuler() {
@@ -332,15 +295,15 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 				token = game.user.character.system.active_mech?.value?.getActiveTokens()?.[0];
 
 			if (token)
-				this._token1$.value = token;
+				tokenLineOfSightConfig$.token1$.value = token;
 		}
 
 		// For the secondary token, prefer the targeted token
 		if (game.settings.get(moduleName, settings.tokenLosToolPreselectToken2)) {
 			const token = game.user.targets.first();
 
-			if (token && this._token1$.value !== token) // do not allow same token as primary token (e.g. if user targets own token)
-				this._token2$.value = token;
+			if (token && tokenLineOfSightConfig$.token1$.value !== token) // do not allow same token as primary token (e.g. if user targets own token)
+				tokenLineOfSightConfig$.token2$.value = token;
 		}
 	}
 
@@ -358,8 +321,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (!this.isToolSelected || event.button !== 0) return;
 
 		const [x, y] = this.#getDragPosition(event);
-		this._rulerStartPoint$.value = { x, y };
-		this._rulerEndPoint$.value = { x, y };
+		lineOfSightRulerConfig$.value = {
+			p1: { x, y },
+			p2: { x, y }
+		};
 	};
 
 	#onMouseMove = event => {
@@ -376,15 +341,18 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		}
 
 		// If the user has started dragging a measurement, update the endpoint
-		if (this.#isDraggingRuler && (this._rulerEndPoint$.value.x !== x || this._rulerEndPoint$.value.y !== y)) {
-			this._rulerEndPoint$.value = { x, y };
+		if (this.#isDraggingRuler && (lineOfSightRulerConfig$.p2$.value.x !== x || lineOfSightRulerConfig$.p2$.value.y !== y)) {
+			lineOfSightRulerConfig$.p2$.value = { x, y };
 		}
 	};
 
 	#onMouseUp = event => {
 		if (!this.isToolSelected || !this.#isDraggingRuler || event.button !== 0) return;
 
-		this._rulerStartPoint$.value = this._rulerEndPoint$.value = undefined;
+		lineOfSightRulerConfig$.value = {
+			p1: undefined,
+			p2: undefined
+		};
 	};
 
 	/** @returns {[number, number]} */
@@ -437,9 +405,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// If the user is currently dragging the ruler, then we want to change the end height otherwise the start height
 		if (this.#isDraggingRuler) {
-			this._rulerEndHeight$.value = change(this._rulerEndHeight$.value ?? this._rulerStartHeight$.value);
+			lineOfSightRulerConfig$.h2$.value = change(lineOfSightRulerConfig$.h2$.value ?? lineOfSightRulerConfig$.h1$.value);
 		} else {
-			this._rulerStartHeight$.value = change(this._rulerStartHeight$.value);
+			lineOfSightRulerConfig$.h1$.value = change(lineOfSightRulerConfig$.h1$.value);
 		}
 	}
 

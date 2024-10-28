@@ -1,19 +1,11 @@
 import { moduleName } from "../consts.mjs";
+import { paintingConfig$ } from "../stores/drawing.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 export class TerrainHeightPalette extends withSubscriptions(Application) {
-
-	constructor() {
-		super();
-
-		/** @type {string | undefined} */
-		this.selectedTerrainId = undefined;
-		this._selectedHeight = 1;
-		this._selectedElevation = 0;
-	}
 
 	/** @override */
 	static get defaultOptions() {
@@ -71,7 +63,7 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 
 		this._unsubscribeFromAll();
 		this._subscriptions = [
-			layer._selectedPaintingTerrainTypeId$.subscribe(terrainTypeId => {
+			paintingConfig$.terrainTypeId$.subscribe(terrainTypeId => {
 				// Highlight the selected terrain type
 				html.find("[data-terrain-id].active").removeClass("active");
 				html.find(`[data-terrain-id='${terrainTypeId}']`).addClass("active");
@@ -82,11 +74,11 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 			}, true),
 
 			// Update height input
-			layer._selectedPaintingHeight$.subscribe(height =>
+			paintingConfig$.height$.subscribe(height =>
 				html.find("[name='selectedHeight']").val(toSceneUnits(height)), true),
 
 			// Update elevation input
-			layer._selectedPaintingElevation$.subscribe(elevation =>
+			paintingConfig$.elevation$.subscribe(elevation =>
 				html.find("[name='selectedElevation']").val(toSceneUnits(elevation)), true)
 		];
 
@@ -96,17 +88,17 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 
 		// On input change, update the relevant Signal
 		html.find("[name='selectedHeight']").on("input", evt =>
-			layer._selectedPaintingHeight$.value = fromSceneUnits(this.#getInputValue(evt)));
+			paintingConfig$.height$.value = fromSceneUnits(this.#getInputValue(evt)));
 
 		html.find("[name='selectedElevation']").on("input", evt =>
-			layer._selectedPaintingElevation$.value = fromSceneUnits(this.#getInputValue(evt)));
+			paintingConfig$.elevation$.value = fromSceneUnits(this.#getInputValue(evt)));
 
 		// On blur, set the value of the input to the Signal, so that if it was left as an invalid number it resets and shows the correct value again
 		html.find("[name='selectedHeight']").on("blur", evt =>
-			evt.currentTarget.value = toSceneUnits(layer._selectedPaintingHeight$.value));
+			evt.currentTarget.value = toSceneUnits(paintingConfig$.height$.value));
 
 		html.find("[name='selectedElevation']").on("blur", evt =>
-			evt.currentTarget.value = toSceneUnits(layer._selectedPaintingElevation$.value));
+			evt.currentTarget.value = toSceneUnits(paintingConfig$.elevation$.value));
 	}
 
 	#onTerrainSelect(event) {
@@ -115,9 +107,7 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 		event.currentTarget.closest("li").classList.add("active");
 		this.element.find("[name='selectedHeight'],[name='selectedElevation']").prop("disabled", !this.isHeightEnabledFor(terrainId));
 
-		/** @type {import("../layers/terrain-height-layer.mjs").TerrainHeightLayer} */
-		const layer = game.canvas.terrainHeightLayer;
-		layer._selectedPaintingTerrainTypeId$.value = terrainId;
+		paintingConfig$.terrainTypeId$.value = terrainId;
 	}
 
 	/**

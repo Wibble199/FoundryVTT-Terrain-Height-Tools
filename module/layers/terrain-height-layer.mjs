@@ -1,6 +1,6 @@
 import { moduleName, tools } from "../consts.mjs";
 import { HeightMap, unpackCellKey } from "../geometry/height-map.mjs";
-import { Signal } from "../utils/signal.mjs";
+import { convertConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
@@ -38,17 +38,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @type {[number, number][]} */
 	_pendingChanges = [];
 
-	/** @type {Signal<string | undefined>} */
-	_selectedPaintingTerrainTypeId$ = new Signal(undefined);
-
-	/** @type {Signal<number>} */
-	_selectedPaintingHeight$ = new Signal(1);
-
-	/** @type {Signal<number>} */
-	_selectedPaintingElevation$ = new Signal(0);
-
-	_convertConfig$ = new Signal({ toDrawings: true, toWalls: false, deleteAfter: true });
-
 	constructor() {
 		super();
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
@@ -63,11 +52,13 @@ export class TerrainHeightLayer extends InteractionLayer {
 	}
 
 	get paintingConfig() {
-		const selectedTerrainId = this._selectedPaintingTerrainTypeId$.value;
-		const usesHeight = getTerrainType(selectedTerrainId)?.usesHeight ?? false;
-		const selectedHeight = usesHeight ? this._selectedPaintingHeight$.value : 0;
-		const selectedElevation = usesHeight ? this._selectedPaintingElevation$.value : 0;
-		return { selectedTerrainId, selectedHeight, selectedElevation };
+		const { terrainTypeId, height, elevation } = paintingConfig$.value;
+		const usesHeight = getTerrainType(terrainTypeId)?.usesHeight ?? false;
+		return {
+			selectedTerrainId: terrainTypeId,
+			selectedHeight: usesHeight ? height : 0,
+			selectedElevation: usesHeight ? elevation : 0
+		};
 	}
 
 	// -------------- //
@@ -187,7 +178,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		// Set highlight colours depending on the tool
 		switch (this._pendingTool) {
 			case tools.paint:
-				this._highlightGraphics._setColorFromTerrainTypeId(this._selectedPaintingTerrainTypeId$.value);
+				this._highlightGraphics._setColorFromTerrainTypeId(paintingConfig$.terrainTypeId$.value);
 				break;
 
 			case tools.erase:
@@ -234,9 +225,11 @@ export class TerrainHeightLayer extends InteractionLayer {
 				const cellData = this._heightMap.get(...cell);
 				if (!cellData) break;
 
-				this._selectedPaintingTerrainTypeId$.value = cellData.terrainTypeId;
-				this._selectedPaintingHeight$.value = Math.max(cellData.height, 1);
-				this._selectedPaintingElevation$.value = Math.max(cellData.elevation, 0);
+				paintingConfig$.value = {
+					terrainTypeId: cellData.terrainTypeId,
+					height: Math.max(cellData.height, 1),
+					elevation: Math.max(cellData.elevation, 0)
+				};
 
 				// Select the paintbrush tool. This feels like a horrible dirty way of doing this, but there doesn't
 				// seem to be any API exposed by Foundry to set the tool without pretending to click the button.
@@ -268,7 +261,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 				const shape = this._heightMap.getShape(...cell);
 				if (!shape) return;
 
-				await this._convertShape(shape, this._convertConfig$.value);
+				await this._convertShape(shape, convertConfig$.value);
 
 				// Notify user, because it may not be obvious that it's worked.
 				ui.notifications.info(game.i18n.localize("TERRAINHEIGHTTOOLS.NotifyShapeConversionComplete"));

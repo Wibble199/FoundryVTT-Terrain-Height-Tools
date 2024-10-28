@@ -1,4 +1,5 @@
 import { moduleName } from "../consts.mjs";
+import { convertConfig$ } from "../stores/drawing.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 export class ShapeConversionConifg extends withSubscriptions(Application) {
@@ -17,11 +18,8 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 	activateListeners(html) {
 		super.activateListeners(html);
 
-		/** @type {import("../layers/terrain-height-layer.mjs").TerrainHeightLayer} */
-		const layer = game.canvas.terrainHeightLayer;
-
 		this._subscriptions = [
-			layer._convertConfig$.subscribe(v => {
+			convertConfig$.subscribe(v => {
 				html.find("[name='toDrawings']").prop("checked", v.toDrawings);
 				html.find("[name='toWalls']").prop("checked", v.toWalls);
 				html.find("[name='deleteAfter']").prop("checked", v.deleteAfter);
@@ -30,7 +28,7 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 
 		html.find("[name='toDrawings'],[name='toWalls'],[name='deleteAfter']").on("input", e => {
 			const { name, checked } = e.target;
-			layer._convertConfig$.value = { ...layer._convertConfig$.value, [name]: checked };
+			convertConfig$.value = { [name]: checked };
 		});
 	}
 }

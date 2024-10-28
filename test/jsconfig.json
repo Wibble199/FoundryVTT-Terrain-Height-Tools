@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"module": "NodeNext",
+		"target": "ESNext",
+		"checkJs": true,
+		"lib": [
+			"ESNext"
+		],
+		"strict": true,
+		"typeRoots": ["../node_modules/@types"],
+    	"types": ["node"]
+	},
+	"include": [
+		"**/*.test.mjs"
+	]
+}
