@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it, mock } from "node:test";
 import { fromHook, fromObject, join, Signal } from "../../module/utils/signal.mjs";
 
-describe("join", () => {
+describe("join()", () => {
 	it("should call the callback when any child value changes", () => {
 		const subscription = mock.fn((_a, _b) => {});
 
@@ -48,7 +48,7 @@ describe("join", () => {
 	});
 });
 
-describe("fromHook", () => {
+describe("fromHook()", () => {
 	const hooksOnMock = mock.fn((_name, _callback) => {});
 	const hooksOffMock = mock.fn((_name, _callback) => {});
 

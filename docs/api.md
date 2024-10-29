@@ -335,6 +335,7 @@ await terrainHeightTools.eraseCells([
 ## getCell
 
 ![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
+![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-red?style=flat-square)
 
 Fetches the terrain data from a specific cell.
 
@@ -347,7 +348,7 @@ Fetches the terrain data from a specific cell.
 
 ### Returns
 
-Either `undefined` if the cell at the given coordinates is unpainted, or an object with the following properties.
+An array of terrain in the given cell. Each element in the array is an object with the following properties.
 
 |Name|Type|Description|
 |-|-|-|
@@ -359,11 +360,13 @@ Either `undefined` if the cell at the given coordinates is unpainted, or an obje
 ```js
 const cell = terrainHeightTools.getCell(2, 3);
 
-if (cell === undefined) {
+if (cell.length === 0) {
 	console.log("This cell is unpainted.");
 } else {
-	const terrainType = terrainHeightTools.getTerrainType({ id: cell.terrainTypeId });
-	console.log(`${terrainType.name} is painted in this cell, at a height of ${cell.height}.`);
+	for (const { terrainTypeId, height } of cell) {
+		const terrainType = terrainHeightTools.getTerrainType({ id: terrainTypeId });
+		console.log(`${terrainType.name} is painted in this cell, at a height of ${height}.`);
+	}
 }
 ```
 

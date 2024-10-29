@@ -27,7 +27,7 @@ export function getTerrainType(terrain) {
  * Gets the terrain data at the given grid coordinates.
  * @param {number} x
  * @param {number} y
- * @param {{ terrainTypeId: string; height: number; } | undefined}
+ * @returns {{ terrainTypeId: string; height: number; elevation: number; }[]}
  */
 export function getCell(x, y) {
 	/** @type {import("./geometry/height-map.mjs").HeightMap} */

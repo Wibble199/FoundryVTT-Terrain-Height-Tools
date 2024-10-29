@@ -2,6 +2,7 @@ import { getTerrainType } from "../api.mjs";
 import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
+import { DATA_VERSION, migrateData } from "../utils/height-map-migrations.mjs";
 import { debug, error, warn } from '../utils/log.mjs';
 import { OrderedSet, roundTo } from '../utils/misc-utils.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
@@ -42,7 +43,7 @@ const maxHistoryItems = 10;
 
 export class HeightMap {
 
-	/** @type {{ position: [number, number]; terrainTypeId: string; height: number; elevation: number; }[]} */
+	/** @type {HeightMapDataV1} */
 	data;
 
 	/** @type {{ position: [number, number]; terrainTypeId: string | undefined; height: number | undefined; elevation: number; }[][]} */
@@ -69,11 +70,10 @@ export class HeightMap {
 
 	/**
 	 * Reloads the data from the scene.
-	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
 	reload() {
-		this.data = (this.scene.getFlag(moduleName, flags.heightData) ?? [])
-			.map(cell => ({ elevation: 0, ...cell }));
+		const flagData = this.scene.getFlag(moduleName, flags.heightData);
+		this.data = migrateData(flagData);
 		this._recalculateShapes();
 	}
 
@@ -83,7 +83,7 @@ export class HeightMap {
 	 * @param {number} col
 	 */
 	get(row, col) {
-		return this.data.find(({ position }) => position[0] === row && position[1] === col);
+		return this.data[encodeCellKey(row, col)] ?? [];
 	}
 
 	/**
@@ -92,7 +92,7 @@ export class HeightMap {
 	 * @param {number} col
 	 */
 	getShape(row, col) {
-		const cellKey = `${row}.${col}`;
+		const cellKey = encodeCellKey(row, col);
 		return this.#shapes.find(s => s.cells.has(cellKey));
 	}
 
@@ -134,9 +134,6 @@ export class HeightMap {
 				anyAdded = true;
 			}
 		}
-
-		if (anyAdded)
-			this.#sortData();
 
 		if (history.length > 0) {
 			this.#pushHistory(history);
@@ -222,11 +219,18 @@ export class HeightMap {
 
 		const t1 = performance.now();
 
-		for (const [, cells] of groupBy(this.data, x => `${x.terrainTypeId}.${x.height}.${x.elevation}`)) {
+		const dataByTerrainDetails = groupBy(
+			Object.entries(this.data).flatMap(([cell, terrains]) => terrains.map(t => ({ cell, position: decodeCellKey(cell), ...t }))),
+			x => `${x.terrainTypeId}.${x.height}.${x.elevation}`);
+
+		for (const [, cells] of dataByTerrainDetails) {
 			const { terrainTypeId, height, elevation } = cells[0];
 
+			// For polygon calculation to work, we ensure the cells are sorted so that they process in clockwise order
+			cells.sort(({ position: a }, { position: b }) => a[0] - b[0] || a[1] - b[1]);
+
 			// Get the grid-sized polygons for each cell at this terrain type and height
-			const polygons = cells.map(({ position }) => ({ cell: position, poly: new Polygon(getGridCellPolygon(...position)) }));
+			const polygons = cells.map(({ cell, position }) => ({ cell, poly: new Polygon(getGridCellPolygon(...position)) }));
 
 			// Combine connected grid-sized polygons into larger polygons where possible
 			this.#shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height, elevation));
@@ -238,7 +242,8 @@ export class HeightMap {
 
 	/**
 	 * Given a list of polygons, combines them together into as few polygons as possible.
-	 * @param {{ poly: Polygon; cell: [number, number] }[]} originalPolygons An array of polygons to merge
+	 * @param {{ poly: Polygon; cell: string; }[]} originalPolygons An array of polygons to merge. `cell` is the encoded
+	 * cell key.
 	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
 	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
 	 * @param {number} elevation The elevation value of the given polygons. Only used to populate the metadata.
@@ -247,8 +252,8 @@ export class HeightMap {
 	static #combinePolygons(originalPolygons, terrainTypeId, height, elevation) {
 
 		// Generate a graph of all edges in all the polygons
-		const allEdges = originalPolygons.flatMap(({ poly, cell: [r, c] }) =>
-			poly.edges.map(edge => ({ edge, cell: `${r}.${c}` })));
+		const allEdges = originalPolygons.flatMap(({ poly, cell }) =>
+			poly.edges.map(edge => ({ edge, cell })));
 
 		// Maintain a record of which cells are adjacent (caused by pairs of edges destructing)
 		/** @type {Map<string, Set<string>>} */
@@ -869,8 +874,6 @@ export class HeightMap {
 			}
 		}
 
-		if (anyAdded) this.#sortData();
-
 		this.#saveChanges();
 		return true;
 	}
@@ -879,20 +882,12 @@ export class HeightMap {
 	// ----- //
 	// Utils //
 	// ----- //
-	/**
-	 * Sorts the height data top to bottom, left to right. Required for the polygon/hole calculation to work properly,
-	 * and should be done after any cells are inserted.
-	 */
-	#sortData() {
-		this.data.sort(({ position: a }, { position: b }) => a[0] - b[0] || a[1] - b[1]);
-	}
-
 	async #saveChanges() {
 		// Remove any cells that do not have a valid terrain type - e.g. if the terrain type was deleted
 		const availableTerrainIds = new Set(getTerrainTypes().map(t => t.id));
 		this.data = this.data.filter(x => availableTerrainIds.has(x.terrainTypeId));
 
-		await this.scene.setFlag(moduleName, flags.heightData, this.data);
+		await this.scene.setFlag(moduleName, flags.heightData, { v: DATA_VERSION, data: this.data });
 	}
 
 	/**
@@ -918,7 +913,7 @@ export class HeightMap {
 			const [nextCell] = visitQueue.splice(0, 1);
 
 			// Don't re-visit already visited ones
-			const cellKey = `${nextCell[0]}.${nextCell[1]}`;
+			const cellKey = encodeCellKey(...nextCell);
 			if (visitedCells.has(cellKey)) continue;
 			visitedCells.add(cellKey);
 
@@ -962,10 +957,19 @@ export class HeightMap {
 }
 
 /**
+ * Converts a row and column coordinate into a key for objects/maps/sets/etc.
+ * @param {number} row
+ * @param {number} col
+ */
+export function encodeCellKey(row, col) {
+	return `${row}.${col}`;
+}
+
+/**
  * Converts a cell string key used for a map/set ("row.col") back into coordinate pairs.
  * @param {string} key
  */
-export function unpackCellKey(key) {
+export function decodeCellKey(key) {
 	const [row, col] = key.split(".");
 	return [+row, +col];
 }

@@ -1,5 +1,5 @@
 import { moduleName, tools } from "../consts.mjs";
-import { HeightMap, unpackCellKey } from "../geometry/height-map.mjs";
+import { HeightMap, decodeCellKey } from "../geometry/height-map.mjs";
 import { convertConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
@@ -409,7 +409,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		}
 
 		if (deleteAfter) {
-			await this._heightMap.eraseFillCells(unpackCellKey([...shape.cells][0]));
+			await this._heightMap.eraseFillCells(decodeCellKey([...shape.cells][0]));
 			await this._updateGraphics();
 		}
 	}
