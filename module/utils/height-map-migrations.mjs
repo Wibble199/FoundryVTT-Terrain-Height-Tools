@@ -22,7 +22,7 @@ const migrations = [
 	// v0 -> v1
 	/** @type {(data: HeightMapDataV0) => HeightMapDataV1} */
 	(data) => Object.fromEntries(data.map(d => [
-		`${d.position[0]}.${d.position[1]}`,
+		`${d.position[0]}|${d.position[1]}`, // do not use encodeCellKey here in case it is changed in future and changes how the migration works
 		[{
 			terrainTypeId: d.terrainTypeId,
 			height: d.height,
@@ -34,7 +34,7 @@ const migrations = [
 /**
  * Migrates the given data to the latest version.
  * @param {Versioned<number, any> | HeightMapDataV0 | undefined | null} data
- * @returns {HeightMapDataV1}
+ * @returns {Versioned<1, HeightMapDataV1>}
  */
 export function migrateData(data, targetVersion = DATA_VERSION) {
 	// If there is no data, return a blank V1 map

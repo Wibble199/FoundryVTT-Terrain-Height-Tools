@@ -19,7 +19,8 @@ Functions:
 - [`drawLineOfSightRaysBetweenTokens`](#drawlineofsightraysbetweentokens)
 - [`eraseCells`](#erasecells)
 - [`getCell`](#getcell)
-- [`getShape`](#getshape)
+- [~~`getShape`~~](#getshape)
+- [`getShapes`](#getshapes)
 - [`getTerrainType`](#getterraintype)
 - [`getTerrainTypes`](#getterraintypes)
 - [`paintCells`](#paintcells)
@@ -335,7 +336,7 @@ await terrainHeightTools.eraseCells([
 ## getCell
 
 ![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
-![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-red?style=flat-square)
+![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
 
 Fetches the terrain data from a specific cell.
 
@@ -370,11 +371,17 @@ if (cell.length === 0) {
 }
 ```
 
-## getShape
+## ~~getShape~~
 
-![Available Since v0.3.7](https://img.shields.io/badge/Available%20Since-v0.3.7-blue?style=flat-square)
+![Removed in v0.4.0](https://img.shields.io/badge/Removed%20In-v0.4.0-red?style=flat-square)
 
-Fetches the terrain shape of the shape that exists at a specific cell.
+This function has been replaced by [`getShapes`](#getshapes).
+
+## getShapes
+
+![Available Since v0.4.0](https://img.shields.io/badge/Available%20Since-v0.4.0-blue?style=flat-square)
+
+Fetches the height map shapes that exist at a specific cell.
 
 ### Parameters
 
@@ -385,7 +392,10 @@ Fetches the terrain shape of the shape that exists at a specific cell.
 
 ### Returns
 
-Either `undefined` if the cell at the given coordinates is unpainted, or an object with the following properties.
+Either any array containing 0 or more `HeightMapShape`s. Each shape represents one region of terrain that exists at that
+cell. The order of the terrain is not guaranteed.
+
+Each `HeightMapShape` has the following properties:
 
 |Name|Type|Description|
 |-|-|-|
@@ -397,16 +407,18 @@ Either `undefined` if the cell at the given coordinates is unpainted, or an obje
 
 ### Example
 ```js
-const shape = terrainHeightTools.getShape(2, 3);
+const shapes = terrainHeightTools.getShapes(2, 3);
 
-if (shape === undefined) {
+if (shapes.length === 0) {
 	console.log("This cell is unpainted.");
 } else {
-	const terrainType = terrainHeightTools.getTerrainType({ id: shape.terrainTypeId });
-	console.group(`The edges of this ${terrainType.name} shape are:`);
-	for (const edge of shape.polygon.edges)
-		console.log(edge.toString());
-	console.groupEnd();
+	for (const shape of shapes) {
+		const terrainType = terrainHeightTools.getTerrainType({ id: shape.terrainTypeId });
+		console.group(`The edges of this ${terrainType.name} shape are:`);
+		for (const edge of shape.polygon.edges)
+			console.log(edge.toString());
+		console.groupEnd();
+	}
 }
 ```
 

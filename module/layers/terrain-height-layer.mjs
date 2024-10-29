@@ -258,7 +258,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 			case tools.convert: {
 				this._pendingTool = undefined;
 
-				const shape = this._heightMap.getShape(...cell);
+				const shape = this._heightMap.getShapes(...cell);
 				if (!shape) return;
 
 				await this._convertShape(shape, convertConfig$.value);

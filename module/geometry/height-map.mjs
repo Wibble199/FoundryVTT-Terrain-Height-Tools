@@ -1,43 +1,14 @@
-import { getTerrainType } from "../api.mjs";
+/** @import { LineOfSightIntersectionRegion } from "./height-map-shape.mjs" */
+/** @import { HeightMapDataV1, HeightMapDataV1Terrain } from "../utils/height-map-migrations.mjs" */
 import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 import { DATA_VERSION, migrateData } from "../utils/height-map-migrations.mjs";
-import { debug, error, warn } from '../utils/log.mjs';
-import { OrderedSet, roundTo } from '../utils/misc-utils.mjs';
+import { debug, error } from '../utils/log.mjs';
+import { OrderedSet } from '../utils/misc-utils.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
-import { LineSegment } from "./line-segment.mjs";
+import { HeightMapShape } from "./height-map-shape.mjs";
 import { Polygon } from './polygon.mjs';
-
-/**
- * @typedef {object} HeightMapShape Represents a shape that can be drawn to the map. It is a closed polygon that may
- * have one or more holes within it.
- * @property {Polygon} polygon The polygon that makes up the perimeter of this shape.
- * @property {Polygon[]} holes Other additional polygons that make holes in this shape.
- * @property {string} terrainTypeId
- * @property {number} height
- * @property {number} elevation
- * @property {Set<string>} cells A Set of all cells that this HeightMapShape consists of, stored as `row.col`.
- */
-
-/**
- * @typedef {object} LineOfSightIntersection
- * @property {number} x
- * @property {number} y
- * @property {number} t
- * @property {number} u
- * @property {LineSegment | undefined} edge
- * @property {Polygon | undefined} hole
- */
-
-/**
- * @typedef {object} LineOfSightIntersectionRegion An object detailing the region of an intersection of a line of sight
- * ray and a shape on the height map.
- * @property {{ x: number; y: number; h: number; t: number; }} start The start position of the intersection region.
- * @property {{ x: number; y: number; h: number; t: number; }} end The end position of the intersection region.
- * @property {boolean} skimmed Did this intersection region "skim" the shape - i.e. just barely touched the edge of the
- * shape rather than entering it completely.
- */
 
 const maxHistoryItems = 10;
 
@@ -46,7 +17,7 @@ export class HeightMap {
 	/** @type {HeightMapDataV1} */
 	data;
 
-	/** @type {{ position: [number, number]; terrainTypeId: string | undefined; height: number | undefined; elevation: number; }[][]} */
+	/** @type {Partial<HeightMapDataV1>[]} */
 	_history = [];
 
 	/** @type {HeightMapShape[]} */
@@ -73,7 +44,7 @@ export class HeightMap {
 	 */
 	reload() {
 		const flagData = this.scene.getFlag(moduleName, flags.heightData);
-		this.data = migrateData(flagData);
+		this.data = migrateData(flagData).data;
 		this._recalculateShapes();
 	}
 
@@ -87,13 +58,12 @@ export class HeightMap {
 	}
 
 	/**
-	 * Returns the shape that exists at the given position, or `undefined` if there isn't one.
+	 * Returns the shapes that exists at the given position.
 	 * @param {number} row
 	 * @param {number} col
 	 */
-	getShape(row, col) {
-		const cellKey = encodeCellKey(row, col);
-		return this.#shapes.find(s => s.cells.has(cellKey));
+	getShapes(row, col) {
+		return this.#shapes.filter(s => s.containsCell(row, col));
 	}
 
 	// -------------- //
@@ -110,32 +80,60 @@ export class HeightMap {
 	 */
 	async paintCells(cells, terrainTypeId, height = 1, elevation = 0, { overwrite = true } = {}) {
 		/** @type {this["_history"][number]} */
-		const history = [];
-		let anyAdded = false;
+		const history = {};
 
-		const { usesHeight } = getTerrainType({ id: terrainTypeId });
-		if (usesHeight && (typeof height !== "number" || height <= 0))
+		const terrainTypeMap = getTerrainTypeMap();
+		const terrainType = terrainTypeMap.get(terrainTypeId);
+		if (!terrainType)
+			throw new Error(`Cannot paint cells with unknown terrain type '${terrainTypeId}'.`);
+		if (terrainType.usesHeight && (typeof height !== "number" || height <= 0))
 			throw new Error("`height` must be a positive, non-zero number.");
-		if (usesHeight && (typeof elevation !== "number" || elevation < 0))
+		if (terrainType.usesHeight && (typeof elevation !== "number" || elevation < 0))
 			throw new Error("`elevation` must be a positive number or zero.");
 
-		for (const cell of cells) {
-			const existing = this.get(...cell);
-			if (existing && !overwrite) continue;
-			if (existing && existing.terrainTypeId === terrainTypeId && existing.height === height && existing.elevation === elevation) continue;
+		const noHeightTerrains = getTerrainTypes().filter(t => !t.usesHeight).map(t => t.id);
 
-			history.push({ position: cell, terrainTypeId: existing?.terrainTypeId, height: existing?.height, elevation: existing?.elevation });
-			if (existing) {
-				existing.height = height;
-				existing.elevation = elevation;
-				existing.terrainTypeId = terrainTypeId;
+		for (const cell of cells) {
+			const cellKey = encodeCellKey(...cell);
+			const terrainsInCell = this.data[cellKey];
+
+			// If nothing is in this cell, can simplify logic.
+			if (!terrainsInCell?.length) {
+				history[cellKey] = [];
+				this.data[cellKey] = [{ terrainTypeId, height, elevation }];
+				continue;
+			}
+
+			const originalTerrainInCell = terrainsInCell.map(t => ({ ...t })); // create an unmodified clone for history
+			let anyChanges = false;
+
+			// If overwrite is true, and the given terrain type uses height, then find any other terrain types (besides
+			// the one being painted and ones that do not use height), and erase them in this range so they don't
+			// overlap. E.G. if a type A terrain was at H3 E0, and the user painted a type B terrain at H2 E2, then we
+			// want to clip the A terrain to H2 E0.
+			if (overwrite && terrainType.usesHeight) {
+				anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, elevation, elevation + height, [...noHeightTerrains, terrainTypeId]) || anyChanges;
+			}
+
+			// For terrain that uses height, use the merge function to merge with existing terrain of the same type.
+			// For no-height terrain, simply add it if it doesn't already exist.
+			if (terrainType.usesHeight) {
+				anyChanges = HeightMap._insertTerrainDataAndMerge(terrainsInCell, terrainTypeId, elevation, height) || anyChanges;
 			} else {
-				this.data.push({ position: cell, terrainTypeId, height, elevation });
-				anyAdded = true;
+				const exists = terrainsInCell.some(t => t.terrainTypeId === terrainTypeId);
+				if (!exists) {
+					terrainsInCell.push({ terrainTypeId, height, elevation });
+					anyChanges = true;
+				}
+			}
+
+			// If changes were made, add to the history
+			if (anyChanges) {
+				history[cellKey] = originalTerrainInCell;
 			}
 		}
 
-		if (history.length > 0) {
+		if (Object.keys(history).length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
 			this._recalculateShapes();
@@ -200,10 +198,116 @@ export class HeightMap {
 	}
 
 	async clear() {
-		if (this.data.length === 0) return false;
-		this.data = [];
+		if (Object.keys(this.data).length === 0) return false;
+		this.data = {};
 		await this.#saveChanges();
 		this.#shapes = [];
+		return true;
+	}
+
+	/**
+	 * Mutates the given terrain data in-place to remove all terrain within the given region.
+	 * Do not use outside this class. Only non-private to allow testing.
+	 * @param {HeightMapDataV1Terrain[]} data The data to alter.
+	 * @param {number} rangeBottom The bottom of the range of terrain to remove.
+	 * @param {number} rangeTop The top of the range of terrain to remove.
+	 * @param {string[]} excludingTerrainTypeIds An optional list of terrain type IDs to ignore.
+	 * @returns `true` if any changes were made, `false` if not.
+	 */
+	static _eraseTerrainDataBetween(data, rangeBottom, rangeTop, excludingTerrainTypeIds = []) {
+		let anyChanges = false;
+
+		for (let i = data.length - 1; i >= 0; i--) {
+			const terrain = data[i];
+
+			if (excludingTerrainTypeIds.includes(terrain.terrainTypeId))
+				continue;
+
+			const terrainTop = terrain.elevation + terrain.height;
+
+			// If the terrain that already exists is completely within the erasure range, remove it
+			if (terrain.elevation >= rangeBottom && terrainTop <= rangeTop) {
+				data.splice(i, 1);
+				anyChanges = true;
+			}
+
+			// If the terrain that already exists completely contains the erasure range, split it in two
+			else if (rangeBottom > terrain.elevation && rangeTop < terrainTop) {
+				/** @type {HeightMapDataV1Terrain} */
+				const splitTerrainPart = { // create new upper part
+					elevation: rangeTop,
+					height: terrainTop - rangeTop,
+					terrainTypeId: terrain.terrainTypeId
+				};
+
+				terrain.height = rangeBottom - terrain.elevation; // convert existing to lower part
+
+				data.splice(i + 1, 0, splitTerrainPart); // insert new part
+
+				anyChanges = true;
+			}
+
+			// If the bottom of the existing terrain overlaps the top of the erasure range
+			else if (terrain.elevation < rangeTop && terrainTop > rangeTop) {
+				terrain.height -= (rangeTop - terrain.elevation);
+				terrain.elevation = rangeTop;
+				anyChanges = true;
+			}
+
+			// If the top of the existing terrain overlaps the bottom of the erasure range
+			else if (rangeBottom < terrainTop && rangeBottom > terrain.elevation) {
+				terrain.height -= terrainTop - rangeBottom;
+				anyChanges = true;
+			}
+		}
+
+		return anyChanges;
+	}
+
+	/**
+	 * Mutates the given terriain data in-place to insert new terrain of the given ID in the given range, merging it
+	 * adjacent and overlapping existing terrain of the same type.
+	 * Do not use outside this class. Only non-private to allow testing.
+	 * @param {HeightMapDataV1Terrain[]} data The data to alter.
+	 * @param {string} terrainTypeId
+	 * @param {number} elevation
+	 * @param {number} height
+	 * @returns `true` if any changes were made, `false` if not.
+	 */
+	static _insertTerrainDataAndMerge(data, terrainTypeId, elevation, height) {
+		const top = elevation + height;
+
+		/** @type {HeightMapDataV1Terrain[]} */
+		const mergeTerrains = [];
+
+		for (let i = data.length - 1; i >= 0; i--) {
+			const existingTerrain = data[i];
+
+			if (existingTerrain.terrainTypeId !== terrainTypeId)
+				continue;
+
+			const existingTop = existingTerrain.elevation + existingTerrain.height;
+
+			// If this existing terrain already entirely covers what we're painting, nothing needs to be done. Return
+			// false as no changes have been made.
+			if (existingTerrain.elevation <= elevation && existingTop >= top)
+				return false;
+
+			if (
+				(existingTerrain.elevation >= elevation && existingTerrain.elevation <= top) ||
+				(existingTop >= elevation && existingTop <= top)
+			) {
+				mergeTerrains.push(existingTerrain);
+				data.splice(i, 1);
+			}
+		}
+
+		// Work out the top and bottom (elevation) points of the resulting merged terrain
+		const topMerged = Math.max(top, ...mergeTerrains.map(t => t.elevation + t.height));
+		const elevationMerged = Math.min(elevation, ...mergeTerrains.map(t => t.elevation));
+
+		// Use those values to work out the elevation and height of the merged block
+		data.push({ terrainTypeId, elevation: elevationMerged, height: topMerged - elevationMerged });
 		return true;
 	}
 
@@ -221,7 +325,7 @@ export class HeightMap {
 
 		const dataByTerrainDetails = groupBy(
 			Object.entries(this.data).flatMap(([cell, terrains]) => terrains.map(t => ({ cell, position: decodeCellKey(cell), ...t }))),
-			x => `${x.terrainTypeId}.${x.height}.${x.elevation}`);
+			x => `${x.terrainTypeId}|${x.height}|${x.elevation}`);
 
 		for (const [, cells] of dataByTerrainDetails) {
 			const { terrainTypeId, height, elevation } = cells[0];
@@ -337,7 +441,7 @@ export class HeightMap {
 		const polysAreHolesMap = groupBy(combinedPolygons, ({ polygon }) => !polygon.edges[0].clockwise);
 
 		const solidPolygons = (polysAreHolesMap.get(false) ?? [])
-			.map(({ polygon, cells }) => /** @type {HeightMapShape} */ ({
+			.map(({ polygon, cells }) => new HeightMapShape({
 				polygon,
 				holes: [],
 				terrainTypeId,
@@ -417,353 +521,12 @@ export class HeightMap {
 			// If this shape has a no-height terrain, only test for intersections if we are includeNoHeightTerrain
 			if (!usesHeight && !includeNoHeightTerrain) continue;
 
-			const regions = HeightMap.getIntersectionsOfShape(shape, p1, p2, usesHeight);
+			const regions = shape.getIntersections(p1, p2, usesHeight);
 			if (regions.length > 0)
 				intersectionsByShape.push({ shape, regions });
 		}
 
 		return intersectionsByShape;
-	}
-
-	/**
-	 * Determines intersections of a ray from p1 to p2 for the given shape.
-	 * @param {HeightMapShape} shape
-	 * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
-	 * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
-	 * @param {boolean} usesHeight Whether or not the terrain type assigned to the shape utilises height or not.
-	 * skim regions.
-	 */
-	static getIntersectionsOfShape(shape, { x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }, usesHeight) {
-		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
-		// the line of sight ray would never cross at the required height for an intersection.
-		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
-		const shapeTop = usesHeight ? shape.elevation + shape.height : Infinity;
-		const shapeBottom = usesHeight ? shape.elevation : -Infinity;
-		if (usesHeight && h1 > shapeTop && h2 > shapeTop) return [];
-		if (usesHeight && h1 < shapeBottom && h2 < shapeBottom) return [];
-
-		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
-		const inverseLerpLosHeight = (/** @type {number} */ h) => (h - h1) / (h2 - h1);
-
-		// If the test ray extends above the height of the shape, instead stop it at that height
-		let t1 = 0;
-		if (usesHeight && h1 > shapeTop) {
-			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeTop)));
-			h1 = shapeTop;
-		} else if (usesHeight && h1 < shapeBottom) {
-			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeBottom)));
-			h1 = shapeBottom;
-		}
-
-		let t2 = 1;
-		if (usesHeight && h2 > shapeTop) {
-			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeTop)));
-			h2 = shapeTop;
-		} else if (usesHeight && h2 < shapeBottom) {
-			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeBottom)));
-			h2 = shapeBottom;
-		}
-
-		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
-		const inverseTestRay = testRay.inverse();
-
-		// Loop each edge in this shape and check for an intersection. Record height, shape and how far along the
-		// test line the intersection occured.
-		const allEdges = shape.polygon.edges
-			.map(e => /** @type {[Polygon | undefined, LineSegment]} */ ([undefined, e]))
-			.concat(shape.holes
-				.flatMap(h => h.edges.map(e => /** @type {[Polygon, LineSegment]} */ ([h, e]))));
-
-		/** @type {LineOfSightIntersection[]} */
-		const intersections = [];
-		for (const [hole, edge] of allEdges) {
-			const intersection = testRay.intersectsAt(edge);
-
-			// Do not include intersections at t=0 as it can interfere with initial isInside check
-			if (!intersection || intersection.t < Number.EPSILON) continue;
-
-			intersections.push({ ...intersection, edge, hole });
-
-			// If the intersection occured at u=0 or u=1, and the previous or next edge respectively is parallel to the
-			// testray, then add a synthetic intersection for that edge. This makes it easier later to do the region
-			// calculations later on, as we don't then need to check for vertex collisions and handle them differently.
-			// If the prev/next edge is not parallel then it should cause it's own intersection and get added normally.
-			if (intersection.u < Number.EPSILON) {
-				const previousEdge = (hole ?? shape.polygon).previousEdge(edge);
-				if (previousEdge.isParallelTo(testRay)) {
-					intersections.push({ ...intersection, u: 1, edge: previousEdge, hole });
-				}
-
-			} else if (intersection.u > 1 - Number.EPSILON) {
-				const nextEdge = (hole ?? shape.polygon).nextEdge(edge);
-				if (nextEdge.isParallelTo(testRay)) {
-					intersections.push({ ...intersection, u: 0, edge: nextEdge, hole });
-				}
-			}
-		}
-
-		// Next to use these intersections to determine the regions where an intersection is occuring.
-		/** @type {LineOfSightIntersectionRegion[]} */
-		const regions = [];
-
-		// There may be multiple intersections at an equal point along the test ray (t) - for example when touching a vertex
-		// of a shape - it'll intersect both edges of the vertex. These are a special case and need to be handled
-		// differently, so group everything by t.
-		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries()]
-			.sort(([a], [b]) => a - b) // sort by t
-			.map(([, intersections]) => intersections);
-
-		// Determine if the start point of the test ray is inside or outside the shape, taking height into account.
-		// If the start point lies exactly on an edge then we need to figure out which way the ray is facing - into the
-		// shape or out of the shape. If the point does not lie on an edge, then we can just use containsPoint.
-		// This code is very similar in structure to the code in handleEdgeIntersection - TODO: can we re-use that?
-		let isInside = false;
-		if (!usesHeight || (h1 <= shapeTop && h1 >= shapeBottom)) {
-			const p1LiesOnEdges = allEdges
-				.map(([poly, edge]) => ({ edge, poly, ...edge.findClosestPointOnLineTo(x1, y1) }))
-				.filter(x =>
-					x.t > -Number.EPSILON && x.t < 1 + Number.EPSILON &&
-					x.distanceSquared < Number.EPSILON * Number.EPSILON);
-
-			switch (p1LiesOnEdges.length) {
-				case 0:
-					isInside = shape.polygon.containsPoint(x1, y1, { containsOnEdge: false })
-						&& !shape.holes.some(h => h.containsPoint(x1, y1, { containsOnEdge: true }));
-					break;
-
-				case 1:
-					// (Rename t to u because elsewhere we use t as the relative distance along the ray and u as the
-					// relative distance along an edge, which is what we have here)
-					const { edge, poly, t: u } = p1LiesOnEdges[0];
-
-					if (u < Number.EPSILON) {
-						const previousEdge = (poly ?? shape.polygon).previousEdge(edge);
-						isInside = previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
-
-					} else if (u > 1 - Number.EPSILON) {
-						const nextEdge = (poly ?? shape.polygon).nextEdge(edge);
-						isInside = edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
-
-					} else {
-						const a = edge.angleBetween(testRay);
-						isInside = a > 0 && a < Math.PI; // Do not count 0 or PI as inside because that means it's parallel
-					}
-					break;
-
-				case 2:
-					isInside = testRay.isBetween(p1LiesOnEdges[0].edge, p1LiesOnEdges[1].edge);
-					break;
-
-				case 4:
-					// In the case of a 4-way intersection, loop over all the edges and see if the ray passes between
-					// the relevant adjacent edge. This does mean we could end up testing all the edges twice (since the
-					// relevant edge should already be in the array), but the code to try pair them up would be clunky,
-					// and since it's only 4 basic maths operations it'll have no noticable impact on perf.
-					isInside = p1LiesOnEdges.some(({ edge, poly, t: u }) => {
-						if (u < Number.EPSILON) {
-							const previousEdge = (poly ?? shape.polygon).previousEdge(edge);
-							return previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
-						} else if (u > 1 - Number.EPSILON) {
-							const nextEdge = (poly ?? shape.polygon).nextEdge(edge);
-							return edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
-						}
-					});
-
-					break;
-
-				default:
-					// Rare case when the ruler starts at an intersection of 4 edges. Should only be able to happen on
-					// square grids when two vertices of the shape meet. For now, not sure what to do here :(
-					warn(`Error when performing line of sight calculation: the line of sight ray starts at ${p1LiesOnEdges.length} vertices of a single shape, but expected 0, 1, 2, or 4. This case is not supported and will likely give incorrect line of sight calculation results.`);
-					break;
-			}
-		}
-
-		// If the test ray is flat in the height direction and this shape's top/bottom = the test ray height, then
-		// whenever we 'enter' the shape, we're actually going to be skimming the top or bottom.
-		const isSkimmingTopBottom = usesHeight && h1 === h2 && (h1 === shapeTop || h1 === shapeBottom);
-
-		let lastIntersectionPosition = { x: x1, y: y1, h: h1, t: 0 };
-
-		/** @param {{ x: number; y: number; t: number; }} param0 */
-		const pushRegion = ({ x, y, t }) => {
-			if (t === lastIntersectionPosition.t) return;
-			const position = { x, y, t, h: lerpLosHeight(t) };
-			if (isInside) {
-				regions.push({
-					start: lastIntersectionPosition,
-					end: position,
-					skimmed: isSkimmingTopBottom
-				});
-			}
-			lastIntersectionPosition = position;
-		};
-
-		for (const intersectionsOfT of intersectionsByT) {
-			switch (intersectionsOfT.length) {
-				// In the case of a single intersection, then we have crossed an edge cleanly.
-				case 1:
-					pushRegion(intersectionsOfT[0]);
-					isInside = !isInside;
-					break;
-
-				// In the case of two intersections, we have hit a vertex,
-				case 2:
-					// If intersection2 comes before intersection1 in the shape, then swap them
-					let [intersection1, intersection2] = intersectionsOfT;
-					if (intersection2.edge.p2.equals(intersection1.edge.p1))
-						[intersection1, intersection2] = [intersection2, intersection1];
-
-					// Work out of the ray is passing between the two edges
-					// If NEITHER the ray nor the inverse ray pass between, or BOTH have then the ray has skimmed this vertex
-					// (on the outside or the inside of the shape respectively), so don't add the region to the array.
-					const rayInside = testRay.isBetween(intersection1.edge, intersection2.edge);
-					const inverseRayInside = inverseTestRay.isBetween(intersection1.edge, intersection2.edge);
-
-					if (rayInside !== inverseRayInside) {
-						pushRegion(intersection1);
-						isInside = rayInside;
-					}
-					break;
-
-				// In the uncommon case of four intersections, we have hit a 4-way vertex on a square grid (not possible
-				// on a hex grid).
-				case 4:
-					// In this case we don't actually need to do anything. The only time this can happen is on a square
-					// grid, and for it to happen opposite corners must be painted (i.e. top left and bottom right; or
-					// top right and bottom left). This means that whatever state the ray is in when it intersections,
-					// it is the same when it comes out because it will end up in the same type of cell - painted or not
-					break;
-
-				// If anything else, then something has gone wrong. :(
-				default:
-					error(`Error occured when performing line of sight calculation: the line of sight ray met a shape and caused ${intersectionsOfT.length} intersections at the same point but expected either 1, 2, or 4. This case is not supported and will likely give incorrect line of sight calculation results.`);
-					break;
-			}
-		}
-
-		// In case the last intersection was not at the end, ensure we close the region
-		pushRegion({ x: x2, y: y2, t: 1 });
-
-		// As a final step, need to calculate if any of the regions are 'skimmed' regions.
-		// Note: this is done as an independent step as it allows us to add some tolerance without making a mess of the
-		// normal intersection calculations. For example, adding some tolerance around the ends of lines can cause extra
-		// intersections to occur when they otherwise wouldn't. This often gets more noticable on longer lines too.
-
-		// Only edges that are (approximately) parallel to the test ray could cause a skimming to occur
-		const parallelThreshold = 0.05; // radians
-		const parallelEdges = allEdges
-			.map(([, e]) => e)
-			.filter(e =>
-				Math.abs(testRay.angle - e.angle) < parallelThreshold ||
-				Math.abs(inverseTestRay.angle - e.angle) < parallelThreshold);
-
-		// For each edge that is parallel, check how far the ends are from the testRay (assuming testRay had
-		// infinite length). If both are within a small threshold, then add it as a skimming region.
-		const skimDistThresholdSquared = 16; // pixels
-		/** @type {{ t1: number; t2: number }[]} */
-		const skimRegions = [];
-		for (const edge of parallelEdges) {
-			// Cap the t values to 0-1 (i.e. on the testRay), but don't alter the distances.
-			let { t: t1, distanceSquared: d1, point: point1 } = testRay.findClosestPointOnLineTo(edge.p1.x, edge.p1.y);
-			t1 = Math.max(Math.min(t1, 1), 0);
-			let { t: t2, distanceSquared: d2, point: point2 } = testRay.findClosestPointOnLineTo(edge.p2.x, edge.p2.y);
-			t2 = Math.max(Math.min(t2, 1), 0);
-
-			// If the two ends of the edge wouldn't be skimming, continue to next edge
-			if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
-				continue;
-
-			skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
-		}
-
-		skimRegions.sort((a, b) => a.t1 - b.t2);
-
-		// Merge these regions with the overall intersection regions, combining any adjacent skim regions together
-		// (combining may only happen on a square grid, would never occur on a hex grid)
-		/** @type {number | undefined} */
-		let skimStartT = undefined;
-		for (let i = 0; i < skimRegions.length; i++) {
-
-			// Merge adjacent skim regions. The combined skim region is from skimStartT -> skimRegions[i].t2.
-			skimStartT ??= skimRegions[i].t1;
-			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON) {
-				const skimEndT = skimRegions[i].t2;
-
-				// We need to figure out which, if any, of the intersection regions to remove.
-				// We also need to figure out if we're overlapping any of these intersection regions, and if so, we
-				// want to remove it but also insert a new one up to that point. E.G. if a region was from t=0.2 to
-				// t=0.4, and then a skim region was from t=0.3 to t=0.5, remove the existing intersection region
-				// and add a new one from t=0.2 to t=0.3. Note that the start and end intersect regions may be the
-				// same if the skim region does not fully overlap it.
-
-				/** @type {LineOfSightIntersectionRegion | undefined} */
-				let overlappingStartRegion = undefined;
-				/** @type {LineOfSightIntersectionRegion | undefined} */
-				let overlappingEndRegion = undefined;
-
-				// We also keep track of the indices to splice
-				let spliceRangeStart = 0;
-				let spliceRangeEnd = regions.length;
-
-				for (let j = 0; j < regions.length; j++) {
-					const region = regions[j];
-
-					if (region.start.t < skimStartT && region.end.t > skimStartT)
-						overlappingStartRegion = region;
-
-					if (region.start.t < skimEndT && region.end.t > skimEndT)
-						overlappingEndRegion = region;
-
-					if (region.end.t <= skimStartT)
-						spliceRangeStart = j + 1;
-
-					if (region.start.t >= skimEndT && spliceRangeEnd > j)
-						spliceRangeEnd = j;
-				}
-
-				const skimStartObject = { t: skimStartT, h: lerpLosHeight(skimStartT), ...testRay.lerp(skimStartT) };
-				const skimEndObject = { t: skimEndT, h: lerpLosHeight(skimEndT), ...testRay.lerp(skimEndT) };
-
-				// Actually remove the overlapping regions and insert the new regions
-				/** @type {LineOfSightIntersectionRegion[]} */
-				const newElements = [
-					overlappingStartRegion
-						? {
-							start: overlappingStartRegion.start,
-							end: skimStartObject,
-							skimmed: overlappingStartRegion.skimmed
-						}
-						: undefined,
-					{
-						start: skimStartObject,
-						end: skimEndObject,
-						skimmed: true
-					},
-					overlappingEndRegion
-						? {
-							start: skimEndObject,
-							end: overlappingEndRegion.end,
-							skimmed: overlappingEndRegion.skimmed
-						}
-						: undefined
-				].filter(Boolean);
-
-				regions.splice(spliceRangeStart, spliceRangeEnd - spliceRangeStart, ...newElements);
-
-				skimStartT = undefined;
-			}
-		}
-
-		// Finally, in case we trimmed the testRay to make the logic simpler, we need to convert the trimmed-ray `t`
-		// values back into full ray `t` values
-		if (t1 !== 0 || t2 !== 1)
-			for (const region of regions) {
-				region.start.t = t1 + region.start.t * (t2 - t1);
-				region.end.t = t1 + region.end.t * (t2 - t1);
-			}
-
-		return regions;
 	}
 
 	/**
@@ -883,10 +646,6 @@ export class HeightMap {
 	// Utils //
 	// ----- //
 	async #saveChanges() {
-		// Remove any cells that do not have a valid terrain type - e.g. if the terrain type was deleted
-		const availableTerrainIds = new Set(getTerrainTypes().map(t => t.id));
-		this.data = this.data.filter(x => availableTerrainIds.has(x.terrainTypeId));
-
 		await this.scene.setFlag(moduleName, flags.heightData, { v: DATA_VERSION, data: this.data });
 	}
 
@@ -962,7 +721,7 @@ export class HeightMap {
  * @param {number} col
  */
 export function encodeCellKey(row, col) {
-	return `${row}.${col}`;
+	return `${row}|${col}`;
 }
 
 /**
@@ -970,6 +729,6 @@ export function encodeCellKey(row, col) {
  * @param {string} key
  */
 export function decodeCellKey(key) {
-	const [row, col] = key.split(".");
+	const [row, col] = key.split("|");
 	return [+row, +col];
 }

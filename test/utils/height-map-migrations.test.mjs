@@ -30,21 +30,21 @@ describe("migrateData()", () => {
 
 		/** @type {HeightMapDataV1} */
 		const v1DataExpected = {
-			"0.0": [
+			"0|0": [
 				{
 					terrainTypeId: "abc",
 					height: 3,
 					elevation: 1
 				}
 			],
-			"1.0": [
+			"1|0": [
 				{
 					terrainTypeId: "abc",
 					height: 1,
 					elevation: 0
 				}
 			],
-			"10.20": [
+			"10|20": [
 				{
 					terrainTypeId: "def",
 					height: 100,
