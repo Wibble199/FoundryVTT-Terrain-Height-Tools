@@ -643,28 +643,12 @@ export class HeightMap {
 		if (this._history.length <= 0) return false;
 
 		const revertChanges = this._history.pop();
-		let anyAdded = false;
 
-		for (const revert of revertChanges) {
-			const existingIndex = this.data.findIndex(({ position }) => position[0] === revert.position[0] && position[1] === revert.position[1]);
-
-			// If the cell was un-painted before the change, and it now is painted, remove it
-			if (revert.terrainTypeId === undefined && existingIndex >= 0) {
-				this.data.splice(existingIndex, 1);
-			}
-
-			// If the cell was painted before the change, and is now painted, update it
-			else if (revert.terrainTypeId !== undefined && existingIndex >= 0) {
-				this.data[existingIndex].terrainTypeId = revert.terrainTypeId;
-				this.data[existingIndex].height = revert.height;
-				this.data[existingIndex].elevation = revert.elevation;
-			}
-
-			// If the cell was painted before the change, and is now unpainted, add it
-			else if (revert.terrainTypeId !== undefined && existingIndex === -1) {
-				this.data.push({ ...revert });
-				anyAdded = true;
-			}
+		for (const [position, state] of Object.entries(revertChanges)) {
+			if (state?.length === 0)
+				delete this.data[position];
+			else
+				this.data[position] = state;
 		}
 
 		this.#saveChanges();
@@ -676,7 +660,20 @@ export class HeightMap {
 	// Utils //
 	// ----- //
 	async #saveChanges() {
-		await this.scene.setFlag(moduleName, flags.heightData, { v: DATA_VERSION, data: this.data });
+		// Remove empty cells
+		const cleanedData = Object.fromEntries(Object.entries(this.data).filter(([, terrain]) => terrain?.length > 0));
+
+		// Use update rather than SetFlag as we need to specify { diff: false, recursive: true } to prevent existing
+		// empty cells from not being cleared.
+		await this.scene.update({
+			[`flags.${moduleName}.${flags.heightData}`]: {
+				v: DATA_VERSION,
+				data: cleanedData
+			}
+		}, {
+			diff: false,
+			recursive: false
+		});
 	}
 
 	/**
