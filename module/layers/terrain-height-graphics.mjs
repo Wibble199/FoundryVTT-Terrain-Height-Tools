@@ -48,6 +48,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		super();
 		this.eventMode = "static";
 		this.interactive = true;
+		this.sortableChildren = true;
 
 		Hooks.on("highlightObjects", this.#onHighlightObjects.bind(this));
 
@@ -105,6 +106,11 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			if (!terrainType) continue;
 
 			const shapeGraphics = new TerrainShapeGraphics(shape, terrainType, textures.get(terrainType.id));
+
+			// Sort terrains that use a height in elevation order. For terrains that don't use a height, always sort
+			// them under terrain that does have a height.
+			shapeGraphics.zIndex = terrainType.usesHeight ? shape.elevation : -1;
+
 			this.#shapes.push(shapeGraphics);
 			this.addChild(shapeGraphics);
 		}
