@@ -52,6 +52,7 @@ export class HeightMap {
 	 * Gets the height data exists at the given position, or `undefined` if it does not exist.
 	 * @param {number} row
 	 * @param {number} col
+	 * @returns {HeightMapDataV1Terrain[]}
 	 */
 	get(row, col) {
 		return this.data[encodeCellKey(row, col)] ?? [];

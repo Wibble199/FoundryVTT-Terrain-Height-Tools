@@ -1,6 +1,7 @@
 import { moduleName } from "../consts.mjs";
 import { paintingConfig$ } from "../stores/drawing.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
+import { alphaToHex } from "../utils/misc-utils.mjs";
 import { getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
@@ -43,8 +44,8 @@ export class TerrainPaintPalette extends withSubscriptions(Application) {
 				// Hex colors including opacity for preview boxes:
 				previewBorderColor: t.lineWidth <= 0
 					? "transparent"
-					: t.lineColor + Math.round(t.lineOpacity * 255).toString(16).padStart(2, "0"),
-				previewBackgroundColor: t.fillColor + Math.round(t.fillOpacity * 255).toString(16).padStart(2, "0"),
+					: t.lineColor + alphaToHex(t.lineOpacity),
+				previewBackgroundColor: t.fillColor + alphaToHex(t.fillOpacity),
 			}))
 		};
 	}

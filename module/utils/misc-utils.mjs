@@ -28,6 +28,14 @@ export function prettyFraction(v) {
 }
 
 /**
+ * Converts a value between 0-1 to a two-digit hex number.
+ * @param {number} a
+ */
+export function alphaToHex(a) {
+	return Math.round(a * 255).toString(16).padStart(2, "0");
+}
+
+/**
  * A Set that can be iterated in order the items were added. When iterating, any additional items added to the set while
  * iterating over it will also be included in the current iterator.
  * @template T

@@ -1,6 +1,7 @@
 import { moduleName, tools } from "../consts.mjs";
 import { HeightMap, decodeCellKey } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
+import { Signal } from "../utils/signal.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
@@ -37,6 +38,11 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	/** @type {[number, number][]} */
 	_pendingChanges = [];
+
+	_hoveredCell$ = new Signal({ row: -1, col: -1 }, { equalityComparer: (a, b) => a.row === b.row && a.col === b.col });
+
+	/** @type {(() => void)[]} */
+	#subscriptions = [];
 
 	constructor() {
 		super();
@@ -75,6 +81,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 			this._eventListenerObj.eventMode = "static";
 			game.canvas.interface.addChild(this._eventListenerObj);
 
+			this._eventListenerObj.on("globalmousemove", this.#onGlobalMouseMove);
+
 			this._graphics = new TerrainHeightGraphics();
 			game.canvas.primary.addChild(this._graphics);
 
@@ -84,6 +92,9 @@ export class TerrainHeightLayer extends InteractionLayer {
 			this._heightMap = new HeightMap(game.canvas.scene);
 
 			await this._graphics.update(this._heightMap);
+
+			this.#subscriptions.push(this._hoveredCell$.subscribe(({ row, col }) =>
+				globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col)));
 		}
 	}
 
@@ -109,15 +120,19 @@ export class TerrainHeightLayer extends InteractionLayer {
 	async _tearDown(options) {
 		super._tearDown(options);
 
-		if (this._eventListenerObj) this._eventListenerObj.parent.removeChild(this._eventListenerObj);
+		this._eventListenerObj?.off("globalmousemove", this.#onGlobalMouseMove);
+		this._eventListenerObj?.parent.removeChild(this._eventListenerObj);
 		this._eventListenerObj = undefined;
 
 		this._graphics?._tearDown();
-		if (this._graphics) this._graphics.parent.removeChild(this._graphics);
+		this._graphics?.parent.removeChild(this._graphics);
 		this._graphics = undefined;
 
-		if (this._highlightGraphics) this._highlightGraphics.parent.removeChild(this._highlightGraphics);
+		this._highlightGraphics?.parent.removeChild(this._highlightGraphics);
 		this._highlightGraphics = undefined;
+
+		this.#subscriptions.forEach(unsubscribe => unsubscribe());
+		this.#subscriptions = [];
 	}
 
 	async _onSceneUpdate(scene, data) {
@@ -161,6 +176,12 @@ export class TerrainHeightLayer extends InteractionLayer {
 		if (this._pendingTool === undefined || event.button !== 0) return;
 		await this.#commitPendingToolUsage();
 		this._pendingTool = undefined;
+	};
+
+	#onGlobalMouseMove = event => {
+		const { x, y } = this.toLocal(event.data.global);
+		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
+		this._hoveredCell$.value = { row, col };
 	};
 
 	/**

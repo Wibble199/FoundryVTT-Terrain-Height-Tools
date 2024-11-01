@@ -22,6 +22,7 @@ export const settings = /** @type {const} */ ({
 	displayLosMeasurementPlayer: "displayLosMeasurementPlayer",
 	otherUserLineOfSightRulerOpacity: "otherUserLineOfSightRulerOpacity",
 	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer",
+	showTerrainStackViewerOnTokenLayer: "showTerrainStackViewerOnTokenLayer",
 	smartLabelPlacement: "smartLabelPlacement",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
 	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
@@ -36,6 +37,7 @@ export const settings = /** @type {const} */ ({
 export const keybindings = /** @type {const} */ ({
 	decreaseLosRulerHeight: "decreaseLosRulerHeight",
 	increaseLosRulerHeight: "increaseLosRulerHeight",
+	showTerrainStack: "showTerrainStack",
 	toggleTerrainHeightMapOnTokenLayer: "toggleTerrainHeightMapOnTokenLayer"
 });
 

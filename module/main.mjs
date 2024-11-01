@@ -1,4 +1,5 @@
 import * as api from './api.mjs';
+import { TerrainStackViewer } from "./applications/terrain-stack-viewer.mjs";
 import { registerSceneControls, renderToolSpecificApplications, sceneControls } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { addAboveTilesToSceneConfig, registerSettings } from './config/settings.mjs';
@@ -16,7 +17,13 @@ Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 Hooks.on("preUpdateToken", handleTokenElevationChange);
 
 Object.defineProperty(globalThis, "terrainHeightTools", {
-	value: { ...api },
+	value: {
+		...api,
+		ui: {
+			/** @type {TerrainStackViewer} */
+			terrainStackViewer: undefined
+		}
+	},
 	writable: false
 });
 
@@ -34,6 +41,8 @@ function init() {
 }
 
 function ready() {
+	globalThis.terrainHeightTools.ui.terrainStackViewer = new TerrainStackViewer().render(true);
+
 	game.socket.on(socketName, handleSocketEvent);
 
 	// Warn if lib-wrapper is missing (has to be done in ready not init, as user does not exist at init)

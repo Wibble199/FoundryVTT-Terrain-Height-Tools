@@ -22,6 +22,7 @@ export function registerSettings() {
 		onChange: () => {
 			sceneControls.terrainPaintPalette?.render(false);
 			game.canvas.terrainHeightLayer._updateGraphics();
+			globalThis.terrainHeightTools.ui.terrainStackViewer?.render();
 		}
 	});
 
@@ -77,6 +78,15 @@ export function registerSettings() {
 			const graphicsLayer = game.canvas.terrainHeightLayer._graphics;
 			graphicsLayer.showOnTokenLayer$.value = value;
 		}
+	});
+
+	game.settings.register(moduleName, settings.showTerrainStackViewerOnTokenLayer, {
+		name: "SETTINGS.ShowTerrainStackViewerOnTokenLayer.Name",
+		hint: "SETTINGS.ShowTerrainStackViewerOnTokenLayer.Hint",
+		scope: "client",
+		type: Boolean,
+		config: true,
+		default: false
 	});
 
 	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {

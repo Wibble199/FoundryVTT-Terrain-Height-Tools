@@ -15,6 +15,7 @@
 	"KEYBINDINGS": {
 		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Height",
 		"IncreaseLosRulerHeight": "Increase Line of Sight Ruler Height",
+		"ShowTerrainStackViewer": "Show Terrain Viewer",
 		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
 	},
 	"SETTINGS": {
@@ -30,6 +31,8 @@
 		"OtherUserLineOfSightRulerOpacity.Name": "Other Users' LoS Ruler Opacity",
 		"OtherUserLineOfSightRulerOpacity.Hint": "How transparent other user's line of sight rulers appear to you.",
 		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
+		"ShowTerrainStackViewerOnTokenLayer.Name": "Show Terrain Viewer on Token Layer",
+		"ShowTerrainStackViewerOnTokenLayer.Hint": "If turned on, when hovering over terrain while on the token layer, you will see a display showing you what terrain is under your mouse. Alternatively, you can bind this to a key (see 'Configure Controls').",
 		"TerrainHeightLayerRenderAboveTiles.Name": "Terrain Height Map Above Tiles",
 		"TerrainHeightLayerRenderAboveTiles.Hint": "Whether or not the terrain height map will be drawn above non-overhead tiles on the scene. This can be also be set per-scene.",
 		"TerrainHeightLayerVisibilityRadius.Name": "Terrain Height Map Visibility Radius",
@@ -109,6 +112,7 @@
 		"MissingLibWrapperWarning": "Terrain Height Tools now requires the libWrapper module to work. Please ensure it is installed and enabled or you may encounter issues.",
 		"StartHeight.Name": "Start Height",
 		"StartHeight.Hint": "This is the height of the first point of the ruler. You can also adjust this using +/- on the keyboard before starting to drag the ruler.",
+		"Terrain": "Terrain",
 		"TerrainTypesToErase": "Terrain types to erase",
 		"TokenLineOfSightConfigHint": "Select two tokens to measure line of sight between them.",
 		"TokenLineOfSightConfigTitle": "Token LoS",

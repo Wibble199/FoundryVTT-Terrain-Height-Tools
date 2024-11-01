@@ -1,0 +1,25 @@
+<div id="tht_terrainStackViewer" class="app">
+	<h3><i class="fas fa-chart-simple" style="margin-right: 6px;"></i> {{localize "TERRAINHEIGHTTOOLS.Terrain"}}</h3>
+	<hr/>
+
+	{{#if (and (not heightLayers.length) (not noHeightLayers.length))}}
+		<p style="text-align: center;">Hover terrain to show details</p>
+	{{/if}}
+
+	{{#each heightLayers}}
+		<div class="terrain-layer-block" style="color: {{textColor}}; border-color: {{borderColor}}; background: {{backgroundColor}};">
+			<p class="terrain-layer-block-title">{{name}}</p>
+			<p class="terrain-layer-block-height">{{elevation}} → {{top}} ({{localize "Height"}} {{height}})</p>
+		</div>
+	{{/each}}
+
+	{{#if (and heightLayers.length noHeightLayers.length)}}
+		<hr/>
+	{{/if}}
+
+	{{#each noHeightLayers}}
+		<div class="terrain-layer-block" style="color: {{textColor}}; border-color: {{borderColor}}; background: {{backgroundColor}};">
+			<p class="terrain-layer-block-title">{{name}}</p>
+		</div>
+	{{/each}}
+</div>

@@ -26,18 +26,23 @@ export class Signal {
 	/** @type {(() => void) | undefined} */
 	#afterLastUnsubscribe = undefined;
 
+	#equalityComparer;
+
 	/**
 	 * @param {T} initialValue
 	 * @param {Object} [options]
 	 * @param {boolean} [options.onlyFireWhenChanged]
 	 * @param {() => void} [options.beforeFirstSubscribe] Callback that runs before the first subscriber is added.
 	 * @param {() => void} [options.afterLastUnsubscribe] Callback that runs after the last subscriber is removed.
+	 * @param {(a: T, b: T) => boolean} [options.equalityComparer] Function to determine if a value has changed (used
+	 * when `onlyFireWhenChanged` is true).
 	 */
-	constructor(initialValue, { onlyFireWhenChanged = true, beforeFirstSubscribe, afterLastUnsubscribe } = {}) {
+	constructor(initialValue, { onlyFireWhenChanged = true, beforeFirstSubscribe, afterLastUnsubscribe, equalityComparer } = {}) {
 		this.#value = initialValue;
 		this.onlyFireWhenChanged = onlyFireWhenChanged;
 		this.#beforeFirstSubscribe = beforeFirstSubscribe;
 		this.#afterLastUnsubscribe = afterLastUnsubscribe;
+		this.#equalityComparer = equalityComparer ?? ((a, b) => a === b);
 	}
 
 	get value() {
@@ -45,7 +50,7 @@ export class Signal {
 	}
 
 	set value(newValue) {
-		if (this.onlyFireWhenChanged && newValue === this.#value)
+		if (this.onlyFireWhenChanged && this.#equalityComparer(newValue, this.#value))
 			return;
 
 		this.#value = newValue;
