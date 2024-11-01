@@ -4,6 +4,64 @@ import { describe, it } from "node:test";
 import { migrateData } from "../../module/utils/height-map-migrations.mjs";
 
 describe("migrateData()", () => {
+	it("should correctly migrate pass v1 data through unchanged", () => {
+		/** @type {HeightMapDataV1} */
+		const v1Data = {
+			v: 1,
+			data: {
+				"0|0": [
+					{
+						terrainTypeId: "abc",
+						height: 1,
+						elevation: 3
+					}
+				],
+				"0|1": [
+					{
+						terrainTypeId: "abc",
+						height: 1,
+						elevation: 3
+					},
+					{
+						terrainTypeId: "bcd",
+						height: 2,
+						elevation: 0
+					}
+				]
+			}
+		};
+
+		/** @type {HeightMapDataV1} */
+		const v1DataExpected = {
+			v: 1,
+			data: {
+				"0|0": [
+					{
+						terrainTypeId: "abc",
+						height: 1,
+						elevation: 3
+					}
+				],
+				"0|1": [
+					{
+						terrainTypeId: "abc",
+						height: 1,
+						elevation: 3
+					},
+					{
+						terrainTypeId: "bcd",
+						height: 2,
+						elevation: 0
+					}
+				]
+			}
+		};
+
+		const v1DataActual = migrateData(v1Data);
+
+		assert.deepEqual(v1DataActual, v1DataExpected);
+	});
+
 	it("should correctly migrate v0 to v1 data", () => {
 		/** @type {HeightMapDataV0} */
 		const v0Data = [
@@ -30,27 +88,30 @@ describe("migrateData()", () => {
 
 		/** @type {HeightMapDataV1} */
 		const v1DataExpected = {
-			"0|0": [
-				{
-					terrainTypeId: "abc",
-					height: 3,
-					elevation: 1
-				}
-			],
-			"1|0": [
-				{
-					terrainTypeId: "abc",
-					height: 1,
-					elevation: 0
-				}
-			],
-			"10|20": [
-				{
-					terrainTypeId: "def",
-					height: 100,
-					elevation: 99
-				}
-			]
+			v: 1,
+			data: {
+				"0|0": [
+					{
+						terrainTypeId: "abc",
+						height: 3,
+						elevation: 1
+					}
+				],
+				"1|0": [
+					{
+						terrainTypeId: "abc",
+						height: 1,
+						elevation: 0
+					}
+				],
+				"10|20": [
+					{
+						terrainTypeId: "def",
+						height: 100,
+						elevation: 99
+					}
+				]
+			}
 		};
 
 		const v1DataActual = migrateData(v0Data, 1);

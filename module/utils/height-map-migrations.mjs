@@ -7,7 +7,7 @@
 /** @typedef {{ terrainTypeId: string; elevation: number; height: number; position: [number, number] }[]} HeightMapDataV0 */
 
 /**
- * @typedef {{ [position: string]: HeightMapDataV1Terrain[] }} HeightMapDataV1
+ * @typedef {Versioned<1, { [position: string]: HeightMapDataV1Terrain[] }>} HeightMapDataV1
  */
 /**
  * @typedef {Object} HeightMapDataV1Terrain
@@ -21,20 +21,23 @@ export const DATA_VERSION = 1;
 const migrations = [
 	// v0 -> v1
 	/** @type {(data: HeightMapDataV0) => HeightMapDataV1} */
-	(data) => Object.fromEntries(data.map(d => [
-		`${d.position[0]}|${d.position[1]}`, // do not use encodeCellKey here in case it is changed in future and changes how the migration works
-		[{
-			terrainTypeId: d.terrainTypeId,
-			height: d.height,
-			elevation: d.elevation ?? 0
-		}]
-	]))
+	(data) => ({
+		v: 1,
+		data: Object.fromEntries(data.map(d => [
+			`${d.position[0]}|${d.position[1]}`, // do not use encodeCellKey here in case it is changed in future and changes how the migration works
+			[{
+				terrainTypeId: d.terrainTypeId,
+				height: d.height,
+				elevation: d.elevation ?? 0
+			}]
+		]))
+	})
 ];
 
 /**
  * Migrates the given data to the latest version.
  * @param {Versioned<number, any> | HeightMapDataV0 | undefined | null} data
- * @returns {Versioned<1, HeightMapDataV1>}
+ * @returns {HeightMapDataV1}
  */
 export function migrateData(data, targetVersion = DATA_VERSION) {
 	// If there is no data, return a blank V1 map
