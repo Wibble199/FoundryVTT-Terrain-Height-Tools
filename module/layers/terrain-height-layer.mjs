@@ -1,6 +1,6 @@
 import { moduleName, tools } from "../consts.mjs";
 import { HeightMap, decodeCellKey } from "../geometry/height-map.mjs";
-import { convertConfig$, paintingConfig$ } from "../stores/drawing.mjs";
+import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
@@ -201,12 +201,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		switch (tool ?? this._pendingTool) {
 			case tools.paint: {
-				const existing = this._heightMap.get(...cell);
-				const { selectedTerrainId, selectedHeight, selectedElevation } = this.paintingConfig;
-
-				if (!this.#cellIsPending(...cell)
-					&& (!existing || existing.terrainTypeId !== selectedTerrainId || existing.height !== selectedHeight || existing.elevation !== selectedElevation)
-					&& selectedTerrainId) {
+				const selectedTerrainId = paintingConfig$.terrainTypeId$.value;
+				if (!this.#cellIsPending(...cell) && selectedTerrainId) {
 					this._pendingChanges.push(cell);
 					this._highlightGraphics.highlight(...cell);
 				}
@@ -240,7 +236,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 			}
 
 			case tools.erase: {
-				if (!this.#cellIsPending(...cell) && this._heightMap.get(...cell)) {
+				if (!this.#cellIsPending(...cell)) {
 					this._pendingChanges.push(cell);
 					this._highlightGraphics.color = 0x000000;
 					this._highlightGraphics.highlight(...cell);
@@ -294,7 +290,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 				break;
 
 			case tools.erase:
-				if (await this._heightMap.eraseCells(pendingChanges))
+				const { excludedTerrainTypeIds: excludingTerrainTypeIds, bottom, top } = eraseConfig$.value;
+				if (await this._heightMap.eraseCells(pendingChanges, { excludingTerrainTypeIds, bottom, top }))
 					await this._updateGraphics();
 				break;
 		}

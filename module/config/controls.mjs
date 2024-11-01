@@ -1,6 +1,7 @@
 import { LineOfSightRulerConfig } from '../applications/line-of-sight-ruler-config.mjs';
 import { ShapeConversionConifg } from "../applications/shape-conversion-config.mjs";
-import { TerrainHeightPalette } from "../applications/terrain-height-palette.mjs";
+import { TerrainErasePalette } from "../applications/terrain-erase-palette.mjs";
+import { TerrainPaintPalette } from "../applications/terrain-paint-palette.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { Signal } from "../utils/signal.mjs";
@@ -15,8 +16,11 @@ export const sceneControls = {
 	/** @type {SceneControlTool | undefined} */
 	terrainHeightToolsLayerToggleControlButton: undefined,
 
-	/** @type {TerrainHeightPalette | undefined} */
-	terrainHeightPalette: undefined,
+	/** @type {TerrainPaintPalette | undefined} */
+	terrainPaintPalette: undefined,
+
+	/** @type {TerrainErasePalette | undefined} */
+	terrainErasePalette: undefined,
 
 	/** @type {LineOfSightRulerConfig | undefined} */
 	lineOfSightRulerConfig: undefined,
@@ -131,8 +135,14 @@ export function renderToolSpecificApplications(controls) {
 	// Show the palette if either the paint or fill tools are selected
 	renderToolSpecificApplication(
 		controls.activeControl === moduleName && [tools.paint, tools.fill].includes(controls.activeTool),
-		sceneControls.terrainHeightPalette,
-		() => sceneControls.terrainHeightPalette = new TerrainHeightPalette());
+		sceneControls.terrainPaintPalette,
+		() => sceneControls.terrainPaintPalette = new TerrainPaintPalette());
+
+	// Show the eraser config if the eraser tool is selected
+	renderToolSpecificApplication(
+		controls.activeControl === moduleName && controls.activeTool === tools.erase,
+		sceneControls.terrainErasePalette,
+		() => sceneControls.terrainErasePalette = new TerrainErasePalette());
 
 	// Show the line of sight ruler config if the line of sight ruler is selected
 	renderToolSpecificApplication(

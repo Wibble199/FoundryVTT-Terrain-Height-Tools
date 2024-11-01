@@ -51,6 +51,7 @@
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",
 		"AllowTextRotation": "Allow Text Rotation",
+		"Bottom": "Bottom",
 		"ClearConfirmContent": "Permanently delete all terrain data from this scene?",
 		"ClearConfirmTitle": "Clear All Terrain",
 		"ClearSelectedToken": "Clear selected token",
@@ -62,6 +63,8 @@
 		"Elevation.Hint": "How far the bottom of the terrain is above the ground",
 		"EndHeight.Name": "End Height",
 		"EndHeight.Hint": "This is the height of the last point of the ruler. You can also adjust this using +/- on the keyboard while dragging the ruler. If not set to anything, uses the same height as the start point.",
+		"EraseBottom.Hint": "The lower elevation to erase from. Terrain above this value and below the 'Top' value will be removed.",
+		"EraseTop.Hint": "The upper elevation to erase to. Terrain below this value and above the 'Bottom' value will be removed.",
 		"ExportTerrainTypes": "Export JSON",
 		"HasHeight.Name": "Has height?",
 		"HasHeight.Hint": "Whether the terrain can have height and elevation. You might turn this off when marking zones/regions rather than terrain for example.",
@@ -106,9 +109,13 @@
 		"MissingLibWrapperWarning": "Terrain Height Tools now requires the libWrapper module to work. Please ensure it is installed and enabled or you may encounter issues.",
 		"StartHeight.Name": "Start Height",
 		"StartHeight.Hint": "This is the height of the first point of the ruler. You can also adjust this using +/- on the keyboard before starting to drag the ruler.",
+		"TerrainTypesToErase": "Terrain types to erase",
 		"TokenLineOfSightConfigHint": "Select two tokens to measure line of sight between them.",
 		"TokenLineOfSightConfigTitle": "Token LoS",
 		"TokenLineOfSightRelativeRayPosition": "Position of ray relative to the token. Currently: {current}",
-		"TokenLineOfSightSelectTokenHint": "Click on a token to select it, or click on the 'Select token' button again to cancel"
-	}
+		"TokenLineOfSightSelectTokenHint": "Click on a token to select it, or click on the 'Select token' button again to cancel",
+		"Top": "Top"
+	},
+	"InvertSelection": "Invert Selection",
+	"SelectNone": "Select None"
 }

@@ -20,7 +20,7 @@ export function registerSettings() {
 		type: Array,
 		config: false,
 		onChange: () => {
-			sceneControls.terrainHeightPalette?.render(false);
+			sceneControls.terrainPaintPalette?.render(false);
 			game.canvas.terrainHeightLayer._updateGraphics();
 		}
 	});

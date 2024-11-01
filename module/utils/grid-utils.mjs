@@ -118,19 +118,27 @@ function pointArrayToObjects(arr, xOffset = 0, yOffset = 0) {
 /**
  * Converts a value in from grid cells into scene units.
  * For example, if the canvas was set to 0.5, passing 3 to this function would return 1.5.
- * @param {number} val
+ * @template {number | null} T
+ * @param {T} val
+ * @returns {T extends number ? number : null}
  */
 export function toSceneUnits(val) {
-	return val * game.canvas.scene.dimensions.distance;
+	return typeof val === "number"
+		? val * game.canvas.scene.dimensions.distance
+		: null;
 }
 
 /**
  * Converts a value in scene units into grid cells.
  * For example, if the canvas was set to 5ft, passing 10 to this function would return 2.
- * @param {number} val
+ * @template {number | null} T
+ * @param {T} val
+ * @returns {T extends number ? number : null}
  */
 export function fromSceneUnits(val) {
-	return val / game.canvas.scene.dimensions.distance;
+	return typeof val === "number"
+		? val / game.canvas.scene.dimensions.distance
+		: null;
 }
 
 /**

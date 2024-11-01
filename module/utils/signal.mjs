@@ -123,7 +123,7 @@ export function fromHook(hookName, filter) {
 
 /**
  * @template T
- * @typedef {SignalLike<T> & { [K in keyof T as `${K}$`]: T[K] extends Record<string, any> ? DeepSignal<T[K]> : Signal<T[K]> }} DeepSignal
+ * @typedef {SignalLike<T> & { [K in keyof T as `${K}$`]: T[K] extends Record<string, {}> ? DeepSignal<T[K]> : Signal<T[K]> }} DeepSignal
  */
 /**
  * Creates a deep Signal from the given object. Individual properties and the object as a whole can be subscribed to.

@@ -112,7 +112,7 @@ export class HeightMap {
 			// overlap. E.G. if a type A terrain was at H3 E0, and the user painted a type B terrain at H2 E2, then we
 			// want to clip the A terrain to H2 E0.
 			if (overwrite && terrainType.usesHeight) {
-				anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, elevation, elevation + height, [...noHeightTerrains, terrainTypeId]) || anyChanges;
+				anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, elevation, elevation + height, { excludingTerrainTypeIds: [...noHeightTerrains, terrainTypeId] }) || anyChanges;
 			}
 
 			// For terrain that uses height, use the merge function to merge with existing terrain of the same type.
@@ -163,21 +163,49 @@ export class HeightMap {
 	/**
 	 * Attempts to erase data from multiple cells at the given position.
 	 * @param {[number, number][]} cells
+	 * @param {Object} [options]
+	 * @param {string[]} [options.onlyTerrainTypeIds] A list of terrain type IDs to remove.
+	 * @param {string[]} [options.excludingTerrainTypeIds] A list of terrain type IDs NOT to remove.
+	 * @param {number} [options.bottom] The optional lower range to remove terrain from. Does not apply to no-height terrain.
+	 * @param {number} [options.top] Optional upper range to remove terrain from. Does not apply to no-height terrain.
 	 * @returns `true` if the map was updated and needs to be re-drawn, false otherwise.
 	 */
-	async eraseCells(cells) {
+	async eraseCells(cells, { onlyTerrainTypeIds, excludingTerrainTypeIds, bottom = -Infinity, top = Infinity } = {}) {
 		/** @type {this["_history"][number]} */
-		const history = [];
+		const history = {};
+
+		const noHeightTerrains = getTerrainTypes().filter(t => !t.usesHeight).map(t => t.id);
 
 		for (const cell of cells) {
-			const idx = this.data.findIndex(({ position }) => position[0] === cell[0] && position[1] === cell[1]);
-			if (idx === -1) continue;
+			const cellKey = encodeCellKey(...cell);
+			const terrainsInCell = this.data[cellKey];
 
-			history.push({ position: cell, terrainTypeId: this.data[idx].terrainTypeId, height: this.data[idx].height });
-			this.data.splice(idx, 1);
+			if (!terrainsInCell) continue;
+
+			const originalTerrainInCell = terrainsInCell.map(t => ({ ...t })); // create an unmodified clone for history
+
+			// Remove terrain that has a height
+			let anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, bottom, top, {
+				excludingTerrainTypeIds: [...noHeightTerrains, ...(excludingTerrainTypeIds ?? [])],
+				onlyTerrainTypeIds: onlyTerrainTypeIds
+			});
+
+			// Remove no-height terrain
+			for (let i = terrainsInCell.length - 1; i >= 0; i--) {
+				const { terrainTypeId } = terrainsInCell[i];
+				if (noHeightTerrains.includes(terrainTypeId) && onlyTerrainTypeIds?.includes(terrainTypeId) !== false && excludingTerrainTypeIds?.includes(terrainTypeId) !== true) {
+					terrainsInCell.splice(i, 1);
+					anyChanges = true;
+				}
+			}
+
+			// If changes were made, add to the history
+			if (anyChanges) {
+				history[cellKey] = originalTerrainInCell;
+			}
 		}
 
-		if (history.length > 0) {
+		if (Object.keys(history).length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
 			this._recalculateShapes();
@@ -211,16 +239,18 @@ export class HeightMap {
 	 * @param {HeightMapDataV1Terrain[]} data The data to alter.
 	 * @param {number} rangeBottom The bottom of the range of terrain to remove.
 	 * @param {number} rangeTop The top of the range of terrain to remove.
-	 * @param {string[]} excludingTerrainTypeIds An optional list of terrain type IDs to ignore.
+	 * @param {Object} [options]
+	 * @param {string[]} [options.excludingTerrainTypeIds] An optional list of terrain type IDs to ignore.
+	 * @param {string[]} [options.onlyTerrainTypeIds] An optional list of terrain type IDs to affect.
 	 * @returns `true` if any changes were made, `false` if not.
 	 */
-	static _eraseTerrainDataBetween(data, rangeBottom, rangeTop, excludingTerrainTypeIds = []) {
+	static _eraseTerrainDataBetween(data, rangeBottom, rangeTop, { excludingTerrainTypeIds, onlyTerrainTypeIds } = {}) {
 		let anyChanges = false;
 
 		for (let i = data.length - 1; i >= 0; i--) {
 			const terrain = data[i];
 
-			if (excludingTerrainTypeIds.includes(terrain.terrainTypeId))
+			if (excludingTerrainTypeIds?.includes(terrain.terrainTypeId) === true || onlyTerrainTypeIds?.includes(terrain.terrainTypeId) === false)
 				continue;
 
 			const terrainTop = terrain.elevation + terrain.height;

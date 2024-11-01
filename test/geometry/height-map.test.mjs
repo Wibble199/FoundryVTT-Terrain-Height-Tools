@@ -60,11 +60,37 @@ describe("HeightMap::_eraseTerrainDataBetween()", () => {
 
 	it("should not alter terrain whose ID is in `excludingTerrainTypeIds`", () => {
 		/** @type {HeightMapDataV1Terrain[]} */
-		const data = [{ terrainTypeId: "a", elevation: 0, height: 10 }, { terrainTypeId: "b", elevation: 4, height: 2 }];
-		const anyChanges = HeightMap._eraseTerrainDataBetween(data, 2, 8, ["a", "b"]);
+		const data = [
+			{ terrainTypeId: "a", elevation: 0, height: 10 },
+			{ terrainTypeId: "b", elevation: 4, height: 2 },
+			{ terrainTypeId: "c", elevation: 1, height: 3 }
+		];
+		const anyChanges = HeightMap._eraseTerrainDataBetween(data, 2, 8, { excludingTerrainTypeIds: ["a", "b"] });
 
-		assert.equal(anyChanges, false);
-		assert.deepEqual(data, [{ terrainTypeId: "a", elevation: 0, height: 10 }, { terrainTypeId: "b", elevation: 4, height: 2 }]);
+		assert.equal(anyChanges, true);
+		assert.deepEqual(data, [
+			{ terrainTypeId: "a", elevation: 0, height: 10 },
+			{ terrainTypeId: "b", elevation: 4, height: 2 },
+			{ terrainTypeId: "c", elevation: 1, height: 1 }
+		]);
+	});
+
+	it("should only alter terrain whose ID is in `onlyTerrainTypeIds`", () => {
+		/** @type {HeightMapDataV1Terrain[]} */
+		const data = [
+			{ terrainTypeId: "a", elevation: 0, height: 10 },
+			{ terrainTypeId: "b", elevation: 4, height: 2 },
+			{ terrainTypeId: "c", elevation: 1, height: 3 }
+		];
+		const anyChanges = HeightMap._eraseTerrainDataBetween(data, 2, 8, { onlyTerrainTypeIds: ["a"] });
+
+		assert.equal(anyChanges, true);
+		assert.deepEqual(data, [
+			{ terrainTypeId: "a", elevation: 0, height: 2 },
+			{ terrainTypeId: "a", elevation: 8, height: 2 },
+			{ terrainTypeId: "b", elevation: 4, height: 2 },
+			{ terrainTypeId: "c", elevation: 1, height: 3 }
+		]);
 	});
 });
 

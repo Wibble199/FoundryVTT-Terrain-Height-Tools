@@ -5,15 +5,15 @@ import { getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class TerrainHeightPalette extends withSubscriptions(Application) {
+export class TerrainPaintPalette extends withSubscriptions(Application) {
 
 	/** @override */
 	static get defaultOptions() {
 		return mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.PaletteTitle"),
-			id: "tht_terrainHeightPalette",
+			id: "tht_terrainPaintPalette",
 			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],
-			template: `modules/${moduleName}/templates/terrain-height-palette.hbs`,
+			template: `modules/${moduleName}/templates/terrain-paint-palette.hbs`,
 			scrollY: ["ul"],
 			width: 220,
 			height: 342,
@@ -50,16 +50,13 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 	}
 
 	/** @param {string} terrainId */
-	isHeightEnabledFor(terrainId) {
+	#isHeightEnabledFor(terrainId) {
 		return getTerrainType(terrainId).usesHeight;
 	}
 
 	/** @override */
 	activateListeners(html) {
 		super.activateListeners(html);
-
-		/** @type {import("../layers/terrain-height-layer.mjs").TerrainHeightLayer} */
-		const layer = game.canvas.terrainHeightLayer;
 
 		this._unsubscribeFromAll();
 		this._subscriptions = [
@@ -101,11 +98,12 @@ export class TerrainHeightPalette extends withSubscriptions(Application) {
 			evt.currentTarget.value = toSceneUnits(paintingConfig$.elevation$.value));
 	}
 
+	/** @param {MouseEvent} event */
 	#onTerrainSelect(event) {
 		const { terrainId } = event.currentTarget.dataset;
-		event.currentTarget.closest("ul").querySelectorAll("li.active").forEach(li => li.classList.remove("active"));
+		event.currentTarget.closest("ul.terrain-type-palette").querySelectorAll("li.active").forEach(li => li.classList.remove("active"));
 		event.currentTarget.closest("li").classList.add("active");
-		this.element.find("[name='selectedHeight'],[name='selectedElevation']").prop("disabled", !this.isHeightEnabledFor(terrainId));
+		this.element.find("[name='selectedHeight'],[name='selectedElevation']").prop("disabled", !this.#isHeightEnabledFor(terrainId));
 
 		paintingConfig$.terrainTypeId$.value = terrainId;
 	}
