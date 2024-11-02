@@ -130,6 +130,16 @@ ul.terrain-type-palette li .terrain-type-name {
 	font-size: var(--font-size-12);
 }
 
+#tht_terrainStackViewer .axis-line {
+	stroke-width: 1;
+	stroke: #FFFFFF44;
+}
+
+#tht_terrainStackViewer .axis-line-label {
+	font-size: 14px;
+	fill: #FFFFFF44;
+}
+
 #tht_terrainStackViewer hr {
 	border-top: 2px groove var(--color-border-dark-secondary);
 	border-bottom: none;

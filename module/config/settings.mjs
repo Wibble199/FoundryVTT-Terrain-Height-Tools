@@ -1,5 +1,5 @@
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
-import { flags, moduleName, settings, tokenRelativeHeights } from "../consts.mjs";
+import { flags, moduleName, settings, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
 import { sceneControls } from "./controls.mjs";
 
 export function registerSettings() {
@@ -87,6 +87,16 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: false
+	});
+
+	game.settings.register(moduleName, settings.terrainStackViewerDisplayMode, {
+		name: "SETTINGS.TerrainStackViewerDisplayMode.Name",
+		hint: "SETTINGS.TerrainStackViewerDisplayMode.Hint",
+		scope: "client",
+		type: String,
+		choices: terrainStackViewerDisplayModes,
+		config: true,
+		default: "auto"
 	});
 
 	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {

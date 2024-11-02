@@ -38,6 +38,17 @@ function init() {
 	CONFIG.Canvas.layers.terrainHeightLosRulerLayer = { group: "interface", layerClass: LineOfSightRulerLayer };
 
 	if (game.modules.get("lib-wrapper")?.active) initLibWrapper();
+
+	Handlebars.registerHelper({
+		add(...values) {
+			values.pop();
+			return values.reduce((a, b) => a + b);
+		},
+		multiply(...values) {
+			values.pop();
+			return values.reduce((a, b) => a * b);
+		}
+	});
 }
 
 function ready() {

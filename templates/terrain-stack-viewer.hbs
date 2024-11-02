@@ -6,12 +6,41 @@
 		<p style="text-align: center;">Hover terrain to show details</p>
 	{{/if}}
 
-	{{#each heightLayers}}
-		<div class="terrain-layer-block" style="color: {{textColor}}; border-color: {{borderColor}}; background: {{backgroundColor}};">
-			<p class="terrain-layer-block-title">{{name}}</p>
-			<p class="terrain-layer-block-height">{{elevation}} → {{top}} ({{localize "Height"}} {{height}})</p>
-		</div>
-	{{/each}}
+	{{#if (and isProportionalDisplayMode heightLayers.length)}}
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 {{add (multiply (add highestElevation 0.5) proportionalModeScale -1) -1}} 230 {{add (multiply (add highestElevation 0.5) proportionalModeScale) 2}}">
+			{{!-- Vertical axis labels --}}
+			<line class="axis-line"
+				x1="0%" y1="0"
+				x2="100%" y2="0" />
+			{{#each proportionalAxisLabels}}
+				<line class="axis-line"
+					x1="10%" y1="{{multiply y ../proportionalModeScale -1}}"
+					x2="95%" y2="{{multiply y ../proportionalModeScale -1}}" />
+				<text class="axis-line-label"
+					x="8%" y="{{multiply y ../proportionalModeScale -1}}"
+					text-anchor="end" dominant-baseline="middle">{{label}}</text>
+			{{/each}}
+
+			{{!-- Shape blocks --}}
+			{{#each heightLayers}}
+				<rect
+					x="15%" y="{{add (multiply (add elevation height) ../proportionalModeScale -1) (multiply borderWidth ../proportionalBorderScale 0.5) 1}}"
+					width="80%" height="{{add (multiply height ../proportionalModeScale) (multiply borderWidth ../proportionalBorderScale -1) -2}}"
+					fill="{{backgroundColor}}" stroke="{{borderColor}}" stroke-width="{{multiply borderWidth ../proportionalBorderScale}}" />
+				<text
+					x="55%" y="{{multiply (add elevation (multiply height 0.5)) ../proportionalModeScale -1}}"
+					text-anchor="middle" dominant-baseline="middle"
+					fill="{{textColor}}">{{name}}</text>
+			{{/each}}
+		</svg>
+	{{else}}
+		{{#each heightLayers}}
+			<div class="terrain-layer-block" style="color: {{textColor}}; border-color: {{borderColor}}; background: {{backgroundColor}};">
+				<p class="terrain-layer-block-title">{{name}}</p>
+				<p class="terrain-layer-block-height">{{displayElevation}} → {{displayTop}} ({{localize "Height"}} {{displayHeight}})</p>
+			</div>
+		{{/each}}
+	{{/if}}
 
 	{{#if (and heightLayers.length noHeightLayers.length)}}
 		<hr/>

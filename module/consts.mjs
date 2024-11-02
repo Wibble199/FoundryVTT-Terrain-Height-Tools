@@ -26,6 +26,7 @@ export const settings = /** @type {const} */ ({
 	smartLabelPlacement: "smartLabelPlacement",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
 	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
+	terrainStackViewerDisplayMode: "terrainStackViewerDisplayMode",
 	terrainTypes: "terrainTypes",
 	tokenElevationChange: "tokenElevationChange",
 	tokenLosToolPreselectToken1: "tokenLosToolPreselectToken1",
@@ -65,4 +66,11 @@ export const tokenRelativeHeights = /** @type {const} */ ({
 	[1]: "SETTINGS.DefaultTokenLosHeight.Choice.Top",
 	[0.5]: "SETTINGS.DefaultTokenLosHeight.Choice.Middle",
 	[0]: "SETTINGS.DefaultTokenLosHeight.Choice.Bottom",
+});
+
+/** @enum {keyof typeof terrainStackViewerDisplayModes} */
+export const terrainStackViewerDisplayModes = /** @type {const} */ ({
+	auto: "SETTINGS.TerrainStackViewerDisplayMode.Choice.Auto",
+	proportional: "SETTINGS.TerrainStackViewerDisplayMode.Choice.Proportional",
+	compact: "SETTINGS.TerrainStackViewerDisplayMode.Choice.Compact"
 });

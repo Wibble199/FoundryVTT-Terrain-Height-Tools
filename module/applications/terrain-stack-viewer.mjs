@@ -4,6 +4,12 @@ import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
 import { getCssColorsFor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
+// How many pixels each unit in height is represented by in proportional mode.
+const proportionalModeScale = 28;
+
+// How many pixels a 1-width border should be shown as in the SVG.
+const proportionalModeBorderScale = 0.5;
+
 export class TerrainStackViewer extends Application {
 
 	#visible = false;
@@ -55,6 +61,16 @@ export class TerrainStackViewer extends Application {
 	}
 
 	/** @override */
+	get element() {
+		if (this._element) return this._element;
+
+		// If the element has not yet been created, add it to the UI in the desired place
+		const el = $("<div></div>");
+		$("#ui-bottom").prepend(el);
+		return el;
+	}
+
+	/** @override */
 	async _render(force, options) {
 		if (force || this.#visible)
 			await super._render(force, options);
@@ -66,38 +82,49 @@ export class TerrainStackViewer extends Application {
 		const terrainTypes = getTerrainTypeMap();
 
 		const terrain = this._terrain$.value
-			.filter(t => terrainTypes.has(t.terrainTypeId))
-			.map(terrain => {
-				/** @type {import("../utils/terrain-types.mjs").TerrainType} */
-				const terrainType = terrainTypes.get(terrain.terrainTypeId);
+		.filter(t => terrainTypes.has(t.terrainTypeId))
+		.map(terrain => {
+			/** @type {import("../utils/terrain-types.mjs").TerrainType} */
+			const terrainType = terrainTypes.get(terrain.terrainTypeId);
 
-				return {
-					name: terrainType.name,
-					usesHeight: terrainType.usesHeight,
-					height: toSceneUnits(terrain.height),
-					elevation: toSceneUnits(terrain.elevation),
-					top: toSceneUnits(terrain.height + terrain.elevation),
-					...getCssColorsFor(terrainType),
-				};
-			});
+			return {
+				name: terrainType.name,
+				usesHeight: terrainType.usesHeight,
+				elevation: terrain.elevation,
+				height: terrain.height,
+				displayHeight: toSceneUnits(terrain.height),
+				displayElevation: toSceneUnits(terrain.elevation),
+				displayTop: toSceneUnits(terrain.height + terrain.elevation),
+				...getCssColorsFor(terrainType),
+			};
+		});
+
+		const heightLayers = terrain
+			.filter(t => t.usesHeight)
+			.sort((a, b) => b.elevation - a.elevation);
+
+		const noHeightLayers = terrain
+			.filter(t => !t.usesHeight)
+			.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "accent" }));
+
+		const highestElevation = Math.max((heightLayers[0]?.elevation ?? 0) + (heightLayers[0]?.height ?? 0), 0);
+
+		const configuredDisplayMode = game.settings.get(moduleName, settings.terrainStackViewerDisplayMode);
+		const isProportionalDisplayMode = configuredDisplayMode === "auto"
+			? highestElevation <= 8
+			: configuredDisplayMode === "proportional";
 
 		return {
-			heightLayers: terrain
-				.filter(t => t.usesHeight)
-				.sort((a, b) => b.elevation - a.elevation),
-			noHeightLayers: terrain
-				.filter(t => !t.usesHeight)
-				.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "accent" }))
+			heightLayers,
+			noHeightLayers,
+			highestElevation,
+
+			isProportionalDisplayMode,
+			proportionalModeScale: proportionalModeScale,
+			proportionalBorderScale: proportionalModeBorderScale,
+			proportionalAxisLabels: isProportionalDisplayMode
+				? new Array(Math.ceil(highestElevation)).fill(0).map((_, i) => ({ label: toSceneUnits(i + 1), y: i + 1 }))
+				: null
 		};
-	}
-
-	/** @override */
-	get element() {
-		if (this._element) return this._element;
-
-		// If the element has not yet been created, add it to the UI in the desired place
-		const el = $("<div></div>");
-		$("#ui-bottom").prepend(el);
-		return el;
 	}
 }
