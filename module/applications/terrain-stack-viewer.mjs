@@ -1,9 +1,8 @@
 import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings } from "../consts.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
-import { alphaToHex } from "../utils/misc-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
-import { getTerrainTypeMap } from "../utils/terrain-types.mjs";
+import { getCssColorsFor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
 export class TerrainStackViewer extends Application {
 
@@ -78,11 +77,7 @@ export class TerrainStackViewer extends Application {
 					height: toSceneUnits(terrain.height),
 					elevation: toSceneUnits(terrain.elevation),
 					top: toSceneUnits(terrain.height + terrain.elevation),
-					textColor: terrainType.textColor + alphaToHex(terrainType.textOpacity),
-					borderColor: terrainType.lineWidth <= 0
-						? "transparent"
-						: terrainType.lineColor + alphaToHex(terrainType.lineOpacity),
-					backgroundColor: terrainType.fillColor + alphaToHex(terrainType.fillOpacity),
+					...getCssColorsFor(terrainType),
 				};
 			});
 

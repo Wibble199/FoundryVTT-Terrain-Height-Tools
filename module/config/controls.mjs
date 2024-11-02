@@ -97,9 +97,9 @@ export function registerSceneControls(controls) {
 				icon: "fas fa-eraser"
 			},
 			{
-				name: tools.eraseFill,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsEraseFill"),
-				icon: "fas fa-fill"
+				name: tools.eraseShape,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsEraseShape"),
+				icon: "tht-icon-erase-shape"
 			},
 			{
 				name: tools.convert,

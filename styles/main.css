@@ -337,6 +337,71 @@ ul.terrain-type-palette li .terrain-type-name {
 }
 
 
+/* --------------------------- */
+/* Terrain Shape Choice Dialog */
+/* --------------------------- */
+.terrain-shape-choice-dialog .terrain-shape-list {
+	display: grid;
+	grid-template-columns: repeat(3, 172px);
+	gap: 8px;
+}
+
+.terrain-shape-choice-hint-text {
+	margin-top: 0;
+
+	/* Max-width of the hint should be equal to the width of the above .terrain-shape list.
+	If it is allowed to grow longer then it will stretch the dialog.
+	532px = 3 x 172 (three columns) + 2 * 8 (two gaps between columns) */
+	max-width: 532px;
+}
+
+.terrain-shape-choice-dialog .terrain-shape-list-radio {
+	display: none;
+}
+
+.terrain-shape-choice-dialog .terrain-shape-list-item {
+	width: 172px;
+	height: 172px;
+	padding: 4px;
+	border: 1px solid var(--color-border-light-primary);
+	border-radius: 5px;
+	box-shadow: 0px 0px 4px -1px rgba(0, 0, 0, 0.5);
+}
+
+.terrain-shape-choice-dialog .terrain-shape-list-radio:checked + .terrain-shape-list-item {
+	border-color: var(--color-border-highlight-alt);
+	box-shadow: 0px 0px 4px -1px rgba(0, 0, 0, 0.5), 0 0 6px inset var(--color-shadow-highlight);
+}
+
+.terrain-shape-choice-dialog .terrain-shape-list-item > p {
+	margin: 0 0 4px;
+	text-align: center;
+}
+
+
+/* ----- */
+/* Icons */
+/* ----- */
+.tht-icon-erase-shape {
+	position: relative;
+	font: var(--fa-font-solid);
+}
+
+.tht-icon-erase-shape:before {
+	content: "\f5ee";
+    position: absolute;
+    top: -0.25em;
+    transform: scale(0.9) translateX(-60%);
+}
+
+.tht-icon-erase-shape:after {
+	content: "\f12d";
+    position: absolute;
+    bottom: -0.125em;
+    transform: scale(0.7) translateX(-40%);
+}
+
+
 /* ------- */
 /* Utility */
 /* ------- */

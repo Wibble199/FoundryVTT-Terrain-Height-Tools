@@ -2,10 +2,10 @@
 	{{#if (eq availableTerrains.length 0)}}
 		<li><a data-action="configure-terrain-types">{{localize "TERRAINHEIGHTTOOLS.NoTerrainTypesWarn"}}</a></li>
 	{{/if}}
-	{{#each availableTerrains as |terrain|}}
-		<li data-terrain-id="{{terrain.id}}">
-			<div class="preview-box" style="border-color: {{terrain.previewBorderColor}}; background: {{previewBackgroundColor}};"></div>
-			<label class="terrain-type-name">{{terrain.name}}</label>
+	{{#each availableTerrains}}
+		<li data-terrain-id="{{id}}">
+			<div class="preview-box" style="border-color: {{borderColor}}; background: {{backgroundColor}};"></div>
+			<label class="terrain-type-name">{{name}}</label>
 		</li>
 	{{/each}}
 </ul>

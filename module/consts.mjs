@@ -9,7 +9,7 @@ export const tools = /** @type {const} */ ({
 	fill: "fill",
 	pipette: "pipette",
 	erase: "erase",
-	eraseFill: "eraseFill",
+	eraseShape: "eraseShape",
 	lineOfSight: "terrainHeightToolsLineOfSight",
 	tokenLineOfSight: "terrainHeightToolsTokenLineOfSight",
 	convert: "convert"

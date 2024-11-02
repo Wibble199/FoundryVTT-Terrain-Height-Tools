@@ -1,0 +1,28 @@
+<form>
+	{{#if options.hint}}
+		<p class="terrain-shape-choice-hint-text">{{localize options.hint}}</p>
+	{{/if}}
+
+	<div class="terrain-shape-list">
+		{{#each shapes}}
+			<label>
+				<input class="terrain-shape-list-radio" type="radio" name="selectedTerrainShapeIndex" value="{{@index}}">
+				<div class="terrain-shape-list-item flexcol">
+					<p class="flex0" style="font-size: 0.875rem;">{{terrainTypeName}}</p>
+					<p class="flex0" style="font-size: 0.8125rem;">
+						{{#if usesHeight}}
+							{{elevation}} → {{top}} ({{localize "Height"}} {{height}})
+						{{else}}
+							&nbsp;
+						{{/if}}
+					</p>
+					<svg class="flex1" xmlns="http://www.w3.org/2000/svg" viewBox="{{svgViewBox}}">
+						<path d="{{svgPath}}" fill="{{backgroundColor}}" stroke="{{borderColor}}" stroke-width="{{borderWidth}}" />
+					</svg>
+				</div>
+			</label>
+		{{/each}}
+	</div>
+
+	<button type="submit" style="margin-top: 8px;">{{localize options.submitLabel}}</button>
+</form>

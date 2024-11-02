@@ -163,7 +163,8 @@ export class HeightMap {
 
 	/**
 	 * Attempts to erase data from multiple cells at the given position.
-	 * @param {[number, number][]} cells
+	 * @param {Iterable<[number, number] | string>} cells The locations of the cells to erase. Either [row, col] pairs
+	 * or encoded cell keys.
 	 * @param {Object} [options]
 	 * @param {string[]} [options.onlyTerrainTypeIds] A list of terrain type IDs to remove.
 	 * @param {string[]} [options.excludingTerrainTypeIds] A list of terrain type IDs NOT to remove.
@@ -178,7 +179,7 @@ export class HeightMap {
 		const noHeightTerrains = getTerrainTypes().filter(t => !t.usesHeight).map(t => t.id);
 
 		for (const cell of cells) {
-			const cellKey = encodeCellKey(...cell);
+			const cellKey = typeof cell === "string" ? cell : encodeCellKey(...cell);
 			const terrainsInCell = this.data[cellKey];
 
 			if (!terrainsInCell) continue;
@@ -216,14 +217,16 @@ export class HeightMap {
 	}
 
 	/**
-	 * Performs an erasing fill operation from the given cell's location.
-	 * @param {[number, number]} startCell The cell to start the filling from.
+	 * Remove the given HeightMapShape from the height map.
+	 * @param {HeightMapShape} shape Shape to remove.
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
-	async eraseFillCells(startCell) {
-		const cellsToErase = this.#findFillCells(startCell);
-		if (cellsToErase.length === 0) return false;
-		return this.eraseCells(cellsToErase);
+	async eraseShape(shape) {
+		return await this.eraseCells(shape.cells, {
+			onlyTerrainTypeIds: [shape.terrainTypeId],
+			bottom: shape.elevation,
+			top: shape.elevation + shape.height
+		});
 	}
 
 	async clear() {

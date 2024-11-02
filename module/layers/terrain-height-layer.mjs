@@ -1,5 +1,6 @@
+import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-dialog.mjs";
 import { moduleName, tools } from "../consts.mjs";
-import { HeightMap, decodeCellKey } from "../geometry/height-map.mjs";
+import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { Signal } from "../utils/signal.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
@@ -147,6 +148,9 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// Data //
 	// ---- //
 	async _updateGraphics() {
+		const { row, col } = this._hoveredCell$.value
+		globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col);
+
 		await this._graphics?.update(this._heightMap);
 	}
 
@@ -239,19 +243,23 @@ export class TerrainHeightLayer extends InteractionLayer {
 			}
 
 			case tools.pipette: {
-				const cellData = this._heightMap.get(...cell);
-				if (!cellData) break;
+				this._pendingTool = undefined;
+
+				const shape = await this.#getSingleShape(...cell, {
+					hint: "TERRAINHEIGHTTOOLS.SelectAShapeCopyHint",
+					submitLabel: "TERRAINHEIGHTTOOLS.CopySelectedShapeConfiguration"
+				});
+				if (!shape) return;
 
 				paintingConfig$.value = {
-					terrainTypeId: cellData.terrainTypeId,
-					height: Math.max(cellData.height, 1),
-					elevation: Math.max(cellData.elevation, 0)
+					terrainTypeId: shape.terrainTypeId,
+					height: Math.max(shape.height, 1),
+					elevation: Math.max(shape.elevation, 0)
 				};
 
 				// Select the paintbrush tool. This feels like a horrible dirty way of doing this, but there doesn't
 				// seem to be any API exposed by Foundry to set the tool without pretending to click the button.
 				document.querySelector(`#tools-panel-${moduleName} [data-tool="${tools.paint}"]`)?.click();
-				this._pendingTool = undefined;
 
 				break;
 			}
@@ -265,9 +273,16 @@ export class TerrainHeightLayer extends InteractionLayer {
 				break;
 			}
 
-			case tools.eraseFill: {
+			case tools.eraseShape: {
 				this._pendingTool = undefined;
-				if (await this._heightMap.eraseFillCells(cell))
+
+				const shape = await this.#getSingleShape(...cell, {
+					hint: "TERRAINHEIGHTTOOLS.SelectAShapeEraseHint",
+					submitLabel: "TERRAINHEIGHTTOOLS.EraseSelectedShape"
+				});
+				if (!shape) return;
+
+				if (await this._heightMap.eraseShape(shape))
 					await this._updateGraphics();
 				break;
 			}
@@ -275,7 +290,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 			case tools.convert: {
 				this._pendingTool = undefined;
 
-				const shape = this._heightMap.getShapes(...cell);
+				const shape = await this.#getSingleShape(...cell, {
+					hint: "TERRAINHEIGHTTOOLS.SelectAShapeConvertHint",
+					submitLabel: "TERRAINHEIGHTTOOLS.ConvertSelectedShape"
+				});
 				if (!shape) return;
 
 				await this._convertShape(shape, convertConfig$.value);
@@ -334,6 +352,23 @@ export class TerrainHeightLayer extends InteractionLayer {
 	}
 
 	/**
+	 * Returns a shape that is at the given row/col position.
+	 * If there are multiple at this location, opens a dialog to ask the user which one to select.
+	 * If there are none, returns `undefined`.
+	 * @param {number} row
+	 * @param {number} col
+	 * @param {Parameters<typeof TerrainShapeChoiceDialog["show"]>[1]} [dialogOptions]
+	 */
+	async #getSingleShape(row, col, dialogOptions = {}) {
+		const shapes = this._heightMap.getShapes(row, col);
+		switch (shapes.length) {
+			case 0: return undefined;
+			case 1: return shapes[0];
+			default: return await TerrainShapeChoiceDialog.show(shapes, dialogOptions);
+		}
+	}
+
+	/**
 	 * Returns whether or not the given cell is in the pending changes list.
 	 * @param {number} row
 	 * @param {number} col
@@ -344,7 +379,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	/**
 	 * Converts a shape to drawings and/or walls.
-	 * @param {import("../geometry/height-map.mjs").HeightMapShape} shape
+	 * @param {import("../geometry/height-map-shape.mjs").HeightMapShape} shape
 	 * @param {Object} [options]
 	 * @param {boolean} [options.toDrawings] Whether to convert the shape to drawings.
 	 * @param {boolean} [options.toWalls] Whether to convert the shape to walls.
@@ -427,7 +462,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		}
 
 		if (deleteAfter) {
-			await this._heightMap.eraseFillCells(decodeCellKey([...shape.cells][0]));
+			await this._heightMap.eraseShape(shape);
 			await this._updateGraphics();
 		}
 	}

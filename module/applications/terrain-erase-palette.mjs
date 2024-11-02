@@ -1,7 +1,7 @@
 import { moduleName } from "../consts.mjs";
 import { eraseConfig$ } from "../stores/drawing.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
-import { getTerrainTypes } from '../utils/terrain-types.mjs';
+import { getCssColorsFor, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 export class TerrainErasePalette extends withSubscriptions(Application) {
@@ -28,10 +28,7 @@ export class TerrainErasePalette extends withSubscriptions(Application) {
 				name: t.name,
 
 				// Hex colors including opacity for preview boxes:
-				previewBorderColor: t.lineWidth <= 0
-					? "transparent"
-					: t.lineColor + Math.round(t.lineOpacity * 255).toString(16).padStart(2, "0"),
-				previewBackgroundColor: t.fillColor + Math.round(t.fillOpacity * 255).toString(16).padStart(2, "0"),
+				...getCssColorsFor(t)
 			}))
 		};
 	}

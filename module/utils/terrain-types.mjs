@@ -1,4 +1,5 @@
 import { lineTypes, moduleName, settings } from '../consts.mjs';
+import { alphaToHex } from "./misc-utils.mjs";
 
 /**
  * @typedef {object} TerrainType
@@ -101,4 +102,19 @@ export function getTerrainColor(terrainType, defaultColor = 0x00FFFF) {
 
 	// Otherwise use a default
 	return defaultColor;
+}
+
+/**
+ * Returns the 8-digit hexadecimal colours for border, background and text color for the given terrain type.
+ * @param {TerrainType} terrainType
+ */
+export function getCssColorsFor(terrainType) {
+	return {
+		textColor: terrainType.textColor + alphaToHex(terrainType.textOpacity),
+		backgroundColor: terrainType.fillColor + alphaToHex(terrainType.fillOpacity),
+		borderColor: terrainType.lineWidth <= 0
+			? "transparent"
+			: terrainType.lineColor + alphaToHex(terrainType.lineOpacity),
+		borderWidth: terrainType.lineWidth,
+	};
 }
