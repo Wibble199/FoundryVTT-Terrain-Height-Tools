@@ -101,7 +101,7 @@ describe("fromHook()", () => {
 });
 
 describe("fromObject()", () => {
-	/** @type {import("../../module/utils/signal.mjs").DeepSignal<{ text: string; number: number; boolean: boolean; object: { nested1: string; nested2: string; }; array: number[]; }>} */
+	/** @type {import("../../module/utils/signal.mjs").DeepSignal<{ text: string; number: number; boolean: boolean; object: { nested1: string; nested2: string; }; array: number[]; aNull: null }>} */
 	let objectSignal$;
 	beforeEach(() => {
 		objectSignal$ = fromObject({
@@ -112,12 +112,13 @@ describe("fromObject()", () => {
 				nested1: "foo",
 				nested2: "bar"
 			},
-			array: [1, 2, 3]
+			array: [1, 2, 3],
+			aNull: null
 		});
 	});
 
 	afterEach(() => {
-		[objectSignal$, objectSignal$.text$, objectSignal$.number$, objectSignal$.boolean$, objectSignal$.object$, objectSignal$.object$.nested1$, objectSignal$.object$.nested2$, objectSignal$.array$].forEach(s => s.unsubscribeAll());
+		[objectSignal$, objectSignal$.text$, objectSignal$.number$, objectSignal$.boolean$, objectSignal$.object$, objectSignal$.object$.nested1$, objectSignal$.object$.nested2$, objectSignal$.array$, objectSignal$.aNull$].forEach(s => s.unsubscribeAll());
 	});
 
 	it("should construct Signal graph correctly", () => {
@@ -128,6 +129,7 @@ describe("fromObject()", () => {
 		assert.deepEqual(objectSignal$.object$.nested1$.value, "foo");
 		assert.deepEqual(objectSignal$.object$.nested2$.value, "bar");
 		assert.deepEqual(objectSignal$.array$.value, [1, 2, 3]);
+		assert.deepEqual(objectSignal$.aNull$.value, null);
 	});
 
 	it("should correctly update the value when setting the value on the ObjectSignal", () => {
@@ -142,7 +144,8 @@ describe("fromObject()", () => {
 				nested1: "foo",
 				nested2: "baz"
 			},
-			array: [1, 2, 3]
+			array: [1, 2, 3],
+			aNull: null
 		});
 	});
 
@@ -159,7 +162,8 @@ describe("fromObject()", () => {
 				nested1: "buzz",
 				nested2: "bar"
 			},
-			array: [4, 5, 6]
+			array: [4, 5, 6],
+			aNull: null
 		});
 	});
 

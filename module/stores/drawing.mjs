@@ -13,12 +13,12 @@ export const paintingConfig$ = fromObject({
 
 /**
  * Config state for the erasing and erasing fill tools.
- * @type {DeepSignal<{ excludedTerrainTypeIds: string[]; bottom: number | undefined; top: number | undefined; }>}
+ * @type {DeepSignal<{ excludedTerrainTypeIds: string[]; bottom: number | null; top: number | null; }>}
  */
 export const eraseConfig$ = fromObject({
 	excludedTerrainTypeIds: [], // we use an exclusion instead of inclusion so that the default selects all terrain types (without needing to load them)
-	bottom: undefined,
-	top: undefined
+	bottom: null,
+	top: null
 });
 
 /**

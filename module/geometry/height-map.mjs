@@ -241,14 +241,17 @@ export class HeightMap {
 	 * Mutates the given terrain data in-place to remove all terrain within the given region.
 	 * Do not use outside this class. Only non-private to allow testing.
 	 * @param {HeightMapDataV1Terrain[]} data The data to alter.
-	 * @param {number} rangeBottom The bottom of the range of terrain to remove.
-	 * @param {number} rangeTop The top of the range of terrain to remove.
+	 * @param {number | null} [rangeBottom] The bottom of the range of terrain to remove.
+	 * @param {number | null} [rangeTop] The top of the range of terrain to remove.
 	 * @param {Object} [options]
 	 * @param {string[]} [options.excludingTerrainTypeIds] An optional list of terrain type IDs to ignore.
 	 * @param {string[]} [options.onlyTerrainTypeIds] An optional list of terrain type IDs to affect.
 	 * @returns `true` if any changes were made, `false` if not.
 	 */
 	static _eraseTerrainDataBetween(data, rangeBottom, rangeTop, { excludingTerrainTypeIds, onlyTerrainTypeIds } = {}) {
+		rangeBottom ??= -Infinity;
+		rangeTop ??= Infinity;
+
 		let anyChanges = false;
 
 		for (let i = data.length - 1; i >= 0; i--) {

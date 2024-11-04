@@ -145,7 +145,7 @@ export function fromObject(source) {
 	const signals = Object.fromEntries(
 		Object.entries(source).map(([key, value]) => [
 			key,
-			typeof value === "object" && !Array.isArray(value)
+			typeof value === "object" && value !== null && !Array.isArray(value)
 				? fromObject(value)
 				: new Signal(value)
 			]
