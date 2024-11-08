@@ -1,5 +1,5 @@
 import { groupBy } from "../utils/array-utils.mjs";
-import { warn } from "../utils/log.mjs";
+import { error, warn } from "../utils/log.mjs";
 import { roundTo } from "../utils/misc-utils.mjs";
 import { encodeCellKey } from "./height-map.mjs";
 import { LineSegment } from "./line-segment.mjs";
@@ -50,6 +50,14 @@ export class HeightMapShape {
 		this.cells = new Set(cells);
 	}
 
+	get top() {
+		return this.elevation + this.height;
+	}
+
+	get bottom() {
+		return this.elevation;
+	}
+
 	/**
 	 * @param {number} row
 	 * @param {number} col
@@ -65,37 +73,41 @@ export class HeightMapShape {
 	 * @param {boolean} usesHeight Whether or not the terrain type assigned to the shape utilises height or not.
 	 * skim regions.
 	 */
-	getIntersections({ x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }, usesHeight) {
+	getIntersections(p1, p2, usesHeight) {
 		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
 		// the line of sight ray would never cross at the required height for an intersection.
 		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
 		const shapeTop = usesHeight ? this.elevation + this.height : Infinity;
 		const shapeBottom = usesHeight ? this.elevation : -Infinity;
-		if (usesHeight && h1 > shapeTop && h2 > shapeTop) return [];
-		if (usesHeight && h1 < shapeBottom && h2 < shapeBottom) return [];
-
-		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
-		const inverseLerpLosHeight = (/** @type {number} */ h) => (h - h1) / (h2 - h1);
+		if (usesHeight && p1.h > shapeTop && p2.h > shapeTop) return [];
+		if (usesHeight && p1.h < shapeBottom && p2.h < shapeBottom) return [];
 
 		// If the test ray extends above the height of the shape, instead stop it at that height
-		let t1 = 0;
-		if (usesHeight && h1 > shapeTop) {
-			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeTop)));
-			h1 = shapeTop;
-		} else if (usesHeight && h1 < shapeBottom) {
-			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeBottom)));
-			h1 = shapeBottom;
-		}
+		const clampPoint = (/** @type {0|1} */ t) => {
+			const inverseLerpLosHeight = (/** @type {number} */ h) => (h - p1.h) / (p2.h - p1.h);
+			const p = [p1, p2][t];
 
-		let t2 = 1;
-		if (usesHeight && h2 > shapeTop) {
-			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeTop)));
-			h2 = shapeTop;
-		} else if (usesHeight && h2 < shapeBottom) {
-			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeBottom)));
-			h2 = shapeBottom;
-		}
+			if (p.h > this.top)
+				return {
+					...LineSegment.lerp(p1.x, p1.y, p2.x, p2.y, inverseLerpLosHeight(this.top)),
+					h: this.top,
+					t: inverseLerpLosHeight(this.top)
+				};
 
+			if (p.h < this.bottom)
+				return {
+					...LineSegment.lerp(p1.x, p1.y, p2.x, p2.y, inverseLerpLosHeight(this.bottom)),
+					h: this.bottom,
+					t: inverseLerpLosHeight(this.bottom)
+				};
+
+			return { ...p, t };
+		};
+
+		const { x: x1, y: y1, h: h1, t: t1 = 0 } = usesHeight ? clampPoint(0) : p1;
+		const { x: x2, y: y2, h: h2, t: t2 = 1 } = usesHeight ? clampPoint(1) : p2;
+
+		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
 		const inverseTestRay = testRay.inverse();
 
