@@ -6,7 +6,6 @@ export const socketName = `module.${moduleName}`;
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
 	paint: "paint",
-	fill: "fill",
 	pipette: "pipette",
 	erase: "erase",
 	eraseShape: "eraseShape",

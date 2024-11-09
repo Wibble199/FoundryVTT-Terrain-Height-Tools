@@ -235,14 +235,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 				break;
 			}
 
-			case tools.fill: {
-				this._pendingTool = undefined;
-				const { selectedTerrainId, selectedHeight, selectedElevation } = this.paintingConfig;
-				if (selectedTerrainId && await this._heightMap.fillCells(cell, selectedTerrainId, selectedHeight, selectedElevation))
-					await this._updateGraphics();
-				break;
-			}
-
 			case tools.pipette: {
 				this._pendingTool = undefined;
 

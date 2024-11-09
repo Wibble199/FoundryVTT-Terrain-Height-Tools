@@ -82,16 +82,6 @@ export function registerSceneControls(controls) {
 				icon: "fas fa-paintbrush"
 			},
 			{
-				name: tools.fill,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsFill"),
-				icon: "fas fa-fill-drip"
-			},
-			{
-				name: tools.pipette,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPipette"),
-				icon: "fas fa-eye-dropper"
-			},
-			{
 				name: tools.erase,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErase"),
 				icon: "fas fa-eraser"
@@ -100,6 +90,11 @@ export function registerSceneControls(controls) {
 				name: tools.eraseShape,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsEraseShape"),
 				icon: "tht-icon-erase-shape"
+			},
+			{
+				name: tools.pipette,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPipette"),
+				icon: "fas fa-eye-dropper"
 			},
 			{
 				name: tools.convert,
