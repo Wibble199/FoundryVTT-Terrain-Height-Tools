@@ -45,13 +45,15 @@ function getHighestTerrainUnderToken(position, isAltOrientation) {
 	let highest = 0;
 
 	for (const cell of getCellsUnderTokenPosition(position, isAltOrientation)) {
-		const terrain = hm.get(cell.x, cell.y);
-		if (!terrain) continue; // no terrain at this cell
+		const terrains = hm.get(cell.x, cell.y);
+		if (!(terrains?.length > 0)) continue; // no terrain at this cell
 
-		const terrainType = getTerrainType(terrain.terrainTypeId);
-		if (!terrainType.usesHeight || !terrainType.isSolid) continue; // non solid, treat as flat ground
+		for (const terrain of terrains) {
+			const terrainType = getTerrainType(terrain.terrainTypeId);
+			if (!terrainType.usesHeight || !terrainType.isSolid) continue; // non solid, treat as flat ground
 
-		highest = Math.max(highest, terrain.elevation + terrain.height);
+			highest = Math.max(highest, terrain.elevation + terrain.height);
+		}
 	}
 
 	return highest;
