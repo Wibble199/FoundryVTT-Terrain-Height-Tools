@@ -94,10 +94,16 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		const terrainTypes = getTerrainTypeMap();
 
 		// Load textures
-		/** @type {Map<string, PIXI.Texture>} */
+		/** @type {Map<string, { texture: PIXI.Texture; matrix: PIXI.Matrix }>} */
 		const textures = new Map(await Promise.all([...terrainTypes.values()]
 			.filter(type => type.fillTexture?.length)
-			.map(async type => [type.id, await loadTexture(type.fillTexture)])));
+			.map(async type => {
+				const texture = await loadTexture(type.fillTexture);
+				const { x: xOffset, y: yOffset } = type.fillTextureOffset;
+				const { x: xScale, y: yScale } = type.fillTextureScale;
+				const matrix = new PIXI.Matrix(xScale / 100, 0, 0, yScale / 100, xOffset, yOffset);
+				return [type.id, { texture, matrix }];
+			})));
 
 		this._clear();
 
@@ -231,17 +237,21 @@ class TerrainShapeGraphics extends PIXI.Container {
 	/** @type {PIXI.Texture | undefined} */
 	#texture;
 
+	/** @type {PIXI.Matrix | undefined} */
+	#textureMatrix;
+
 	/**
 	 * @param {import("../geometry/height-map.mjs").HeightMapShape} shape
 	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainType
-	 * @param {PIXI.Texture | undefined} texture
+	 * @param {{ texture: PIXI.Texture; matrix: PIXI.Matrix; } | undefined} texture
 	*/
 	constructor(shape, terrainType, texture) {
 		super();
 
 		this.#shape = shape;
 		this.#terrainType = terrainType;
-		this.#texture = texture;
+		this.#texture = texture?.texture;
+		this.#textureMatrix = texture?.matrix;
 
 		this.#graphics = this.addChild(new PIXI.Graphics());
 		this.#drawGraphics();
@@ -315,7 +325,8 @@ class TerrainShapeGraphics extends PIXI.Container {
 			this.#graphics.beginTextureFill({
 				texture: this.#texture,
 				color,
-				alpha: this.#terrainType.fillOpacity
+				alpha: this.#terrainType.fillOpacity,
+				matrix: this.#textureMatrix
 			});
 		else
 			this.#graphics.beginFill(color, this.#terrainType.fillOpacity ?? 0.4);

@@ -101,6 +101,26 @@
 								<input class="image" type="text" name="{{idx}}.fillTexture" placeholder="path/image.png" value="{{terrainType.fillTexture}}"/>
 							</div>
 						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "TERRAINHEIGHTTOOLS.TextureOffset"}}</label>
+							<div class="form-group flexrow">
+								<input type="number" name="{{idx}}.fillTextureOffset.x" value="{{terrainType.fillTextureOffset.x}}" step="1" required placeholder="X">
+								<span class="flex0" style="margin-left: 3px">px</span>
+								<input type="number" name="{{idx}}.fillTextureOffset.y" value="{{terrainType.fillTextureOffset.y}}" step="1" required placeholder="Y" style="margin-left: 8px;">
+								<span class="flex0" style="margin-left: 3px">px</span>
+							</div>
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "TERRAINHEIGHTTOOLS.TextureScale"}}</label>
+							<div class="form-group flexrow">
+								<input type="number" name="{{idx}}.fillTextureScale.x" value="{{terrainType.fillTextureScale.x}}" min="1" step="1" required placeholder="X">
+								<span class="flex0" style="margin-left: 3px">%</span>
+								<input type="number" name="{{idx}}.fillTextureScale.y" value="{{terrainType.fillTextureScale.y}}" min="1" step="1" required placeholder="Y" style="margin-left: 8px;">
+								<span class="flex0" style="margin-left: 3px">%</span>
+							</div>
+						</div>
 					</div>
 
 					<div class="vertical-separator"></div>

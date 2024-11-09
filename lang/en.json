@@ -127,6 +127,8 @@
 		"StartHeight.Hint": "This is the height of the first point of the ruler. You can also adjust this using +/- on the keyboard before starting to drag the ruler.",
 		"Terrain": "Terrain",
 		"TerrainTypesToErase": "Terrain types to erase",
+		"TextureOffset": "Texture Offset",
+		"TextureScale": "Texture Scale",
 		"TokenLineOfSightConfigHint": "Select two tokens to measure line of sight between them.",
 		"TokenLineOfSightConfigTitle": "Token LoS",
 		"TokenLineOfSightRelativeRayPosition": "Position of ray relative to the token. Currently: {current}",
