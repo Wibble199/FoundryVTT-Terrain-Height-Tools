@@ -100,7 +100,7 @@ export function eraseCells(cells) {
  * @param {Object} [options={}] Options that change how the calculation is done.
  * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
  * height value will be included in the return list. They are treated as having infinite height.
- * @returns {(import('./geometry/height-map-shape.mjs').LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]}
+ * @returns {import("./geometry/height-map.mjs").FlattenedLineOfSightIntersectionRegion[]}
  */
 export function calculateLineOfSight(p1, p2, options = {}) {
 	return HeightMap.flattenLineOfSightIntersectionRegions(calculateLineOfSightByShape(p1, p2, options));

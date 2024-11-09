@@ -10,6 +10,14 @@ import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { HeightMapShape } from "./height-map-shape.mjs";
 import { Polygon } from './polygon.mjs';
 
+/**
+ * @typedef {Object} FlattenedLineOfSightIntersectionRegion
+ * @property {{ x: number; y: number; h: number; t: number; }} start The start position of the intersection region.
+ * @property {{ x: number; y: number; h: number; t: number; }} end The end position of the intersection region.
+ * @property {HeightMapShape[]} shapes The shapes that make up this intersection region.
+ * @property {boolean} skimmed
+ */
+
 const maxHistoryItems = 10;
 
 export class HeightMap {
@@ -546,10 +554,10 @@ export class HeightMap {
 	/**
 	 * Flattens an array of line of sight intersection regions into a single collection of regions.
 	 * @param {{ shape: HeightMapShape; regions: LineOfSightIntersectionRegion[] }[]} shapeRegions
-	 * @returns {(LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]}
+	 * @returns {FlattenedLineOfSightIntersectionRegion[]}
 	 */
 	static flattenLineOfSightIntersectionRegions(shapeRegions) {
-		/** @type {(LineOfSightIntersectionRegion & { terrainTypeId: string; height: number; })[]} */
+		/** @type {FlattenedLineOfSightIntersectionRegion[]} */
 		const flatIntersections = [];
 
 		// Find all points where a change happens - this may be entering, leaving or touching a shape.
@@ -582,18 +590,20 @@ export class HeightMap {
 			// There should only be 1 or 2 active regions. If there are two, that means that the ray 'skimmed' between
 			// two adjacent shapes. In this case, this is an intersection, NOT a skim.
 			if (activeRegions.length > 0) {
-				// In the case of multiple, the resulting elevation is the lowest shape, and the height is the distance
-				// from the lowest shape to the highest shape
-				const elevation = Math.min.apply(null, activeRegions.map(r => r.shape.elevation));
-				const height = Math.max.apply(null, activeRegions.map(r => r.shape.height + r.shape.elevation)) - elevation;
+				// To determine if the resulting flattened region has skimmed there are a few cases to account for.
+				// - If any of the constituent regions are not skimmed, then the flat region is a non-skim
+				// - If all of the constituent regions are skims, AND if there is a skim on either side of the test ray,
+				//   then the flat region is effectively not a skim as it goes through terrain.
+				// - Only if all the constituent regions are skims and all are on the same side of the test ray does
+				//   the flat region as a whole become a skim.
+				const skimmed = activeRegions.every(r => r.region.skimmed)
+					&& !(activeRegions.some(r => r.region.skimSide === 1) && activeRegions.some(r => r.region.skimSide === -1));
 
 				flatIntersections.push({
 					start: lastPosition,
 					end: boundary,
-					terrainTypeId: activeRegions[0].shape.terrainTypeId, // there's no good way to resolve this for multiple shapes, so just use whichever happens to be first
-					height,
-					elevation,
-					skimmed: activeRegions.length === 1 && activeRegions[0].region.skimmed
+					shapes: activeRegions.map(s => s.shape),
+					skimmed
 				});
 			}
 

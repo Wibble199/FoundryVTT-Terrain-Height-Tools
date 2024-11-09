@@ -7,8 +7,9 @@
  * @param {boolean} [options.closed=false] If true, joins the final point back up to the first to close the path.
  * @param {number} [options.dashSize=20] The size of the dashes.
  * @param {number} [options.gapSize=undefined] The size of the gaps between dashes (defaults to dashSize).
+ * @param {number} [options.offset=0] The initial offset for the dashes.
  */
-export function drawDashedPath(graphics, points, { closed = false, dashSize = 20, gapSize = undefined } = {}) {
+export function drawDashedPath(graphics, points, { closed = false, dashSize = 20, gapSize = undefined, offset = 0 } = {}) {
 	gapSize ??= dashSize;
 
 	// Normalise points into objects
@@ -21,7 +22,7 @@ export function drawDashedPath(graphics, points, { closed = false, dashSize = 20
 	// Drawing state - whether we are drawing a dash or a gap, plus how much left there is to draw.
 	// dashGapRemaining will carry on around corners to 'bend' the dash and make it look more natural.
 	let dash = false;
-	let dashGapRemaining = 0;
+	let dashGapRemaining = offset;
 
 	// For each subsequent point, find the angle from the previous point to this one
 	for (let i = 1; i < points.length; i++) {

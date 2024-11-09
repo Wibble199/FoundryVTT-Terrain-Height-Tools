@@ -24,6 +24,8 @@ import { Polygon } from "./polygon.mjs";
  * @property {{ x: number; y: number; h: number; t: number; }} end The end position of the intersection region.
  * @property {boolean} skimmed Did this intersection region "skim" the shape - i.e. just barely touched the edge of the
  * shape rather than entering it completely.
+ * @property {-1 | 0 | 1} skimSide If a skim occured, which side of the test ray it occured. -1 = left, 1 = right, 0 =
+ * top/bottom.
  */
 
 /**
@@ -297,17 +299,19 @@ export class HeightMapShape {
 		// Only edges that are (approximately) parallel to the test ray could cause a skimming to occur
 		const parallelThreshold = 0.05; // radians
 		const parallelEdges = allEdges
-			.map(([, e]) => e)
-			.filter(e =>
-				Math.abs(testRay.angle - e.angle) < parallelThreshold ||
-				Math.abs(inverseTestRay.angle - e.angle) < parallelThreshold);
+			.map(([, edge]) => ({
+				edge,
+				isParallel: Math.abs(testRay.angle - edge.angle) < parallelThreshold,
+				isInverseParallel: Math.abs(inverseTestRay.angle - edge.angle) < parallelThreshold
+			}))
+			.filter(x => x.isParallel || x.isInverseParallel);
 
 		// For each edge that is parallel, check how far the ends are from the testRay (assuming testRay had
 		// infinite length). If both are within a small threshold, then add it as a skimming region.
 		const skimDistThresholdSquared = 16; // pixels
-		/** @type {{ t1: number; t2: number }[]} */
+		/** @type {{ t1: number; t2: number; skimSide: -1 | 1; }[]} */
 		const skimRegions = [];
-		for (const edge of parallelEdges) {
+		for (const { edge, isParallel } of parallelEdges) {
 			// Cap the t values to 0-1 (i.e. on the testRay), but don't alter the distances.
 			let { t: t1, distanceSquared: d1 } = testRay.findClosestPointOnLineTo(edge.p1.x, edge.p1.y);
 			t1 = Math.max(Math.min(t1, 1), 0);
@@ -318,7 +322,8 @@ export class HeightMapShape {
 			if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
 				continue;
 
-			skimRegions.push(t1 < t2 ? { t1, t2 } : { t1: t2, t2: t1 });
+			const skimSide = isParallel ? 1 : -1;
+			skimRegions.push(t1 < t2 ? { t1, t2, skimSide } : { t1: t2, t2: t1, skimSide });
 		}
 
 		skimRegions.sort((a, b) => a.t1 - b.t2);
@@ -331,7 +336,7 @@ export class HeightMapShape {
 
 			// Merge adjacent skim regions. The combined skim region is from skimStartT -> skimRegions[i].t2.
 			skimStartT ??= skimRegions[i].t1;
-			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON) {
+			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON || skimRegions[i].skimSide !== skimRegions[i + 1].skimSide) {
 				const skimEndT = skimRegions[i].t2;
 
 				// We need to figure out which, if any, of the intersection regions to remove.
@@ -373,23 +378,16 @@ export class HeightMapShape {
 				/** @type {LineOfSightIntersectionRegion[]} */
 				const newElements = [
 					overlappingStartRegion
-						? {
-							start: overlappingStartRegion.start,
-							end: skimStartObject,
-							skimmed: overlappingStartRegion.skimmed
-						}
+						? { ...overlappingStartRegion, end: skimStartObject }
 						: undefined,
 					{
 						start: skimStartObject,
 						end: skimEndObject,
-						skimmed: true
+						skimmed: true,
+						skimSide: isSkimmingTopBottom ? 0 : skimRegions[i].skimSide
 					},
 					overlappingEndRegion
-						? {
-							start: skimEndObject,
-							end: overlappingEndRegion.end,
-							skimmed: overlappingEndRegion.skimmed
-						}
+						? { ...overlappingEndRegion, start: skimEndObject }
 						: undefined
 				].filter(Boolean);
 

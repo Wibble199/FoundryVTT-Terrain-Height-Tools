@@ -40,6 +40,7 @@ Represents a point in 3D space.
 ## calculateLineOfSight
 
 ![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
+![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
 
 Computes a line sight test between two points in 3d space.
 
@@ -56,10 +57,10 @@ Note that this will always return an empty array if the line of sight ray is zer
 
 ### Returns
 
-An array of region objects where a ray drawn from `p1` to `p2` intersects or touches any terrain shapes.
+An combined array of distinct regions where a ray drawn from `p1` to `p2` intersects or touches any terrain shapes.
 - All regions will have a non-zero length.
 - The regions will not overlap.
-- There may be gaps _between_ regions if the line of sight ray does not intersect a terrain shape at this position.
+- There may be gaps _between_ regions if the line of sight ray does not intersect any terrain shape at this position.
 - The regions in the array are sorted in order they are encountered along the line of sight ray.
 - Each region object has the following properties:
 
@@ -75,10 +76,8 @@ An array of region objects where a ray drawn from `p1` to `p2` intersects or tou
 |`end.y`|`number`|The Y coordinate (in canvas pixels) where the intersection ended.|
 |`end.h`|`number`|The height where the intersection ended.|
 |`end.t`|`number`|How far along the line of sight ray the intersection ended. Will always be a value between 0 and 1 inclusive. E.G. on a ray that is 200px long, a `t` value of 0.3 would mean that it ended 60 pixels along the ray.|
+|`shapes`|`HeightMapShape[]`|An array of the shape(s) that were intersected at this region.|
 |`skimmed`|`boolean`|If `true`, this region is an area where the line of sight ray touches but does not completely enter the shape. This will also be the case if the line of sight ray is flat and the shape is the height of the ray. For example a ray where p1.h = 1 and p2.h = 2 intersecting a height 1 object will always result in a skim. If `false`, the ray has completely entered the shape.|
-|`terrainTypeId`|`string`|The ID of the terrain type that was intersected. In cases where the ray skims two terrain types, this will be the ID of the one that is defined first.|
-|`height`|`number`|The height of the terrain type that was intersected. This is NOT the height at which the ray entered/left the shape. In cases where the ray skims two terrain types, this will be the highest of the two.|
-|`elevation`|`number`|The elevation of the terrain type that was intersected.|
 
 ### Examples
 
@@ -94,7 +93,7 @@ const anyIntersectionsNoSkimming = result.some(r => !r.skimmed);
 
 // Example: Check to see if it has intersected with a specific type of terrain.
 const hardCoverTerrainType = terrainHeightTools.getTerrainType({ name: "Hard Cover" });
-const hasIntersectedWithHardCover = result.some(r => r.terrainTypeId == hardCoverTerrainType.id);
+const hasIntersectedWithHardCover = result.some(r => r.shapes.some(s => s.terrainTypeId === hardCoverTerrainType.id));
 ```
 
 ## calculateLineOfSightByShape

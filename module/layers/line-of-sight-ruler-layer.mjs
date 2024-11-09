@@ -541,6 +541,11 @@ class LineOfSightRuler extends PIXI.Container {
 			.moveTo(this.#p1.x, this.#p1.y)
 			.lineTo(this.#p2.x, this.#p2.y);
 
+		const setTerrainColor = (/** @type {string} */ terrainTypeId) => {
+			const terrainColor = getTerrainColor(terrainTypes.get(terrainTypeId) ?? {});
+			this.#line.lineStyle({ color: terrainColor, alpha: 0.75, width: rulerLineWidth });
+		};
+
 		// Draw the line
 		let { h: _, ...lastPosition } = this.#p1;
 		for (const region of this.#intersectionRegions) {
@@ -553,13 +558,20 @@ class LineOfSightRuler extends PIXI.Container {
 					.lineTo(region.start.x, region.start.y);
 			}
 
-			// Draw the intersection region (in the color of the intersected terrain)
-			const terrainColor = getTerrainColor(terrainTypes.get(region.terrainTypeId) ?? {});
-			this.#line.lineStyle({ color: terrainColor, alpha: 0.75, width: rulerLineWidth });
+			// Draw the intersection region (in the color of the intersected terrain(s))
+			// - For a skim, draw a solid line. We just pick the first terrain ID returned for the color, because using
+			//   multiple colours makes it look like a full intersection.
+			// - For intersecting multiple sections, we alternate the coloured dots for each type of terrain.
 			if (region.skimmed) {
+				setTerrainColor(region.shapes[0].terrainTypeId);
 				this.#line.moveTo(region.start.x, region.start.y).lineTo(region.end.x, region.end.y);
 			} else {
-				drawDashedPath(this.#line, [region.start, region.end], { dashSize: 4 });
+				const dashSize = 4;
+				const gapSize = dashSize * 2 * region.shapes.length - dashSize; // gap size needs to account for the other terrain's dots
+				for (let i = 0; i < region.shapes.length; i++) {
+					setTerrainColor(region.shapes[i].terrainTypeId);
+					drawDashedPath(this.#line, [region.start, region.end], { dashSize, gapSize, offset: dashSize * 2 * i });
+				}
 			}
 			lastPosition = region.end;
 		}
