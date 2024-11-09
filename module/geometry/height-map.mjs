@@ -76,10 +76,9 @@ export class HeightMap {
 	 * @param {string} terrainTypeId The ID of the terrain type to paint.
 	 * @param {number} height The height of the terrain to paint.
 	 * @param {Object} [options]
-	 * @param {boolean} [options.overwrite] Whether or not to overwrite already-painted cells with hew terrain data.
-	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
+	 * @param {boolean} [options.overwrite] If true, replaces existing cells entirely with the new terrain data.
 	 */
-	async paintCells(cells, terrainTypeId, height = 1, elevation = 0, { overwrite = true } = {}) {
+	async paintCells(cells, terrainTypeId, height = 1, elevation = 0, { overwrite = false } = {}) {
 		/** @type {this["_history"][number]} */
 		const history = {};
 
@@ -99,8 +98,8 @@ export class HeightMap {
 			const terrainsInCell = this.data[cellKey];
 
 			// If nothing is in this cell, can simplify logic.
-			if (!terrainsInCell?.length) {
-				history[cellKey] = [];
+			if (!terrainsInCell?.length || overwrite) {
+				history[cellKey] = terrainsInCell ?? [];
 				this.data[cellKey] = [{ terrainTypeId, height, elevation }];
 				continue;
 			}
@@ -108,17 +107,13 @@ export class HeightMap {
 			const originalTerrainInCell = terrainsInCell.map(t => ({ ...t })); // create an unmodified clone for history
 			let anyChanges = false;
 
-			// If overwrite is true, and the given terrain type uses height, then find any other terrain types (besides
-			// the one being painted and ones that do not use height), and erase them in this range so they don't
-			// overlap. E.G. if a type A terrain was at H3 E0, and the user painted a type B terrain at H2 E2, then we
-			// want to clip the A terrain to H2 E0.
-			if (overwrite && terrainType.usesHeight) {
-				anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, elevation, elevation + height, { excludingTerrainTypeIds: [...noHeightTerrains, terrainTypeId] }) || anyChanges;
-			}
-
-			// For terrain that uses height, use the merge function to merge with existing terrain of the same type.
+			// If the given terrain type uses height, then find any other terrain types (besides the one being painted
+			// and ones that do not use height), and erase them in this range so they don't overlap. E.G. if a type A
+			// terrain was at H3 E0, and the user painted a type B terrain at H2 E2, then we want to clip the A terrain
+			// to H2 E0. Then use the merge function to merge with existing terrain of the same type.
 			// For no-height terrain, simply add it if it doesn't already exist.
 			if (terrainType.usesHeight) {
+				anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, elevation, elevation + height, { excludingTerrainTypeIds: [...noHeightTerrains, terrainTypeId] }) || anyChanges;
 				anyChanges = HeightMap._insertTerrainDataAndMerge(terrainsInCell, terrainTypeId, elevation, height) || anyChanges;
 			} else {
 				const exists = terrainsInCell.some(t => t.terrainTypeId === terrainTypeId);

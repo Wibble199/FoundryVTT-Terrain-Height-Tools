@@ -59,12 +59,13 @@ export class TerrainHeightLayer extends InteractionLayer {
 	}
 
 	get paintingConfig() {
-		const { terrainTypeId, height, elevation } = paintingConfig$.value;
+		const { terrainTypeId, height, elevation, mode } = paintingConfig$.value;
 		const usesHeight = getTerrainType(terrainTypeId)?.usesHeight ?? false;
 		return {
 			selectedTerrainId: terrainTypeId,
 			selectedHeight: usesHeight ? height : 0,
-			selectedElevation: usesHeight ? elevation : 0
+			selectedElevation: usesHeight ? elevation : 0,
+			mode
 		};
 	}
 
@@ -323,8 +324,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		switch (pendingTool) {
 			case tools.paint:
-				const { selectedTerrainId, selectedHeight, selectedElevation } = this.paintingConfig;
-				if (selectedTerrainId && await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation))
+				const { selectedTerrainId, selectedHeight, selectedElevation, mode } = this.paintingConfig;
+				if (selectedTerrainId && await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { overwrite: mode === "replace" }))
 					await this._updateGraphics();
 				break;
 

@@ -3,13 +3,16 @@ import { fromObject } from "../utils/signal.mjs";
 
 /**
  * Config state for the painting and filling tools.
- * @type {DeepSignal<{ terrainTypeId: string | undefined; height: number; elevation: number; }>}
+ * @type {DeepSignal<{ terrainTypeId: string | undefined; height: number; elevation: number; mode: "replace" | "merge"; }>}
  */
 export const paintingConfig$ = fromObject({
 	terrainTypeId: undefined,
 	height: 1,
-	elevation: 0
+	elevation: 0,
+	mode: "replace"
 });
+
+window.paintingConfig$ = paintingConfig$;
 
 /**
  * Config state for the erasing and erasing fill tools.

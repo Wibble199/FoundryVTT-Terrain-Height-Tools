@@ -16,7 +16,7 @@ export class TerrainPaintPalette extends withSubscriptions(Application) {
 			template: `modules/${moduleName}/templates/terrain-paint-palette.hbs`,
 			scrollY: ["ul"],
 			width: 220,
-			height: 342,
+			height: 358,
 			resizable: true
 		});
 	}
@@ -73,7 +73,11 @@ export class TerrainPaintPalette extends withSubscriptions(Application) {
 
 			// Update elevation input
 			paintingConfig$.elevation$.subscribe(elevation =>
-				html.find("[name='selectedElevation']").val(toSceneUnits(elevation)), true)
+				html.find("[name='selectedElevation']").val(toSceneUnits(elevation)), true),
+
+			// Update mode select
+			paintingConfig$.mode$.subscribe(mode =>
+				html.find(`[name='mode'][value='${mode}']`).prop("checked", true), true)
 		];
 
 		html.find("[data-terrain-id]").on("click", this.#onTerrainSelect.bind(this));
@@ -93,6 +97,9 @@ export class TerrainPaintPalette extends withSubscriptions(Application) {
 
 		html.find("[name='selectedElevation']").on("blur", evt =>
 			evt.currentTarget.value = toSceneUnits(paintingConfig$.elevation$.value));
+
+		html.find("[name='mode']").on("change", evt =>
+			paintingConfig$.mode$.value = evt.target.value);
 	}
 
 	/** @param {MouseEvent} event */

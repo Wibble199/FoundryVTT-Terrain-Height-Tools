@@ -105,6 +105,8 @@
 		"NoTerrainTypesWarn": "No terrain types configured. Click to configure.",
 		"NotifyShapeConversionComplete": "Successfully converted clicked shape to drawings and/or walls",
 		"NoTokenSelected": "No token selected",
+		"PaintMode.Merge": "Merge",
+		"PaintMode.Replace": "Replace",
 		"PaletteTitle": "Terrain Palette",
 		"SameAsStart": "Same as start",
 		"SameTokenSelected": "You have already selected this token for line of sight, please select a different one",

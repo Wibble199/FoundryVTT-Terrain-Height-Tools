@@ -45,6 +45,35 @@
 	cursor: help;
 }
 
+.tht-radio-button input {
+	display: none;
+}
+
+.tht-radio-button label {
+	display: block;
+	padding: 4px 8px;
+	border: 1px solid var(--color-border-light-tertiary);
+	border-left-width: 0;
+	text-align: center;
+	cursor: pointer;
+}
+
+.tht-radio-button input:checked + label {
+	border-color: var(--color-border-highlight-alt);
+    box-shadow: 0 0 6px inset var(--color-shadow-highlight);
+}
+
+.tht-radio-button:first-of-type label {
+	border-top-left-radius: 3px;
+	border-bottom-left-radius: 3px;
+	border-left-width: 1px;
+}
+
+.tht-radio-button:last-of-type label {
+	border-top-right-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+
 
 /* --------------------- */
 /* Terrain Type Palettes */
@@ -417,4 +446,13 @@ ul.terrain-type-palette li .terrain-type-name {
 /* ------- */
 .align-items-center {
 	align-items: center;
+}
+
+.max-content-width {
+	width: max-content;
+}
+
+.margin-x-auto {
+	margin-left: auto;
+	margin-right: auto;
 }
