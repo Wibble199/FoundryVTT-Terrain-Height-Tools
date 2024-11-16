@@ -60,6 +60,13 @@ export const socketFuncs = /** @type {const} */ ({
 	clearLineOfSightRay: "clearLineOfSightRay"
 });
 
+/** @enum {keyof typeof terrainPaintMode} */
+export const terrainPaintMode = /** @type {const} */ ({
+	additiveMerge: "TERRAINHEIGHTTOOLS.PaintMode.AdditiveMerge.Name",
+	destructiveMerge: "TERRAINHEIGHTTOOLS.PaintMode.DestructiveMerge.Name",
+	totalReplace: "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Name",
+});
+
 /** @enum {keyof typeof tokenRelativeHeights} */
 export const tokenRelativeHeights = /** @type {const} */ ({
 	[1]: "SETTINGS.DefaultTokenLosHeight.Choice.Top",

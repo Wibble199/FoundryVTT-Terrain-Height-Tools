@@ -22,7 +22,7 @@ const maxHistoryItems = 10;
 
 export class HeightMap {
 
-	/** @type {HeightMapDataV1} */
+	/** @type {HeightMapDataV1["data"]} */
 	data;
 
 	/** @type {Partial<HeightMapDataV1>[]} */
@@ -83,10 +83,14 @@ export class HeightMap {
 	 * @param {[number, number][]} cells A list of cells to paint.
 	 * @param {string} terrainTypeId The ID of the terrain type to paint.
 	 * @param {number} height The height of the terrain to paint.
+	 * @param {number} elevation The elevation of the terrain to paint.
 	 * @param {Object} [options]
-	 * @param {boolean} [options.overwrite] If true, replaces existing cells entirely with the new terrain data.
+	 * @param {import("../consts.mjs").terrainPaintMode} [options.mode] How to handle existing terrain:
+	 * - `"totalReplace"` - Completely overwrites all existing terrain data in the cells with the new data.
+	 * - `"additiveMerge"` - Merges the new terrain data with the existing data, without removing any overlapping terrain.
+	 * - `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.
 	 */
-	async paintCells(cells, terrainTypeId, height = 1, elevation = 0, { overwrite = false } = {}) {
+	async paintCells(cells, terrainTypeId, height = 1, elevation = 0, { mode = "totalReplace" } = {}) {
 		/** @type {this["_history"][number]} */
 		const history = {};
 
@@ -106,7 +110,7 @@ export class HeightMap {
 			const terrainsInCell = this.data[cellKey];
 
 			// If nothing is in this cell, can simplify logic.
-			if (!terrainsInCell?.length || overwrite) {
+			if (!terrainsInCell?.length || mode === "totalReplace") {
 				history[cellKey] = terrainsInCell ?? [];
 				this.data[cellKey] = [{ terrainTypeId, height, elevation }];
 				continue;
@@ -115,14 +119,31 @@ export class HeightMap {
 			const originalTerrainInCell = terrainsInCell.map(t => ({ ...t })); // create an unmodified clone for history
 			let anyChanges = false;
 
-			// If the given terrain type uses height, then find any other terrain types (besides the one being painted
-			// and ones that do not use height), and erase them in this range so they don't overlap. E.G. if a type A
-			// terrain was at H3 E0, and the user painted a type B terrain at H2 E2, then we want to clip the A terrain
-			// to H2 E0. Then use the merge function to merge with existing terrain of the same type.
-			// For no-height terrain, simply add it if it doesn't already exist.
-			if (terrainType.usesHeight) {
+			// If the given terrain type uses height and we are to replace existing overlapping terrain, then find any
+			// other terrain types (besides the one being painted and ones that do not use height), and erase them in
+			// this range so they don't overlap. E.G. if a type A terrain was at H3 E0, and the user painted a type B
+			// terrain at H2 E2, then we want to clip the A terrain to H2 E0. Then use the merge function to merge with
+			// existing terrain of the same type.
+			if (terrainType.usesHeight && mode === "destructiveMerge") {
 				anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, elevation, elevation + height, { excludingTerrainTypeIds: [...noHeightTerrains, terrainTypeId] }) || anyChanges;
 				anyChanges = HeightMap._insertTerrainDataAndMerge(terrainsInCell, terrainTypeId, elevation, height) || anyChanges;
+
+			// For cases where we are not to replace existing overlapping terrain, then create a temporary terrain data
+			// for the newly painted terrain and use the eraseTerrainDataBetween for each existing terrain (excluding
+			// the same type being painted and ones that do not use height). Then, merge the result with the current
+			// terrain.
+			} else if (terrainType.usesHeight && mode === "additiveMerge") {
+				/** @type {HeightMapDataV1Terrain[]} */
+				const newTerrain = [{ terrainTypeId, height, elevation }];
+
+				for (const existing of terrainsInCell)
+					if (existing.terrainTypeId !== terrainTypeId && !noHeightTerrains.includes(existing.terrainTypeId))
+						HeightMap._eraseTerrainDataBetween(newTerrain, existing.elevation, existing.elevation + existing.height);
+
+				for (const { elevation, height } of newTerrain)
+					anyChanges = HeightMap._insertTerrainDataAndMerge(terrainsInCell, terrainTypeId, elevation, height) || anyChanges;
+
+			// For no-height terrain, simply add it if it doesn't already exist.
 			} else {
 				const exists = terrainsInCell.some(t => t.terrainTypeId === terrainTypeId);
 				if (!exists) {

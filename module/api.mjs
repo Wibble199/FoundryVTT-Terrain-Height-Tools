@@ -57,10 +57,10 @@ export function getShapes(x, y) {
  * @param {number} terrain.height If the terrain type uses heights, the height to paint on these cells.
  * @param {number} terrain.elevation If the terrain type uses heights, the elevation (how high off the ground) to paint these cells.
  * @param {Object} [options]
- * @param {boolean} [options.overwrite] Whether or not to overwrite already-painted cells with the new terrain data.
+ * @param {import("./consts.mjs").terrainPaintMode} [options.mode]
  * @returns {Promise<boolean>}
  */
-export function paintCells(cells, terrain, { overwrite = true } = {}) {
+export function paintCells(cells, terrain, { mode = "totalReplace" } = {}) {
 	if (!Array.isArray(cells) || cells.some(cell => !Array.isArray(cell)))
 		throw new Error("Expected `cells` to be an array of arrays.");
 	if (cells.length === 0) return;
@@ -74,7 +74,7 @@ export function paintCells(cells, terrain, { overwrite = true } = {}) {
 
 	/** @type {import("./geometry/height-map.mjs").HeightMap} */
 	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { overwrite });
+	return hm.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
 }
 
 /**

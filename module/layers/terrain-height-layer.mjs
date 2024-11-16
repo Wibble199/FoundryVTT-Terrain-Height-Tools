@@ -317,7 +317,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		switch (pendingTool) {
 			case tools.paint:
 				const { selectedTerrainId, selectedHeight, selectedElevation, mode } = this.paintingConfig;
-				if (selectedTerrainId && await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { overwrite: mode === "replace" }))
+				if (selectedTerrainId && await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { mode }))
 					await this._updateGraphics();
 				break;
 

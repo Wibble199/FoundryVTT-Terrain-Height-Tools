@@ -3,13 +3,13 @@ import { fromObject } from "../utils/signal.mjs";
 
 /**
  * Config state for the paint tool.
- * @type {DeepSignal<{ terrainTypeId: string | undefined; height: number; elevation: number; mode: "replace" | "merge"; }>}
+ * @type {DeepSignal<{ terrainTypeId: string | undefined; height: number; elevation: number; mode: import("../consts.mjs").terrainPaintMode; }>}
  */
 export const paintingConfig$ = fromObject({
 	terrainTypeId: undefined,
 	height: 1,
 	elevation: 0,
-	mode: "replace"
+	mode: "totalReplace"
 });
 
 window.paintingConfig$ = paintingConfig$;

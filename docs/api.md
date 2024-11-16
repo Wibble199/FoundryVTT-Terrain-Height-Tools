@@ -508,6 +508,7 @@ An array of objects with the following properties:
 ## paintCells
 
 ![Available Since v0.1.4](https://img.shields.io/badge/Available%20Since-v0.1.4-blue?style=flat-square)
+![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
 
 Paints new terrain data onto the specified cells.
 
@@ -523,8 +524,8 @@ Users must have permissions to update the scene to use this.
 |`terrain.name`|`string`|`undefined`|If provided, will attempt to find a terrain type with this name. Note that this is case-sensitive. If multiple terrain types have the same name, the first will be returned.|
 |`terrain.height`|`number`|`undefined`|The height of the terrain to paint onto the scene. Required when the specified terrain type uses height, ignored if the terrain type does not.|
 |`terrain.elevation`|`number`|`undefined`|The elevation of the terrain to paint onto the scene (how heigh it is off the ground). Defaults to 0 when the specified terrain type uses height, ignored if the terrain type does not.|
-|`options`|`Object`||
-|`options.overwrite`|`boolean`|`true`|If `true`, cells that are already painted with a terrain will be overwritten with the given values. If `false` only unpainted cells are painted.|
+|`options`|`Object`|`{}`||
+|`options.mode`|`"totalReplace" \| "destructiveMerge" \| "additiveMerge"`|`"totalReplace"`|How to handle existing terrain: `"totalReplace"` - Completely overwrites all existing terrain data in the cells with the new data; `"additiveMerge"` - Merges the new terrain data with the existing data, without removing any overlapping terrain.; `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.|
 
 ### Returns
 
