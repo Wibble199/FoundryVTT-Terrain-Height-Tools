@@ -21,9 +21,9 @@
 
 				<div class="terrain-type-content {{#unless (lookup ../expandedTypes terrainType.id)}}collapsed{{/unless}}">
 					<div class="terrain-type-content-full-width">
-						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.HasHeight.Hint"}}">
-							<input id="{{idx}}_usesHeight" type="checkbox" name="{{idx}}.usesHeight" {{checked terrainType.usesHeight}}>
-							<label for="{{idx}}_usesHeight">{{localize "TERRAINHEIGHTTOOLS.HasHeight.Name"}}</label>
+						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.IsZone.Hint"}}">
+							<input id="{{idx}}_isZone" type="checkbox" name="{{idx}}.isZone" {{checked (not terrainType.usesHeight)}}>
+							<label for="{{idx}}_isZone">{{localize "TERRAINHEIGHTTOOLS.IsZone.Name"}}</label>
 						</div>
 						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Hint"}}">
 							<input id="{{idx}}_isAlwaysVisible" type="checkbox" name="{{idx}}.isAlwaysVisible" {{checked terrainType.isAlwaysVisible}}>

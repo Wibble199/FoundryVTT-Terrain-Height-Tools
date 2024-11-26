@@ -1,3 +1,4 @@
+/** @import { TerrainType } from "../utils/terrain-types.mjs" */
 import { lineTypes, moduleName, settings } from "../consts.mjs";
 import { error } from "../utils/log.mjs";
 import { createDefaultTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
@@ -45,13 +46,24 @@ export class TerrainTypesConfig extends FormApplication {
 
 	/**
 	 * @override
-	 * @returns {import("../utils/terrain-types.mjs").TerrainType[]}
+	 * @returns {TerrainType[]}
 	 */
 	_getSubmitData(updateData = {}) {
 		const formData = super._getSubmitData(updateData);
-		return Object.entries(expandObject(formData))
+
+		/** @type {(TerrainType & { isZone: boolean; })[]} */
+		const terrainTypes = Object.entries(expandObject(formData))
 			.sort((a, b) => a[0] - b[0])
 			.map(([_, value]) => value);
+
+		// Since the "Uses height?" option was changed to "Is zone?" we need to invert the checkbox.
+		// We don't create a new property for this because we don't want to mess with peoples' existing configs.
+		for (const terrainType of terrainTypes) {
+			terrainType.usesHeight = !terrainType.isZone;
+			delete terrainType.isZone;
+		}
+
+		return terrainTypes;
 	}
 
 	/** @override */
@@ -97,7 +109,7 @@ export class TerrainTypesConfig extends FormApplication {
 
 	#addTerrainType() {
 		this.sync();
-		/** @type {import("../utils/terrain-types.mjs").TerrainType} */
+		/** @type {TerrainType} */
 		const newTerrainType = createDefaultTerrainType();
 		this.object.push(newTerrainType);
 		this._expandedTypes[newTerrainType.id] = true;
@@ -205,7 +217,7 @@ export class TerrainTypesConfig extends FormApplication {
 	}
 
 	/**
-	 * @param {string | Partial<import("../utils/terrain-types.mjs").TerrainType>[]} data Data to import. Either a JSON
+	 * @param {string | Partial<TerrainType>[]} data Data to import. Either a JSON
 	 * string or an already-parsed array.
 	 * @param {boolean} replace Whether or not to delete all existing terrain types on a successful import.
 	 * @returns {boolean} Boolean indicating if the import was successful.
