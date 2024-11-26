@@ -12,8 +12,6 @@ export const paintingConfig$ = fromObject({
 	mode: "totalReplace"
 });
 
-window.paintingConfig$ = paintingConfig$;
-
 /**
  * Config state for the erase tool.
  * @type {DeepSignal<{ excludedTerrainTypeIds: string[]; bottom: number | null; top: number | null; }>}

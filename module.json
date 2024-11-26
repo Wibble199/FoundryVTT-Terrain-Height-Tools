@@ -31,7 +31,7 @@
 		"requires": [
 			{
 				"id": "lib-wrapper",
-            	"type": "module"
+				"type": "module"
 			}
 		]
 	},

@@ -12,8 +12,8 @@
 		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight"
 	},
 	"KEYBINDINGS": {
-		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Height",
-		"IncreaseLosRulerHeight": "Increase Line of Sight Ruler Height",
+		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Elevation",
+		"IncreaseLosRulerHeight": "Increase Line of Sight Ruler Elevation",
 		"ShowTerrainStackViewer": "Show Terrain Viewer",
 		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
 	},
