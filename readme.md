@@ -41,7 +41,7 @@ By default, THT will draw these rays from the top of one token to the top of the
 
 When you first open this tool, if you have an own token or a selected token on the scene, this will automatically be your first token (though you can still change it ofcourse). Similarly, if you have a token targetted, this will be your second token.
 
-> [!INFO]
+> [!NOTE]
 > Both the Line of Sight Ruler and the Token Line of Sight tool work in 3D. If you see colours changing part way through a terrain object, the ray is likely entering/existing the top or bottom of the object.
 
 The third button in the toolbox is a button to quickly turn the terrain map on or off. If you can't see any terrain, check this is turned on! Note that your GM may have configured some terrain to always show, regardless of this setting.

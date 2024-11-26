@@ -54,7 +54,7 @@ This is the tool that allows you to mark terrain on your map. When you select th
 
 You will need to select which terrain type to paint on the map, and if it is not a zone you can also set the height and elevation of that terrain.
 
-> [!INFO]
+> [!NOTE]
 > Height is how big the terrain actually is; elevation is how high off the ground it is.
 
 The _Clear/Add/Replace_ buttons are for determining how your paint brush interacts with terrain that already exists on the map.
