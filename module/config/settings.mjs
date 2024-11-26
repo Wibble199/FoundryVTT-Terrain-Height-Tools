@@ -145,7 +145,7 @@ export function registerSettings() {
 	game.settings.register(moduleName, settings.tokenElevationChange, {
 		name: "SETTINGS.TokenElevationChange.Name",
 		hint: "SETTINGS.TokenElevationChange.Hint",
-		scope: "client",
+		scope: "world",
 		type: Boolean,
 		config: true,
 		default: false
