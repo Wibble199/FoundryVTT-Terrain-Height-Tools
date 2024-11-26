@@ -143,11 +143,16 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	 * @returns
 	 */
 	static _getLabelText(shape, terrainStyle) {
+		// If the shape has elevation, and the user has provided a different format for elevated terrain, use that.
+		const format = shape.elevation !== 0 && terrainStyle.elevatedTextFormat?.length > 0
+			? terrainStyle.elevatedTextFormat
+			: terrainStyle.textFormat;
+
 		return terrainStyle.usesHeight
-			? terrainStyle.textFormat
+			? format
 				.replace(/\%h\%/g, prettyFraction(toSceneUnits(shape.height)))
 				.replace(/\%e\%/g, prettyFraction(toSceneUnits(shape.elevation)))
-			: terrainStyle.textFormat;
+			: format;
 	}
 
 	async #updateShapesVisibility() {
