@@ -84,6 +84,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// If there are no shapes on the map, just clear it and return
 		if (heightMap.shapes.length === 0) {
 			this._clear();
+			this.#updateShapeMasks();
 			return;
 		}
 
@@ -178,8 +179,11 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		if (this.cursorRadiusMask) this.removeChild(this.cursorRadiusMask);
 		game.canvas.terrainHeightLayer._eventListenerObj?.off("globalmousemove", this.#updateCursorMaskPosition);
 
-		// Stop here if not applying a new mask
-		if (radius <= 0) return;
+		// Stop here if not applying a new mask. We are not applying a mask if:
+		// - The radius is 0, i.e. no mask
+		// - If there are no shapes; if there are no shapes to apply the mask to, it will appear as an actual white
+		//   circle on the canvas.
+		if (radius <= 0 || this.#shapes.length === 0) return;
 
 		// Create a radial gradient texture
 		radius *= game.canvas.grid.size;
