@@ -52,7 +52,8 @@ function init() {
 }
 
 function ready() {
-	globalThis.terrainHeightTools.ui.terrainStackViewer = new TerrainStackViewer().render(true);
+	const terrainStackViewer = globalThis.terrainHeightTools.ui.terrainStackViewer = new TerrainStackViewer();
+	terrainStackViewer.render(true);
 
 	game.socket.on(socketName, handleSocketEvent);
 
