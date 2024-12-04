@@ -255,7 +255,7 @@ export class TerrainTypesConfig extends FormApplication {
 			// Check that property types match those declared in the defaultTerrainType
 			for (const [key, value] of Object.entries(defaultTerrainType)) {
 				if (typeof sanitisedTerrainType[key] !== typeof value) {
-					error(`Expected property '${key}' of item at index ${i} to be of type ${typeof sanitisedTerrainType[key]}, but found`, item);
+					error(`Expected property '${key}' of item at index ${i} to be of type ${typeof value}, but found`, sanitisedTerrainType[key]);
 					return false;
 				}
 			}

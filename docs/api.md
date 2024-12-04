@@ -457,7 +457,7 @@ If it was found, an object with the following properties:
 |`lineDashSize`|`number`|For dashed lines, the size of the dash (in pixels).|
 |`lineGapSize`|`number`|For dashed lines, the size of gap between the dashes (in pixels).|
 |`textFormat`|`string`|The template used for the label for the terrain.|
-|`elevatedTextFormat`|`string \| null`|The template used for the label for the terrai when elevation is not 0.|
+|`elevatedTextFormat`|`string`|The template used for the label for the terrai when elevation is not 0.|
 |`textColor`|`string`|A hex string for the text color.|
 |`textOpacity`|`number`|The opacity of the text. 0 = transparent, 1 = opaque.|
 |`textSize`|`number`|The size of the text (in pixels).|
@@ -501,7 +501,7 @@ An array of objects with the following properties:
 |`lineDashSize`|`number`|For dashed lines, the size of the dash (in pixels).|
 |`lineGapSize`|`number`|For dashed lines, the size of gap between the dashes (in pixels).|
 |`textFormat`|`string`|The template used for the label for the terrain.|
-|`elevatedTextFormat`|`string \| null`|The template used for the label for the terrai when elevation is not 0.|
+|`elevatedTextFormat`|`string`|The template used for the label for the terrai when elevation is not 0.|
 |`textColor`|`string`|A hex string for the text color.|
 |`textOpacity`|`number`|The opacity of the text. 0 = transparent, 1 = opaque.|
 |`textSize`|`number`|The size of the text (in pixels).|
