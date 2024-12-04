@@ -117,10 +117,14 @@ export function getTerrainColor(terrainType, defaultColor = 0x00FFFF) {
 export function getCssColorsFor(terrainType) {
 	return {
 		textColor: terrainType.textColor + alphaToHex(terrainType.textOpacity),
-		backgroundColor: terrainType.fillColor + alphaToHex(terrainType.fillOpacity),
-		borderColor: terrainType.lineWidth <= 0
+		backgroundColor: terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE
+			? "transparent"
+			: terrainType.fillColor + alphaToHex(terrainType.fillOpacity),
+		borderColor: terrainType.lineType === lineTypes.none || terrainType.lineWidth <= 0
 			? "transparent"
 			: terrainType.lineColor + alphaToHex(terrainType.lineOpacity),
-		borderWidth: terrainType.lineWidth,
+		borderWidth: terrainType.lineType === lineTypes.none
+			? 0
+			: terrainType.lineWidth,
 	};
 }

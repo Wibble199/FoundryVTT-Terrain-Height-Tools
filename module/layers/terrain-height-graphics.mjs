@@ -330,7 +330,9 @@ class TerrainShapeGraphics extends PIXI.Container {
 
 	#setGraphicsStyleFromTerrainType() {
 		const color = Color.from(this.#terrainType.fillColor ?? "#000000");
-		if (this.#terrainType.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && this.#texture)
+		if (this.#terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE)
+			this.#graphics.beginFill(0x000000, 0);
+		else if (this.#terrainType.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && this.#texture)
 			this.#graphics.beginTextureFill({
 				texture: this.#texture,
 				color,
