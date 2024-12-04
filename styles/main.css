@@ -254,6 +254,12 @@ ul.terrain-type-palette li .terrain-type-name {
 	margin-left: 0;
 }
 
+#tht_terrainTypesConfig textarea.autoresize {
+	min-height: auto;
+	resize: vertical;
+	field-sizing: content;
+}
+
 
 /* --------------------------- */
 /* Terrain Types Import/Export */
