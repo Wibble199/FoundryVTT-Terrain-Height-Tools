@@ -34,6 +34,21 @@ export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
 }
 
 /**
+ * When a token is created, if the token elevation option is enabled and the token is ontop of solid terrain, then set
+ * the token's initial elevation.
+ * @param {TokenDocument} tokenDoc
+ * @param {string} userId
+ */
+export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) {
+	// If the token was not created by the current user, or the setting is disabled, do nothing
+	if (userId !== game.userId || !game.settings.get(moduleName, settings.tokenElevationChange)) return;
+
+	const terrainHeight = getHighestTerrainUnderToken(tokenDoc, isAltOrientation(tokenDoc));
+
+	tokenDoc.updateSource({ elevation: terrainHeight });
+}
+
+/**
  * Finds the highest terrain point under the given token position. This accounts for terrain height and elevation.
  * @param {{ x: number; y: number; width: number; height: number; }} position
  * @param {boolean} isAltOrientation

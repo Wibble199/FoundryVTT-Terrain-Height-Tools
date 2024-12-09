@@ -4,7 +4,7 @@ import { registerSceneControls, renderToolSpecificApplications, sceneControls } 
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { addAboveTilesToSceneConfig, registerSettings } from './config/settings.mjs';
 import { moduleName, socketFuncs, socketName } from './consts.mjs';
-import { handleTokenElevationChange } from "./hooks/token-elevation.mjs";
+import { handleTokenElevationChange, handleTokenPreCreation } from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from './layers/line-of-sight-ruler-layer.mjs';
 import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
 import { log } from "./utils/log.mjs";
@@ -14,6 +14,7 @@ Hooks.once("ready", ready);
 Hooks.on("getSceneControlButtons", registerSceneControls);
 Hooks.on("renderSceneControls", renderToolSpecificApplications);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
+Hooks.on("preCreateToken", handleTokenPreCreation);
 Hooks.on("preUpdateToken", handleTokenElevationChange);
 
 Object.defineProperty(globalThis, "terrainHeightTools", {
