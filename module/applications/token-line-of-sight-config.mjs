@@ -154,7 +154,7 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 	 */
 	#setTokenRelativeHeight(event) {
 		const tokenIndex = +event.currentTarget.closest("[data-token-index]").dataset.tokenIndex;
-		const signal = this.#losLayer[`_token${tokenIndex}Height$`];
+		const signal = tokenLineOfSightConfig$[`h${tokenIndex}$`];
 
 		signal.value = {
 			[1]: 0.5,
@@ -168,7 +168,7 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 	 */
 	#clearSelectedToken(event) {
 		const tokenIndex = +event.currentTarget.closest("[data-token-index]").dataset.tokenIndex;
-		this.#losLayer[`_token${tokenIndex}$`].value = undefined;
+		tokenLineOfSightConfig$[`h${tokenIndex}$`].value = undefined;
 		this.#selectingToken$.value = undefined;
 	}
 

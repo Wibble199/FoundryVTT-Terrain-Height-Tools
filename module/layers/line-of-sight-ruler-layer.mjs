@@ -9,6 +9,7 @@ import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { fromHook, join } from "../utils/signal.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
+import { getTokenHeight } from "../utils/token-utils.mjs";
 
 /**
  * @typedef {Object} Point3D
@@ -245,9 +246,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// Work out the h value for the tokens. This is how far the token is off the ground + the token's height.
 		// Note that this uses the assumption that the width and height of the token is it's h value.
 		const token1Doc = token1 instanceof Token ? token1.document : token1;
-		const token1Height = token1Doc.elevation + token1Doc.width * token1RelativeHeight;
+		const token1Height = token1Doc.elevation + getTokenHeight(token1Doc) * token1RelativeHeight;
 		const token2Doc = token2 instanceof Token ? token2.document : token2;
-		const token2Height = token2Doc.elevation + token2Doc.width * token2RelativeHeight;
+		const token2Height = token2Doc.elevation + getTokenHeight(token2Doc) * token2RelativeHeight;
 
 		return [
 			[
