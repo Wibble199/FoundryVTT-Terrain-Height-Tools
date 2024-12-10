@@ -26,7 +26,10 @@ Here are some of the important options you need to know:
 5. This group of settings controls the border of the terrain shape that is drawn on the scene. If you are familiar with Foundry's drawing tools, this should be familar, except that THT also has dashed lines!
 6. This group of settings controls the fill of the terrain shape on the scene. Again, this section should be easy for anyone familiar with Foundry's drawing tools. There also some extra advanced options for tweaking how textures render - allowing you to translate or scale the texture.
 7. This group of settings controls the label that will be put on the terrain object on the scene.
-	- "_Label Format_" will specify what the label should actually be. You can use the placeholder's `%h%` and `%e%` which will get replaced with the height and elevation of the terrain respectively. For example, if you set the label to be `%e% + H%h%`, then when this terrain type is painted with an elevation of 2 and a height of 3, the label would be `2 + H3`.
+	- "_Label Format_" will specify what the label should actually be. You can use placeholders which will get replaced with metadata from the terrain. For example, if you set the label to be `%e% + H%h%`, then when this terrain type is painted with an elevation of 2 and a height of 3, the label would be `2 + H3`.
+		- `%h%` will be replaced with the height of the terrain (how big it is vertically)
+		- `%e%` will be replaced with the elevation of the terrain (how high above the ground it is)
+		- `%t%` will be replaced with the elevation of the top of the terrain (height + elevation)
 	- "_Label Format (Elevated)_" is the same as the label format, except that it is used only when the terrain is at a non-zero elevation. If this is blank, the normal label format will always be used. For example, you might create a type which has the label format `H%h%` and an elevated format of `%e%+H%h%` - meaning that the elevation would only show when the terrain is elevated.
 	- Enabling "_Allow Text Rotation_" will allow THT to rotate the label 90 degrees if it thinks that it can fit the label on the shape better that way.
 	- The rest of these options mirror those used for Foundry drawings.

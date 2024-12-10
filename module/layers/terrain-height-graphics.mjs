@@ -153,6 +153,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 			? format
 				.replace(/\%h\%/g, prettyFraction(toSceneUnits(shape.height)))
 				.replace(/\%e\%/g, prettyFraction(toSceneUnits(shape.elevation)))
+				.replace(/\%t\%/g, prettyFraction(toSceneUnits(shape.height + shape.elevation)))
 			: format;
 	}
 

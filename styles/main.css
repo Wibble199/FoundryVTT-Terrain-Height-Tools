@@ -260,6 +260,49 @@ ul.terrain-type-palette li .terrain-type-name {
 	field-sizing: content;
 }
 
+#tht_terrainTypesConfig .form-group-stacked:has(> .focus-tooltip) {
+	position: relative;
+}
+
+#tht_terrainTypesConfig .focus-tooltip {
+	position: absolute;
+	top: calc(100% + 1px);
+	z-index: var(--z-index-tooltip);
+	pointer-events: none;
+	transition: opacity 250ms ease-out;
+}
+
+#tht_terrainTypesConfig .has-focus-tooltip:not(:focus) + .focus-tooltip {
+	opacity: 0;
+}
+
+#tht_terrainTypesConfig .has-focus-tooltip:focus + .focus-tooltip {
+	opacity: 1;
+}
+
+#tht_terrainTypesConfig .label-placeholder-tooltip {
+	top: 16px;
+	right: calc(100% + 4px);
+	width: 280px;
+	padding: 4px 6px 6px;
+	background: #ededed;
+	color: var(--color-text-dark-primary);
+	border: 1px solid var(--color-border-highlight-alt);
+	border-radius: 3px;
+	font-size: var(--font-size-13);
+    box-shadow: 0 0 4px #000000, 0 0 6px inset var(--color-shadow-highlight);
+}
+
+#tht_terrainTypesConfig .label-placeholder-tooltip table {
+	margin: 0;
+}
+
+#tht_terrainTypesConfig .label-placeholder-tooltip table th {
+	width: 1px;
+	padding-right: 6px;
+	font-family: Consolas, Courier New, Courier, monaco, monospace;
+}
+
 
 /* --------------------------- */
 /* Terrain Types Import/Export */

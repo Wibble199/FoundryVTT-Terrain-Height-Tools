@@ -41,6 +41,8 @@ export class TerrainTypesConfig extends FormApplication {
 
 		data.expandedTypes = this._expandedTypes;
 
+		data.labelPlaceholderHtml = this.#getLabelPlaceholderTooltipHtml();
+
 		return data;
 	}
 
@@ -276,5 +278,27 @@ export class TerrainTypesConfig extends FormApplication {
 
 		this.render();
 		return true;
+	}
+
+	#getLabelPlaceholderTooltipHtml() {
+		const placeholders = [
+			["%h%", game.i18n.localize("TERRAINHEIGHTTOOLS.Placeholders.Height")],
+			["%e%", game.i18n.localize("TERRAINHEIGHTTOOLS.Placeholders.Elevation")],
+			["%t%", game.i18n.localize("TERRAINHEIGHTTOOLS.Placeholders.Top")]
+		];
+		return `
+			<p>
+				<i class="fas fa-info-circle"></i>
+				${game.i18n.localize("TERRAINHEIGHTTOOLS.Placeholders.PlaceholderHelpText")}
+			</p>
+			<table>
+				<tbody>
+					${placeholders.map(([key, description]) => `<tr>
+						<th>${key}</th>
+						<td>${description}</td>
+					</tr>`).join("")}
+				</tbody>
+			</table>
+		`;
 	}
 }
