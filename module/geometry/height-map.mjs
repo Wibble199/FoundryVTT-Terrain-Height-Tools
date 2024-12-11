@@ -52,7 +52,7 @@ export class HeightMap {
 	 */
 	reload() {
 		const flagData = this.scene.getFlag(moduleName, flags.heightData);
-		this.data = migrateData(flagData).data;
+		this.data = Object.fromEntries(migrateData(flagData).data ?? []);
 		this._recalculateShapes();
 	}
 
@@ -676,19 +676,9 @@ export class HeightMap {
 	// ----- //
 	async #saveChanges() {
 		// Remove empty cells
-		const cleanedData = Object.fromEntries(Object.entries(this.data).filter(([, terrain]) => terrain?.length > 0));
+		const cleanedData = Object.entries(this.data).filter(([, terrain]) => terrain?.length > 0);
 
-		// Use update rather than SetFlag as we need to specify { diff: false, recursive: true } to prevent existing
-		// empty cells from not being cleared.
-		await this.scene.update({
-			[`flags.${moduleName}.${flags.heightData}`]: {
-				v: DATA_VERSION,
-				data: cleanedData
-			}
-		}, {
-			diff: false,
-			recursive: false
-		});
+		await this.scene.setFlag(moduleName, flags.heightData, { v: DATA_VERSION, data: cleanedData });
 	}
 }
 
