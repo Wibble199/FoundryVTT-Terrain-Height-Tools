@@ -21,6 +21,11 @@ export class TerrainErasePalette extends withSubscriptions(Application) {
 	}
 
 	/** @override */
+	_getHeaderButtons() {
+		return []; // disable close
+	}
+
+	/** @override */
 	getData() {
 		return {
 			availableTerrains: getTerrainTypes().map(t => ({

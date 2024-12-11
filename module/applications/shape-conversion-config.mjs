@@ -15,6 +15,11 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 		});
 	}
 
+	/** @override */
+	_getHeaderButtons() {
+		return []; // disable close
+	}
+
 	activateListeners(html) {
 		super.activateListeners(html);
 
