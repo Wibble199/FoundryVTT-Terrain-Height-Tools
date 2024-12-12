@@ -53,7 +53,7 @@ const migrations = [
 export function migrateData(data, targetVersion = DATA_VERSION) {
 	// If there is no data, return a blank V1 map
 	if (!data) {
-		return { v: 1, data: {} };
+		return { v: 2, data: [] };
 	}
 
 	// Try to get the `v` value from the data. If there is no `v` value, then treat it as v0. Then, sequentially apply

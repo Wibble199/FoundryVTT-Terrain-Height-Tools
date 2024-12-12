@@ -240,11 +240,11 @@ describe("migrateData()", () => {
 
 	it("should correctly initialise a blank HeightMapDataV1 when given undefined", () => {
 		const blank = migrateData(undefined);
-		assert.deepEqual(blank, { v: 1, data: {} });
+		assert.deepEqual(blank, { v: 2, data: [] });
 	});
 
 	it("should correctly initialise a blank HeightMapDataV1 when given null", () => {
 		const blank = migrateData(null);
-		assert.deepEqual(blank, { v: 1, data: {} });
+		assert.deepEqual(blank, { v: 2, data: [] });
 	});
 });
