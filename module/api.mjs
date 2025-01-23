@@ -1,7 +1,7 @@
 // ! These are functions specifically for macros and scripts.
 // ! Changing these functions should always be done in a backwards-compatible way.
 
-import { moduleName, settings } from "./consts.mjs";
+import { defaultGroupName, moduleName, settings } from "./consts.mjs";
 import { HeightMap } from "./geometry/height-map.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { getTerrainTypes } from "./utils/terrain-types.mjs";
@@ -151,15 +151,17 @@ export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1Re
  * @param {import("./layers/line-of-sight-ruler-layer.mjs").Point3D} p1 The first point (where the line is drawn from).
  * @param {import("./layers/line-of-sight-ruler-layer.mjs").Point3D} p2 The second point (where the line is drawn to).
  * @param {Object} [options={}] Options that change for the lines are drawn.
+ * @param {string} [options.group] The name for this group of rulers. It is strongly recommended to provide a value for
+ * this. Recommended to use something unique, e.g. `"my-module-name"` or `"my-module-name.group1"`.
  * @param {boolean} [options.drawForOthers=true] Whether to draw these rays for other users connected to the game.
  * @param {} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a height
  * value will be included in the drawn line. They are treated as having infinite height.
  * @param {} [options.showLabels=true] Whether height labels are shown at the start and end of the ruler.
  */
-export function drawLineOfSightRay(p1, p2, { drawForOthers = true, includeNoHeightTerrain = false, showLabels = true } = {}) {
+export function drawLineOfSightRay(p1, p2, { group = defaultGroupName, drawForOthers = true, includeNoHeightTerrain = false, showLabels = true } = {}) {
 	if (!LineOfSightRulerLayer._isPoint3d(p1)) throw new Error("`p1` is not a valid Point3D. Expected an object with `x`, `y`, and `h` properties.");
 	if (!LineOfSightRulerLayer._isPoint3d(p2)) throw new Error("`p2` is not a valid Point3D. Expected an object with `x`, `y`, and `h` properties.");
-	return drawLineOfSightRays([{ p1, p2, options: { includeNoHeightTerrain, showLabels } }], { drawForOthers });
+	return drawLineOfSightRays([{ p1, p2, options: { includeNoHeightTerrain, showLabels } }], { group, drawForOthers });
 }
 
 /**
@@ -167,21 +169,25 @@ export function drawLineOfSightRay(p1, p2, { drawForOthers = true, includeNoHeig
  * Note that this will clear all previously drawn lines, INCLUDING those drawn by the tools in the side bar.
  * @param {({ p1: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; p2: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; } & import("./layers/line-of-sight-ruler-layer.mjs").RulerOptions)[]} rays
  * @param {Object} [options={}] Options that change for the lines are drawn.
+ * @param {string} [options.group] The name for this group of rulers. It is strongly recommended to provide a value for
+ * this. Recommended to use something unique, e.g. `"my-module-name"` or `"my-module-name.group1"`.
  * @param {boolean} [options.drawForOthers=true] Whether to draw these rays for other users connected to the game.
  */
-export function drawLineOfSightRays(rays, { drawForOthers = true } = {}) {
+export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOthers = true } = {}) {
 	/** @type {LineOfSightRulerLayer} */
 	const ruler = game.canvas.terrainHeightLosRulerLayer;
-	ruler._drawLineOfSightRays(rays.map(({ p1, p2, ...options }) => [p1, p2, options]), { drawForOthers });
+	ruler._drawLineOfSightRays(rays.map(({ p1, p2, ...options }) => [p1, p2, options]), { group, drawForOthers });
 }
 
 /**
  * Calculates and draws line of sight rays between two tokens, as per the token line of sight tool.
- * Note that currently only one set of lines can be drawn, attempting to draw any other lines of sight will clear these
- * lines, INCLUDING those drawn by the tools in the side bar.
+ * Note that lines are tracked by a 'group'. Calling this function again will remove any lines already drawn within that
+ * group.
  * @param {Token} token1 The first token to draw line of sight from.
  * @param {Token} token2 The second token to draw line of sight to.
  * @param {Object} [options={}] Options that change how the calculation is done.
+ * @param {string} [options.group] The name for this group of rulers. It is strongly recommended to provide a value for
+ * this. Recommended to use something unique, e.g. `"my-module-name"` or `"my-module-name.group1"`.
  * @param {number | undefined} [options.token1RelativeHeight] How far the ray starts vertically relative to token1. The
  * height is calculated as `token1.elevation + (token1RelativeHeight * token1.size)`. If undefined, uses the
  * world-configured default value.
@@ -192,7 +198,7 @@ export function drawLineOfSightRays(rays, { drawForOthers = true } = {}) {
  * height value will be included in the return list. They are treated as having infinite height.
  * @param {boolean} [options.drawForOthers] Whether to draw these rays for other users connected to the game.
  */
-export function drawLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true } = {}) {
+export function drawLineOfSightRaysBetweenTokens(token1, token2, { group = defaultGroupName, token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true } = {}) {
 	const { left, centre, right } = calculateLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight });
 
 	/** @type {LineOfSightRulerLayer} */
@@ -201,14 +207,17 @@ export function drawLineOfSightRaysBetweenTokens(token1, token2, { token1Relativ
 		[left.p1, left.p2, { includeNoHeightTerrain, showLabels: false }],
 		[centre.p1, centre.p2, { includeNoHeightTerrain, showLabels: true }],
 		[right.p1, right.p2, { includeNoHeightTerrain, showLabels: false }],
-	], { drawForOthers });
+	], { group, drawForOthers });
 }
 
 /**
- * Removes all lines of sight drawn by this user, INCLUDING those drawn by the tools in the side bar.
+ * Removes all lines of sight drawn by this user in the given group.
+ * @param {Object} [options]
+ * @param {string} [options.group] The name for this group of rulers. It is strongly recommended to provide a value for
+ * this. Recommended to use something unique, e.g. `"my-module-name"` or `"my-module-name.group1"`.
  */
-export function clearLineOfSightRays() {
+export function clearLineOfSightRays({ group = defaultGroupName } = {}) {
 	/** @type {LineOfSightRulerLayer} */
 	const ruler = game.canvas.terrainHeightLosRulerLayer;
-	ruler._clearLineOfSightRays({ clearForOthers: true });
+	ruler._clearLineOfSightRays({ group, clearForOthers: true });
 }

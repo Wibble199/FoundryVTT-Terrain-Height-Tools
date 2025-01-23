@@ -2,6 +2,8 @@ export const moduleName = "terrain-height-tools";
 
 export const socketName = `module.${moduleName}`;
 
+export const defaultGroupName = "default";
+
 
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({

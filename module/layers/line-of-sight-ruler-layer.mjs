@@ -29,7 +29,10 @@ const heightIndicatorXOffset = 10;
 
 export class LineOfSightRulerLayer extends CanvasLayer {
 
-	/** @type {Map<string, LineOfSightRuler[]>} */
+	/**
+	 * Map of users and groups to their rulers.
+	 * @type {Map<string, LineOfSightRuler[]>}
+	 */
 	#rulers = new Map();
 
 	/** @type {LineOfSightRulerLineCap} */
@@ -120,7 +123,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		this.#setupEventListeners("off");
 
 		// Ensure this user's rulers are cleared for others when this user changes scenes
-		this._clearAllCurrentUserRulers();
+		this.#clearAllCurrentUserRulers();
 
 		this.removeChild(this.#lineStartIndicator);
 	}
@@ -134,12 +137,13 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * @param {[Point3D, Point3D, RulerOptions?][]} rulers The rulers to draw to the canvas. Each pair is the start and
 	 * end points and an optional configuration object.
 	 * @param {Object} [options]
+	 * @param {string} [options.group] The name of the group to draw these rulers in.
 	 * @param {string} [options.userId] ID of the user that is drawing the LOS ruler. Defaults to current user.
 	 * @param {string} [options.sceneId] ID of the scene that the ruler is being drawn on. Defaults to current scene. If
 	 * provided and not equal to the current scene, then the ruler is not drawn.
 	 * @param {boolean} [options.drawForOthers] If true, this ruler will be drawn on other user's canvases.
 	 */
-	_drawLineOfSightRays(rulers, { userId = undefined, sceneId = undefined, drawForOthers = true } = {}) {
+	_drawLineOfSightRays(rulers, { group = "default", userId = undefined, sceneId = undefined, drawForOthers = true } = {}) {
 		// Validate `ruler` param type
 		if (!Array.isArray(rulers)) throw new Error("`rulers` was not an array.");
 		for (let i = 0; i < rulers.length; i++) {
@@ -156,9 +160,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (sceneId !== canvas.scene.id) return;
 
 		// Get the ruler array
-		let userRulers = this.#rulers.get(userId);
+		const mapKey = this.#getRulerMapKey(userId, group);
+		let userRulers = this.#rulers.get(mapKey);
 		if (!userRulers) {
-			this.#rulers.set(userId, userRulers = []);
+			this.#rulers.set(mapKey, userRulers = []);
 		}
 
 		// Ensure we have as many rulers as needed
@@ -180,7 +185,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (drawForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
 			game.socket.emit(socketName, {
 				func: socketFuncs.drawLineOfSightRay,
-				args: [rulers, { userId, sceneId, drawForOthers: false }]
+				args: [rulers, { group, userId, sceneId, drawForOthers: false }]
 			});
 		}
 	}
@@ -188,22 +193,24 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/**
 	 * Removes all line of sight rulers for the given user (or current user if userId is not provided).
 	 * @param {Object} [options]
+	 * @param {string} [options.group] The name of the group to clear these rulers from.
 	 * @param {string} [options.userId] The ID of the user whose LOS ruler to remove. Defaults to current user.
 	 * @param {boolean} [options.clearForOthers] If true, this user's ruler will be cleared on other user's canvases.
 	 */
-	_clearLineOfSightRays({ userId = undefined, clearForOthers = true } = {}) {
+	_clearLineOfSightRays({ group = "default", userId = undefined, clearForOthers = true } = {}) {
 		userId ??= game.userId;
 
-		const userRulers = this.#rulers.get(userId);
+		const mapKey = this.#getRulerMapKey(userId, group);
+		const userRulers = this.#rulers.get(mapKey);
 		if (userRulers) {
 			userRulers.forEach(ruler => this.removeChild(ruler));
-			this.#rulers.delete(userId);
+			this.#rulers.delete(mapKey);
 		}
 
 		if (clearForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
 			game.socket.emit(socketName, {
 				func: socketFuncs.clearLineOfSightRay,
-				args: [{ userId: game.userId, clearForOthers: false }]
+				args: [{ group, userId: game.userId, clearForOthers: false }]
 			});
 		}
 	}
@@ -266,7 +273,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		];
 	}
 
-	_clearAllCurrentUserRulers() {
+	#clearAllCurrentUserRulers() {
 		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r)));
 		this.#rulers.clear();
 
@@ -306,6 +313,15 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			if (token && tokenLineOfSightConfig$.token1$.value !== token) // do not allow same token as primary token (e.g. if user targets own token)
 				tokenLineOfSightConfig$.token2$.value = token;
 		}
+	}
+
+	/**
+	 * Gets the key to use in the `#rulers` map.
+	 * @param {string} userId
+	 * @param {string} groupName
+	 */
+	#getRulerMapKey(userId, groupName) {
+		return `${userId}|${groupName}`;
 	}
 
 	// ----------------------------- //

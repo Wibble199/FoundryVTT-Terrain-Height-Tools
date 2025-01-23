@@ -6,6 +6,11 @@
 Terrain Height Tools exposes an API that can be used by macros, scripts or, other modules. This is available through the
 global `terrainHeightTools` property. The following functions are available.
 
+> [!IMPORTANT]
+> From 0.4.7 onwards, a "group" property is available for drawing-related functions. It is strongly recommended to provide a non-default value for this, as it allows isolation between your own scripts/modules, THT's internal drawing, and any other scripts/modules that are drawing rulers. The recommended format is to use the script/module name, e.g. `"my-module"`. You can also use sub-groups, such as by having a group like `"my-module.group1"`.
+>
+> This property will be ignored in previous versions of THT, so it is safe to add this property without checking THT's API version.
+
 Types:
 - [`T:Point3D`](#tpoint3d)
 
@@ -214,18 +219,23 @@ terrainHeightTools.drawLineOfSightRays([
 ## clearLineOfSightRays
 
 ![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
+![Changed in v0.4.7](https://img.shields.io/badge/Changed%20In-v0.4.7-orange?style=flat-square)
 
-Clears line of sight rays drawn by the current user.
+Clears line of sight rays drawn in the given group by the current user.
 
-Takes no parameters and has no return value.
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`options`|`Object`|`{}`|Additional configuration options.|
+|`options.group`|`string`|`"default"`|A name for the group of drawings to clear from, allowing modules to isolate themselves from other modules/THT internals. **Strongly recommended** to provide a non-default value for this.|
 
 ## drawLineOfSightRay
 
 ![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
+![Changed in v0.4.7](https://img.shields.io/badge/Changed%20In-v0.4.7-orange?style=flat-square)
 
 Draws a single line of sight ray between the given points.
 
-Note that calling this function will clear any previously drawn line of sight ruler, including those drawn using the tools in the toolbox, except those drawn by other players. If you need to draw multiple lines simultaneously, use [`drawLineOfSightRays`](#drawlineofsightrays).
+Note that calling this function will clear any previously drawn line of sight ruler within the same `group`, except those drawn by other players. If you need to draw multiple lines simultaneously, use [`drawLineOfSightRays`](#drawlineofsightrays).
 
 ### Parameters
 
@@ -234,6 +244,8 @@ Note that calling this function will clear any previously drawn line of sight ru
 |`p1`|`Point3D`|*Required*|The start position of the ray to draw.|
 |`p2`|`Point3D`|*Required*|The end position of the ray to draw.|
 |`options`|`Object`|`{}`|Additional options for configuring how the ray is drawn.|
+|`options.group`|`string`|`"default"`|A name for this group of drawings, allowing modules to isolate themselves from other modules/THT internals. **Strongly recommended** to provide a non-default value for this.|
+|`options.group`|`string`|`"default"`|A name for this group of drawings, allowing modules to isolate themselves from other modules/THT internals. **Strongly recommended** to provide a non-default value for this.|
 |`options.drawForOthers`|`boolean`|`true`|Whether the ray will be drawn for other connected users on the same scene.|
 |`options.includeNoHeightTerrain`|`boolean`|`false`|If false, any terrain types that are configured as not using a height are excluded from the calculation. If true, these terrains are included, and their height is treated as if it were infinity.|
 |`options.showLabels`|`boolean`|`true`|Whether or not to show the "H" labels at either end of the ruler.|
@@ -251,10 +263,11 @@ terrainHeightTools.drawLineOfSightRay(
 ## drawLineOfSightRays
 
 ![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
+![Changed in v0.4.7](https://img.shields.io/badge/Changed%20In-v0.4.7-orange?style=flat-square)
 
 Draws any number of line of sight rays between pairs of points.
 
-Note that calling this function will clear any previously drawn line of sight ruler, including those drawn using the tools in the toolbox, except those drawn by other players.
+Note that calling this function will clear any previously drawn line of sight ruler, within the same `group`, except those drawn by other players.
 
 ### Parameters
 
@@ -262,6 +275,7 @@ Note that calling this function will clear any previously drawn line of sight ru
 |-|-|-|-|
 |`rays`|`{ p1: Point3D; p2: Point3D; includeNoHeightTerrain?: boolean; showLabels?: boolean; }[]`|*Required*|An array of lines to draw. Each element in this array MUST have a `p1` and `p2`. All other properties are optional and have the same defaults as their respective option in [`drawLineOfSightRay`](#drawlineofsightray)|
 |`options`|`Object`|`{}`|Additional options for configuring how the ray is drawn.|
+|`options.group`|`string`|`"default"`|A name for this group of drawings, allowing modules to isolate themselves from other modules/THT internals. **Strongly recommended** to provide a non-default value for this.|
 |`options.drawForOthers`|`boolean`|`true`|Whether the ray will be drawn for other connected users on the same scene.|
 
 ### Example
@@ -277,10 +291,11 @@ terrainHeightTools.drawLineOfSightRays([
 ## drawLineOfSightRaysBetweenTokens
 
 ![Available Since v0.3.3](https://img.shields.io/badge/Available%20Since-v0.3.3-blue?style=flat-square)
+![Changed in v0.4.7](https://img.shields.io/badge/Changed%20In-v0.4.7-orange?style=flat-square)
 
 Calculates and draws line of sight rays between the given two tokens, as per the _Token Line of Sight_ tool.
 
-Note that calling this function will clear any previously drawn line of sight ruler, including those drawn using the tools in the toolbox, except those drawn by other players.
+Note that calling this function will clear any previously drawn line of sight ruler, within the same `group`, except those drawn by other players.
 
 ### Parameters
 
@@ -289,6 +304,7 @@ Note that calling this function will clear any previously drawn line of sight ru
 |`token1`|`Token`|*Required*|The first token to draw line of sight from.|
 |`token2`|`Token`|*Required*|The second token to draw line of sight to.|
 |`options`|`Object`|`{}`|Additional options to configure how the line is drawn.|
+|`options.group`|`string`|`"default"`|A name for this group of drawings, allowing modules to isolate themselves from other modules/THT internals. **Strongly recommended** to provide a non-default value for this.|
 |`options.token1RelativeHeight`|`number \| undefined`|`undefined`|How far the rays end vertically, relative to the height of `token1`. For example: a value of 0 would start the ray at the bottom of the token (h = token's elevation); 1 would start the ray at the top of the token (h = token's elevation + token's size); 0.5 would start the ray half way up the token (h = token's elevation + 0.5 * token's size). If undefined, then this defaults to whatever the value has been configued to at the world-scope by the GM.|
 |`options.token2RelativeHeight`|`number \| undefined`|`undefined`|How far the rays end vertically, relative to the height of `token2`. For example: a value of 0 would end the ray at the bottom of the token (h = token's elevation); 1 would end the ray at the top of the token (h = token's elevation + token's size); 0.5 would end the ray half way up the token (h = token's elevation + 0.5 * token's size). If undefined, then this defaults to whatever the value has been configued to at the world-scope by the GM.|
 |`options.includeNoHeightTerrain`|`boolean`|`false`|If false, any terrain types that are configured as not using a height are excluded from the calculation. If true, these terrains are included, and their height is treated as if it were infinity.|
