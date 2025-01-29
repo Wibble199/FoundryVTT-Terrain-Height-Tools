@@ -32,6 +32,9 @@ import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
 const rulerLineWidth = 4;
 const heightIndicatorXOffset = 10;
 
+// How often rulers should refresh in milliseconds. Set to 15fps.
+const rulerRefreshTimeout = 1000 / 15;
+
 export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/**
@@ -388,6 +391,15 @@ class LineOfSightRulerGroup extends PIXI.Container {
 
 	#color;
 
+	/**
+	 * A list of tokens that have been refreshed since the last throttled redrawRulers call.
+	 * @type {Set<Token>}
+	 */
+	#pendingTokenRefreshes = new Set();
+
+	/** setTimeout handle for the _onTokenRefresh throttle. */
+	#refreshTokenTimeoutHandle = -1;
+
 	/** @param {number} color */
 	constructor(color = 0xFFFFFF) {
 		super();
@@ -457,11 +469,31 @@ class LineOfSightRulerGroup extends PIXI.Container {
 	 * @param {Token} token
 	 */
 	_onTokenRefresh(token) {
+		// We throttle this function so that animations/multiple moving tokens don't cause rapid updates and affect
+		// performance.
+		this.#pendingTokenRefreshes.add(token);
+
+		// If -1, then there is no call queued, so create a timeout to call redrawRulersIfTokensRefreshed.
+		// If not -1, then a call is already queued so don't need to do anything.
+		if (this.#refreshTokenTimeoutHandle === -1) {
+			this.#refreshTokenTimeoutHandle = setTimeout(() => {
+				this.#redrawRulersIfTokensRefreshed();
+				this.#refreshTokenTimeoutHandle = -1;
+			}, rulerRefreshTimeout);
+		}
+	}
+
+	/**
+	 * Consumes the #pendingTokenRefreshes set, redrawing any rulers that depend on tokens in this set.
+	 */
+	#redrawRulersIfTokensRefreshed() {
 		for (const ruler of this.#rulers) {
-			if (ruler.config.a === token || ruler.config.b === token) {
+			if (this.#pendingTokenRefreshes.has(ruler.config.a) || this.#pendingTokenRefreshes.has(ruler.config.b)) {
 				this.#redrawRulers(ruler);
 			}
 		}
+
+		this.#pendingTokenRefreshes.clear();
 	}
 }
 
