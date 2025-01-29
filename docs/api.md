@@ -47,7 +47,7 @@ Represents a point in 3D space.
 ![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
 ![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
 
-Computes a line sight test between two points in 3d space.
+Computes a line of sight test between two points in 3d space.
 
 Note that this will always return an empty array if the line of sight ray is zero-length, even if the start/end point is within a shape.
 

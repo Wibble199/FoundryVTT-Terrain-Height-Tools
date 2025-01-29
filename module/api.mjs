@@ -4,7 +4,9 @@
 import { defaultGroupName, moduleName, settings } from "./consts.mjs";
 import { HeightMap } from "./geometry/height-map.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
+import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
 import { getTerrainTypes } from "./utils/terrain-types.mjs";
+import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
 export { getTerrainTypes } from "./utils/terrain-types.mjs";
 
@@ -30,9 +32,7 @@ export function getTerrainType(terrain) {
  * @returns {{ terrainTypeId: string; height: number; elevation: number; }[]}
  */
 export function getCell(x, y) {
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.get(y, x);
+	return TerrainHeightLayer.current?._heightMap.get(y, x);
 }
 
 /**
@@ -42,9 +42,7 @@ export function getCell(x, y) {
  * @param {import("./geometry/height-map.mjs").HeightMapShape | undefined}
  */
 export function getShapes(x, y) {
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.getShapes(y, x);
+	return TerrainHeightLayer.current?._heightMap.getShapes(y, x);
 }
 
 /**
@@ -72,9 +70,7 @@ export function paintCells(cells, terrain, { mode = "totalReplace" } = {}) {
 	if (terrainType.usesHeight && typeof terrain.height !== "number")
 		throw new Error(`Terrain "${terrainType.name}' requires a height, but one was not provided.`);
 
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
+	return TerrainHeightLayer.current?._heightMap.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
 }
 
 /**
@@ -87,9 +83,7 @@ export function eraseCells(cells) {
 		throw new Error("Expected `cells` to be an array of arrays.");
 	if (cells.length === 0) return;
 
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.eraseCells(cells);
+	return TerrainHeightLayer.current?._heightMap.eraseCells(cells);
 }
 
 /**
@@ -117,9 +111,7 @@ export function calculateLineOfSight(p1, p2, options = {}) {
  * @returns {{ shape: import('./geometry/height-map.mjs').HeightMapShape; regions: import('./geometry/height-map-shape.mjs').LineOfSightIntersectionRegion[]; }[]}
  */
 export function calculateLineOfSightByShape(p1, p2, options = {}) {
-	/** @type {import("./geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
-	return hm.calculateLineOfSight(p1, p2, options);
+	return TerrainHeightLayer.current?._heightMap.calculateLineOfSight(p1, p2, options);
 }
 
 /**
@@ -137,7 +129,7 @@ export function calculateLineOfSightByShape(p1, p2, options = {}) {
  */
 export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight } = {}) {
 	const defaultRelativeHeight = game.settings.get(moduleName, settings.defaultTokenLosTokenHeight);
-	const [left, centre, right] = LineOfSightRulerLayer._calculateRaysBetweenTokens(token1, token2, token1RelativeHeight ?? defaultRelativeHeight, token2RelativeHeight ?? defaultRelativeHeight);
+	const { left, centre, right } = calculateRaysBetweenTokensOrPoints(token1, token2, token1RelativeHeight ?? defaultRelativeHeight, token2RelativeHeight ?? defaultRelativeHeight);
 	return {
 		left: { p1: left[0], p2: left[1] },
 		centre: { p1: centre[0], p2: centre[1] },
@@ -159,24 +151,30 @@ export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1Re
  * @param {} [options.showLabels=true] Whether height labels are shown at the start and end of the ruler.
  */
 export function drawLineOfSightRay(p1, p2, { group = defaultGroupName, drawForOthers = true, includeNoHeightTerrain = false, showLabels = true } = {}) {
-	if (!LineOfSightRulerLayer._isPoint3d(p1)) throw new Error("`p1` is not a valid Point3D. Expected an object with `x`, `y`, and `h` properties.");
-	if (!LineOfSightRulerLayer._isPoint3d(p2)) throw new Error("`p2` is not a valid Point3D. Expected an object with `x`, `y`, and `h` properties.");
-	return drawLineOfSightRays([{ p1, p2, options: { includeNoHeightTerrain, showLabels } }], { group, drawForOthers });
+	LineOfSightRulerLayer.current?._drawLineOfSightRays([{
+		a: p1,
+		b: p2,
+		includeNoHeightTerrain,
+		showLabels
+	}], { group, drawForOthers });
 }
 
 /**
  * Calculates and draws any number of line of sight rays between the given points.
  * Note that this will clear all previously drawn lines, INCLUDING those drawn by the tools in the side bar.
- * @param {({ p1: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; p2: import("./layers/line-of-sight-ruler-layer.mjs").Point3D; } & import("./layers/line-of-sight-ruler-layer.mjs").RulerOptions)[]} rays
+ * @param {import("./layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerConfiguration[]} rays
  * @param {Object} [options={}] Options that change for the lines are drawn.
  * @param {string} [options.group] The name for this group of rulers. It is strongly recommended to provide a value for
  * this. Recommended to use something unique, e.g. `"my-module-name"` or `"my-module-name.group1"`.
  * @param {boolean} [options.drawForOthers=true] Whether to draw these rays for other users connected to the game.
  */
 export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOthers = true } = {}) {
-	/** @type {LineOfSightRulerLayer} */
-	const ruler = game.canvas.terrainHeightLosRulerLayer;
-	ruler._drawLineOfSightRays(rays.map(({ p1, p2, ...options }) => [p1, p2, options]), { group, drawForOthers });
+	// For legacy reasons, if a and b are not provided, use p1 and p2.
+	LineOfSightRulerLayer.current?._drawLineOfSightRays(rays.map(ray => ({
+		...ray,
+		a: ray.a ?? ray.p1,
+		b: ray.b ?? ray.p2
+	})), { group, drawForOthers });
 }
 
 /**
@@ -197,17 +195,16 @@ export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOth
  * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
  * height value will be included in the return list. They are treated as having infinite height.
  * @param {boolean} [options.drawForOthers] Whether to draw these rays for other users connected to the game.
+ * @param {boolean} [options.includeEdges] Whether to include edge-to-edge rulers between tokens.
  */
-export function drawLineOfSightRaysBetweenTokens(token1, token2, { group = defaultGroupName, token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true } = {}) {
-	const { left, centre, right } = calculateLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight });
-
-	/** @type {LineOfSightRulerLayer} */
-	const ruler = game.canvas.terrainHeightLosRulerLayer;
-	ruler._drawLineOfSightRays([
-		[left.p1, left.p2, { includeNoHeightTerrain, showLabels: false }],
-		[centre.p1, centre.p2, { includeNoHeightTerrain, showLabels: true }],
-		[right.p1, right.p2, { includeNoHeightTerrain, showLabels: false }],
-	], { group, drawForOthers });
+export function drawLineOfSightRaysBetweenTokens(token1, token2, { group = defaultGroupName, token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true, includeEdges = true } = {}) {
+	const defaultRelativeHeight = game.settings.get(moduleName, settings.defaultTokenLosTokenHeight);
+	LineOfSightRulerLayer.current?._drawLineOfSightRays([{
+		a: token1, ah: token1RelativeHeight ?? defaultRelativeHeight,
+		b: token2, bh: token2RelativeHeight ?? defaultRelativeHeight,
+		includeNoHeightTerrain,
+		includeEdges
+	}], { group, drawForOthers });
 }
 
 /**
@@ -217,7 +214,5 @@ export function drawLineOfSightRaysBetweenTokens(token1, token2, { group = defau
  * this. Recommended to use something unique, e.g. `"my-module-name"` or `"my-module-name.group1"`.
  */
 export function clearLineOfSightRays({ group = defaultGroupName } = {}) {
-	/** @type {LineOfSightRulerLayer} */
-	const ruler = game.canvas.terrainHeightLosRulerLayer;
-	ruler._clearLineOfSightRays({ group, clearForOthers: true });
+	LineOfSightRulerLayer.current?._clearLineOfSightRays({ group, clearForOthers: true });
 }

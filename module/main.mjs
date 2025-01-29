@@ -16,6 +16,7 @@ Hooks.on("renderSceneControls", renderToolSpecificApplications);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 Hooks.on("preCreateToken", handleTokenPreCreation);
 Hooks.on("preUpdateToken", handleTokenElevationChange);
+Hooks.on("refreshToken", token => LineOfSightRulerLayer.current?._onTokenRefresh(token));
 
 Object.defineProperty(globalThis, "terrainHeightTools", {
 	value: {
@@ -98,15 +99,12 @@ function initLibWrapper() {
 function handleSocketEvent({ func, args }) {
 	switch (func) {
 		case socketFuncs.drawLineOfSightRay: {
-			/** @type {import("./layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer | undefined} */
-			const losRulerLayer = canvas.terrainHeightLosRulerLayer;
-			losRulerLayer?._drawLineOfSightRays(...args);
+			LineOfSightRulerLayer.current?._drawLineOfSightRays(...args);
 			break;
 		}
 
 		case socketFuncs.clearLineOfSightRay: {
-			const losRulerLayer = canvas.terrainHeightLosRulerLayer;
-			losRulerLayer?._clearLineOfSightRays(...args);
+			LineOfSightRulerLayer.current?._clearLineOfSightRays(...args);
 			break;
 		}
 	}

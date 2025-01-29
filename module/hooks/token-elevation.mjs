@@ -1,4 +1,5 @@
 import { moduleName, settings } from "../consts.mjs";
+import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
 import { getCellsUnderTokenPosition, toSceneUnits } from "../utils/grid-utils.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 
@@ -54,8 +55,7 @@ export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) 
  * @param {boolean} isAltOrientation
  */
 function getHighestTerrainUnderToken(position, isAltOrientation) {
-	/** @type {import("../geometry/height-map.mjs").HeightMap} */
-	const hm = game.canvas.terrainHeightLayer._heightMap;
+	const hm = TerrainHeightLayer.current?._heightMap;
 
 	let highest = 0;
 

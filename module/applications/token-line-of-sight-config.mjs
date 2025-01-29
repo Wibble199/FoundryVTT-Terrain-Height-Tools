@@ -22,11 +22,6 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 		});
 	}
 
-	/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
-	get #losLayer() {
-		return canvas.terrainHeightLosRulerLayer;
-	}
-
 	/** Whether or not the user is currently selecting a token. */
 	get _isSelecting() {
 		return typeof this.#selectingToken$.value === "number";

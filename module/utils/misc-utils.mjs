@@ -36,6 +36,17 @@ export function alphaToHex(a) {
 }
 
 /**
+* @param {*} obj
+* @returns {obj is Point3D}
+*/
+export function isPoint3d(obj) {
+   return typeof obj === "object"
+	   && typeof obj.x === "number"
+	   && typeof obj.y === "number"
+	   && typeof obj.h === "number";
+}
+
+/**
  * A Set that can be iterated in order the items were added. When iterating, any additional items added to the set while
  * iterating over it will also be included in the current iterator.
  * @template T

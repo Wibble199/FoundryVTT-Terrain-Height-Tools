@@ -50,6 +50,11 @@ export class TerrainHeightLayer extends InteractionLayer {
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
 	}
 
+	/** @return {TerrainHeightLayer | undefined} */
+	static get current() {
+		return canvas.terrainHeightLayer;
+	}
+
 	/** @override */
 	static get layerOptions() {
 		return mergeObject(super.layerOptions, {

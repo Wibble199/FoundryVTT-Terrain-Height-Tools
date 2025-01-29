@@ -1,15 +1,14 @@
 import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
-import { LineSegment } from "../geometry/line-segment.mjs";
-import { Polygon } from "../geometry/polygon.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
-import { getGridCellPolygon, getGridCenter, getGridVerticesFromToken, toSceneUnits } from "../utils/grid-utils.mjs";
-import { prettyFraction } from "../utils/misc-utils.mjs";
+import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
+import { isPoint3d, prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { fromHook, join } from "../utils/signal.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
-import { getTokenHeight } from "../utils/token-utils.mjs";
+import { calculateRaysBetweenTokensOrPoints } from "../utils/token-utils.mjs";
+import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
 
 /**
  * @typedef {Object} Point3D
@@ -19,7 +18,13 @@ import { getTokenHeight } from "../utils/token-utils.mjs";
  */
 
 /**
- * @typedef {Object} RulerOptions
+ * @typedef {Object} LineOfSightRulerConfiguration
+ * @property {Point3D | Token | string} a Either absolute XYH coordinates, a token, or a token ID.
+ * @property {Point3D | Token | string} b Either absolute XYH coordinates, a token, or a token ID.
+ * @property {number} [ah] When `a` is a token, the relative height of the ray in respect to that token.
+ * @property {number} [bh] When `b` is a token, the relative height of the ray in respect to that token.
+ * @property {boolean} [includeEdges] If at least either first or second are tokens, then this indicates whether to only
+ * draw centre-to-centre rulers (false) or include both edge-to-edge rulers also (true). Defaults to true.
  * @property {boolean} [includeNoHeightTerrain]
  * @property {boolean} [showLabels]
  */
@@ -31,9 +36,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/**
 	 * Map of users and groups to their rulers.
-	 * @type {Map<string, LineOfSightRuler[]>}
+	 * @type {Map<string, LineOfSightRulerGroup>}
 	 */
-	#rulers = new Map();
+	#rulerGroups = new Map();
 
 	/** @type {LineOfSightRulerLineCap} */
 	#lineStartIndicator = undefined;
@@ -53,7 +58,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// When any of the drag values are changed, update the ruler
 		join(({ p1, h1, p2, h2 }, includeNoHeightTerrain) => {
 				if (p1 && p2)
-					this._drawLineOfSightRays([[{ ...p1, h: h1 }, { ...p2, h: h2 ?? h1 }, { includeNoHeightTerrain }]], { drawForOthers: true });
+					this._drawLineOfSightRays([{ a: { ...p1, h: h1 }, b: { ...p2, h: h2 ?? h1 }, includeNoHeightTerrain }], { drawForOthers: true });
 				else
 					this._clearLineOfSightRays({ clearForOthers: true });
 			},
@@ -69,11 +74,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// When either of the selected tokens for the token LOS are changed, update the token LOS rulers.
 		join(({ token1, token2, h1, h2 }, includeNoHeightTerrain, _) => {
 				if (token1 && token2) {
-					const [leftRay, centreRay, rightRay] = LineOfSightRulerLayer._calculateRaysBetweenTokens(token1, token2, h1, h2);
 					this._drawLineOfSightRays([
-						[...leftRay, { includeNoHeightTerrain, showLabels: false }],
-						[...centreRay, { includeNoHeightTerrain, showLabels: true }],
-						[...rightRay, { includeNoHeightTerrain, showLabels: false }],
+						{ a: token1, ah: h1, b: token2, bh: h2, includeNoHeightTerrain }
 					]);
 				} else {
 					this._clearLineOfSightRays();
@@ -93,6 +95,11 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		join((rulerStartPoint) => {
 			this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
 		}, lineOfSightRulerConfig$.p1$, sceneControls.activeControl$, sceneControls.activeTool$);
+	}
+
+	/** @return {LineOfSightRulerLayer | undefined} */
+	static get current() {
+		return canvas.terrainHeightLosRulerLayer;
 	}
 
 	get isToolSelected() {
@@ -134,7 +141,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/**
 	 * Draws one or more line of sight rulers on the map, from the given start and end points and the given intersection
 	 * regions.
-	 * @param {[Point3D, Point3D, RulerOptions?][]} rulers The rulers to draw to the canvas. Each pair is the start and
+	 * @param {LineOfSightRulerConfiguration[]} rulers The rulers to draw to the canvas. Each pair is the start and
 	 * end points and an optional configuration object.
 	 * @param {Object} [options]
 	 * @param {string} [options.group] The name of the group to draw these rulers in.
@@ -144,15 +151,6 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * @param {boolean} [options.drawForOthers] If true, this ruler will be drawn on other user's canvases.
 	 */
 	_drawLineOfSightRays(rulers, { group = "default", userId = undefined, sceneId = undefined, drawForOthers = true } = {}) {
-		// Validate `ruler` param type
-		if (!Array.isArray(rulers)) throw new Error("`rulers` was not an array.");
-		for (let i = 0; i < rulers.length; i++) {
-			if (!LineOfSightRulerLayer._isPoint3d(rulers[i][0]))
-				throw new Error(`\`rulers[${i}][0]\` is not a Point3D (object with x, y and h numbers)`);
-			if (!LineOfSightRulerLayer._isPoint3d(rulers[i][1]))
-				throw new Error(`\`rulers[${i}][1]\` is not a Point3D (object with x, y and h numbers)`);
-		}
-
 		userId ??= game.userId;
 		sceneId ??= canvas.scene.id;
 
@@ -160,32 +158,30 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (sceneId !== canvas.scene.id) return;
 
 		// Get the ruler array
-		const mapKey = this.#getRulerMapKey(userId, group);
-		let userRulers = this.#rulers.get(mapKey);
-		if (!userRulers) {
-			this.#rulers.set(mapKey, userRulers = []);
+		const mapKey = this.#getRulerGroupMapKey(userId, group);
+		let rulerGroup = this.#rulerGroups.get(mapKey);
+		if (!rulerGroup) {
+			rulerGroup = new LineOfSightRulerGroup(Color.from(game.users.get(userId).color));
+			this.addChild(rulerGroup);
+			this.#rulerGroups.set(mapKey, rulerGroup);
 		}
 
-		// Ensure we have as many rulers as needed
-		while (userRulers.length < rulers.length)
-			userRulers.push(this.addChild(new LineOfSightRuler(Color.from(game.users.get(userId).color))));
-
-		while (userRulers.length > rulers.length)
-			this.removeChild(userRulers.pop());
-
-		// Update the rulers
-		for (let i = 0; i < rulers.length; i++) {
-			const { includeNoHeightTerrain = false, showLabels = true } = rulers[i][2] ?? {};
-			userRulers[i].updateRuler(rulers[i][0], rulers[i][1], includeNoHeightTerrain);
-			userRulers[i].showLabels = showLabels;
-			userRulers[i].alpha = userId === game.userId ? 1 : game.settings.get(moduleName, settings.otherUserLineOfSightRulerOpacity);
-		}
+		// Update the rulers, converting token IDs into tokens
+		rulerGroup._updateConfig(rulers.map(r => ({
+			...r,
+			a: typeof r.a === "string" ? canvas.tokens.get(r.a) : r.a,
+			b: typeof r.b === "string" ? canvas.tokens.get(r.b) : r.b,
+		})));
 
 		// Draw for other players
 		if (drawForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
 			game.socket.emit(socketName, {
 				func: socketFuncs.drawLineOfSightRay,
-				args: [rulers, { group, userId, sceneId, drawForOthers: false }]
+				args: [
+					// change tokens into token ids to be serialized
+					rulers.map(r => ({ ...r, a: r.a instanceof Token ? r.a.id : r.a, b: r.b instanceof Token ? r.b.id : r.b })),
+					{ group, userId, sceneId, drawForOthers: false }
+				]
 			});
 		}
 	}
@@ -200,11 +196,11 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	_clearLineOfSightRays({ group = "default", userId = undefined, clearForOthers = true } = {}) {
 		userId ??= game.userId;
 
-		const mapKey = this.#getRulerMapKey(userId, group);
-		const userRulers = this.#rulers.get(mapKey);
-		if (userRulers) {
-			userRulers.forEach(ruler => this.removeChild(ruler));
-			this.#rulers.delete(mapKey);
+		const mapKey = this.#getRulerGroupMapKey(userId, group);
+		const rulerGroup = this.#rulerGroups.get(mapKey);
+		if (rulerGroup) {
+			this.removeChild(rulerGroup);
+			this.#rulerGroups.delete(mapKey);
 		}
 
 		if (clearForOthers && userId === game.userId && this.#shouldShowUsersRuler) {
@@ -215,67 +211,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		}
 	}
 
-	/**
-	 * Given two tokens, calculates the centre-to-centre ray, and the two edge-to-edge rays for them.
-	 * @param {Token} token1
-	 * @param {Token} token2
-	 * @param {number} token1RelativeHeight A number between 0-1 inclusive that specifies how far vertically relative to
-	 * token1 the ray should spawn from.
-	 * @param {number} token2RelativeHeight A number between 0-1 inclusive that specifies how far vertically relative to
-	 * token2 the ray should end at.
-	 * @returns {[Point3D, Point3D][]}
-	 */
-	static _calculateRaysBetweenTokens(token1, token2, token1RelativeHeight = 1, token2RelativeHeight = 1) {
-		if (!(token1 instanceof Token)) throw new Error("`token1` is not a Foundry Token");
-		if (!(token2 instanceof Token)) throw new Error("`token2` is not a Foundry Token");
-		if (token1 === token2) throw new Error("Cannot draw line of sight from a token to itself.");
-
-		// Work out the vertices for each token
-		const token1Vertices = getGridVerticesFromToken(token1);
-		const token2Vertices = getGridVerticesFromToken(token2);
-
-		// Find the midpoint of each token, and construct a ray between them
-		const token1Centroid = Polygon.centroid(token1Vertices);
-		const token2Centroid = Polygon.centroid(token2Vertices);
-		const centreToCentreRay = new LineSegment(token1Centroid, token2Centroid);
-
-		// For each token, find the vertex that is furtherest away from the c2c ray on either side. These will be our
-		// two edge to edge rays.
-		const findOuterMostPoints = (/** @type {{ x: number; y: number; }[]} */ vertices) => {
-			const vertexCalculations = vertices
-				.map(({ x, y }) => ({ x, y, ...centreToCentreRay.findClosestPointOnLineTo(x, y) }))
-				.sort((a, b) => b.distanceSquared - a.distanceSquared);
-			return [vertexCalculations.find(v => v.side === 1), vertexCalculations.find(v => v.side === -1)];
-		};
-		const [token1Left, token1Right] = findOuterMostPoints(token1Vertices);
-		const [token2Left, token2Right] = findOuterMostPoints(token2Vertices);
-
-		// Work out the h value for the tokens. This is how far the token is off the ground + the token's height.
-		// Note that this uses the assumption that the width and height of the token is it's h value.
-		const token1Doc = token1 instanceof Token ? token1.document : token1;
-		const token1Height = token1Doc.elevation + getTokenHeight(token1Doc) * token1RelativeHeight;
-		const token2Doc = token2 instanceof Token ? token2.document : token2;
-		const token2Height = token2Doc.elevation + getTokenHeight(token2Doc) * token2RelativeHeight;
-
-		return [
-			[
-				{ x: token1Left.x, y: token1Left.y, h: token1Height },
-				{ x: token2Left.x, y: token2Left.y, h: token2Height }
-			],
-			[
-				{ x: token1Centroid.x, y: token1Centroid.y, h: token1Height },
-				{ x: token2Centroid.x, y: token2Centroid.y, h: token2Height }
-			],
-			[
-				{ x: token1Right.x, y: token1Right.y, h: token1Height },
-				{ x: token2Right.x, y: token2Right.y, h: token2Height }
-			],
-		];
-	}
-
 	#clearAllCurrentUserRulers() {
-		this.#rulers.forEach(rulers => rulers.forEach(r => this.removeChild(r)));
-		this.#rulers.clear();
+		this.#rulerGroups.forEach(group => this.removeChild(group));
+		this.#rulerGroups.clear();
 
 		lineOfSightRulerConfig$.value = {
 			p1: undefined,
@@ -288,6 +226,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		};
 	}
 
+	/**
+	 * Whether the current user's ruler should be shown to other users.
+	 * @return {boolean}
+	 */
 	get #shouldShowUsersRuler() {
 		return game.settings.get(moduleName, game.user.isGM ? settings.displayLosMeasurementGm : settings.displayLosMeasurementPlayer);
 	}
@@ -316,12 +258,22 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	/**
-	 * Gets the key to use in the `#rulers` map.
+	 * Gets the key to use in the `#rulerGroups` map.
 	 * @param {string} userId
 	 * @param {string} groupName
 	 */
-	#getRulerMapKey(userId, groupName) {
+	#getRulerGroupMapKey(userId, groupName) {
 		return `${userId}|${groupName}`;
+	}
+
+	/**
+	 * When a token is refreshed, pass that along to any groups.
+	 * If a token is being tracked for a ruler, that ruler will be re-drawn.
+	 */
+	_onTokenRefresh(token) {
+		for (const group of this.#rulerGroups.values()) {
+			group._onTokenRefresh(token);
+		}
 	}
 
 	// ----------------------------- //
@@ -427,50 +379,89 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 			lineOfSightRulerConfig$.h1$.value = change(lineOfSightRulerConfig$.h1$.value);
 		}
 	}
-
-	// ---- //
-	// Util //
-	// ---- //
-	/**
-	 * @param {*} obj
-	 * @returns {obj is Point3D}
-	 */
-	static _isPoint3d(obj) {
-		return typeof obj === "object"
-			&& typeof obj.x === "number"
-			&& typeof obj.y === "number"
-			&& typeof obj.h === "number";
-	}
 }
 
-class LineOfSightRulerLineCap extends PIXI.Container {
+class LineOfSightRulerGroup extends PIXI.Container {
 
-	/** @type {PreciseText} */
-	#text;
+	/** @type {{ config: LineOfSightRulerConfiguration; rulers: LineOfSightRuler[]; }[]} */
+	#rulers = [];
+
+	#color;
 
 	/** @param {number} color */
 	constructor(color = 0xFFFFFF) {
 		super();
 
-		this.#text = this.addChild(new PreciseText("", CONFIG.canvasTextStyle.clone()));
-		this.#text.anchor.set(0, 0.5);
-		this.#text.position.set(heightIndicatorXOffset, 0);
-		this.#text.style.fill = color;
-
-		this.addChild(new PIXI.Graphics())
-			.beginFill(color, 0.5)
-			.lineStyle({ color: 0x000000, alpha: 0.25, width: 2 })
-			.drawCircle(0, 0, 6);
+		this.#color = color;
 	}
 
-	/** @param {number} value */
-	set height(value) {
-		this.#text.text = `H${prettyFraction(toSceneUnits(value))}`;
+	/**
+	 * Updates the group's rulers with the new config.
+	 * @param {LineOfSightRulerConfiguration[]} rulers
+	 */
+	_updateConfig(rulers) {
+		// Validate config
+		if (!Array.isArray(rulers))
+			throw new Error("Expected `rulers` to be an array.");
+
+		for (let i = 0; i < rulers.length; i++) {
+			if (!(rulers[i].a instanceof Token || isPoint3d(rulers[i].a)))
+				throw new Error(`\`rulers[${i}].a\` is not a Token or a Point3D (object with x, y and h numbers)`);
+			if (!(rulers[i].b instanceof Token || isPoint3d(rulers[i].b)))
+				throw new Error(`\`rulers[${i}].b\` is not a Token or a Point3D (object with x, y and h numbers)`);
+		}
+
+		// Update
+		while (this.#rulers.length > rulers.length) {
+			const removed = this.#rulers.pop();
+			removed.rulers.forEach(r => this.removeChild(r));
+		}
+
+		while (this.#rulers.length < rulers.length) {
+			this.#rulers.push({ config: {}, rulers: [] });
+		}
+
+		for (let i = 0; i < rulers.length; i++) {
+			this.#rulers[i].config = { ...rulers[i] };
+			this.#redrawRulers(this.#rulers[i]);
+		}
 	}
 
-	/** @param {boolean} value */
-	set showLabels(value) {
-		this.#text.visible = value;
+	/**
+	 * Redraws the ruler(s) at the given index.
+	 * @param {{ config: LineOfSightRulerConfiguration; rulers: LineOfSightRuler[]; }} args
+	 */
+	#redrawRulers({ config, rulers }) {
+		// Work out whether we need to create/destroy any individual rulers or not
+		const hasEdgeToEdge = (config.a instanceof Token || config.b instanceof Token) && config.includeEdges !== false;
+		const nRulers = hasEdgeToEdge ? 3 : 1;
+
+		while (rulers.length > nRulers)
+			this.removeChild(rulers.pop());
+
+		while (rulers.length < nRulers)
+			rulers.push(this.addChild(new LineOfSightRuler(this.#color)));
+
+		// Redraw individual rulers
+		const points = calculateRaysBetweenTokensOrPoints(config.a, config.b, config.ah, config.bh);
+
+		rulers[0].updateRuler(points.centre[0], points.centre[1], config.includeNoHeightTerrain ?? false, true);
+		if (nRulers === 3) {
+			rulers[1].updateRuler(points.left[0], points.left[1], config.includeNoHeightTerrain ?? false, false);
+			rulers[2].updateRuler(points.right[0], points.right[1], config.includeNoHeightTerrain ?? false, false);
+		}
+	}
+
+	/**
+	 * Indicates that the given token has been refreshed. If any rulers are tracking that token, they will be re-drawn.
+	 * @param {Token} token
+	 */
+	_onTokenRefresh(token) {
+		for (const ruler of this.#rulers) {
+			if (ruler.config.a === token || ruler.config.b === token) {
+				this.#redrawRulers(ruler);
+			}
+		}
 	}
 }
 
@@ -515,8 +506,9 @@ class LineOfSightRuler extends PIXI.Container {
 	 * @param {Point3D} p1
 	 * @param {Point3D} p2
 	 * @param {boolean} includeNoHeightTerrain
+	 * @param {boolean} [showLabels]
 	 */
-	updateRuler(p1, p2, includeNoHeightTerrain) {
+	updateRuler(p1, p2, includeNoHeightTerrain, showLabels = undefined) {
 		// If the points haven't actually changed, don't need to do any recalculations/redraws
 		let hasChanged = false;
 
@@ -539,11 +531,14 @@ class LineOfSightRuler extends PIXI.Container {
 			this._recalculateLos();
 			this._draw();
 		}
+
+		if (typeof showLabels === "boolean") {
+			this.showLabels = showLabels;
+		}
 	}
 
 	_recalculateLos() {
-		/** @type {import("../geometry/height-map.mjs").HeightMap} */
-		const hm = game.canvas.terrainHeightLayer._heightMap;
+		const hm = TerrainHeightLayer.current?._heightMap;
 		const intersectionRegions = hm.calculateLineOfSight(this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
 		this.#intersectionRegions = HeightMap.flattenLineOfSightIntersectionRegions(intersectionRegions);
 	}
@@ -607,5 +602,36 @@ class LineOfSightRuler extends PIXI.Container {
 
 		this.#endCap.height = this.#p2.h;
 		this.#endCap.position.set(this.#p2.x, this.#p2.y);
+	}
+}
+
+class LineOfSightRulerLineCap extends PIXI.Container {
+
+	/** @type {PreciseText} */
+	#text;
+
+	/** @param {number} color */
+	constructor(color = 0xFFFFFF) {
+		super();
+
+		this.#text = this.addChild(new PreciseText("", CONFIG.canvasTextStyle.clone()));
+		this.#text.anchor.set(0, 0.5);
+		this.#text.position.set(heightIndicatorXOffset, 0);
+		this.#text.style.fill = color;
+
+		this.addChild(new PIXI.Graphics())
+			.beginFill(color, 0.5)
+			.lineStyle({ color: 0x000000, alpha: 0.25, width: 2 })
+			.drawCircle(0, 0, 6);
+	}
+
+	/** @param {number} value */
+	set height(value) {
+		this.#text.text = `H${prettyFraction(toSceneUnits(value))}`;
+	}
+
+	/** @param {boolean} value */
+	set showLabels(value) {
+		this.#text.visible = value;
 	}
 }

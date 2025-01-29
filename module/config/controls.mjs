@@ -4,6 +4,8 @@ import { TerrainErasePalette } from "../applications/terrain-erase-palette.mjs";
 import { TerrainPaintPalette } from "../applications/terrain-paint-palette.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
+import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
+import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
 import { Signal } from "../utils/signal.mjs";
 
 export const sceneControls = {
@@ -52,9 +54,7 @@ export function registerSceneControls(controls) {
 			title: game.i18n.localize("CONTROLS.TerrainHeightToolsTokenLineOfSight"),
 			icon: "fas fa-compass-drafting",
 			onClick: () => {
-				/** @type {import("../layers/line-of-sight-ruler-layer.mjs").LineOfSightRulerLayer} */
-				const ruler = game.canvas.terrainHeightLosRulerLayer;
-				ruler._autoSelectTokenLosTargets();
+				LineOfSightRulerLayer.current?._autoSelectTokenLosTargets();
 			}
 		},
 		sceneControls.terrainHeightToolsLayerToggleControlButton = {
@@ -108,7 +108,7 @@ export function registerSceneControls(controls) {
 				onClick: () => Dialog.confirm({
 					title: game.i18n.localize("TERRAINHEIGHTTOOLS.ClearConfirmTitle"),
 					content: `<p>${game.i18n.format("TERRAINHEIGHTTOOLS.ClearConfirmContent")}</p>`,
-					yes: () => game.canvas.terrainHeightLayer?.clear()
+					yes: () => TerrainHeightLayer.current?.clear()
 				}),
 				button: true
 			}

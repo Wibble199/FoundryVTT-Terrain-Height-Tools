@@ -1,5 +1,6 @@
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
 import { flags, moduleName, settings, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
+import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
 import { sceneControls } from "./controls.mjs";
 
 export function registerSettings() {
@@ -21,7 +22,7 @@ export function registerSettings() {
 		config: false,
 		onChange: () => {
 			sceneControls.terrainPaintPalette?.render(false);
-			game.canvas.terrainHeightLayer._updateGraphics();
+			TerrainHeightLayer.current?._updateGraphics();
 			globalThis.terrainHeightTools.ui.terrainStackViewer?.render();
 		}
 	});
@@ -74,9 +75,7 @@ export function registerSettings() {
 		config: false,
 		default: true,
 		onChange: value => {
-			/** @type {import("../layers/terrain-height-graphics.mjs").TerrainHeightGraphics} */
-			const graphicsLayer = game.canvas.terrainHeightLayer._graphics;
-			graphicsLayer.showOnTokenLayer$.value = value;
+			TerrainHeightLayer.current._graphics.showOnTokenLayer$.value = value;
 		}
 	});
 
@@ -108,9 +107,7 @@ export function registerSettings() {
 		config: true,
 		default: 0,
 		onChange: value => {
-			/** @type {import("../layers/terrain-height-graphics.mjs").TerrainHeightGraphics} */
-			const graphicsLayer = game.canvas.terrainHeightLayer._graphics;
-			graphicsLayer.maskRadius$.value = value;
+			TerrainHeightLayer.current._graphics.maskRadius$.value = value;
 		}
 	});
 
@@ -158,7 +155,7 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: true,
-		onChange: () => game.canvas.terrainHeightLayer._updateGraphics()
+		onChange: () => TerrainHeightLayer.current?._updateGraphics()
 	});
 
 	game.settings.register(moduleName, settings.smartLabelPlacement, {
@@ -168,7 +165,7 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: true,
-		onChange: () => game.canvas.terrainHeightLayer._updateGraphics()
+		onChange: () => TerrainHeightLayer.current?._updateGraphics()
 	});
 }
 

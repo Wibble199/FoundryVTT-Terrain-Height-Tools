@@ -7,6 +7,7 @@ import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
 import { getTerrainTypeMap } from '../utils/terrain-types.mjs';
+import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
 
 /**
  * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.
@@ -178,7 +179,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// Remove previous mask
 		this.#shapes.forEach(shape => shape._setMask(null));
 		if (this.cursorRadiusMask) this.removeChild(this.cursorRadiusMask);
-		game.canvas.terrainHeightLayer._eventListenerObj?.off("globalmousemove", this.#updateCursorMaskPosition);
+		TerrainHeightLayer.current?._eventListenerObj?.off("globalmousemove", this.#updateCursorMaskPosition);
 
 		// Stop here if not applying a new mask. We are not applying a mask if:
 		// - The radius is 0, i.e. no mask
@@ -213,7 +214,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 		// Set mask
 		this.#shapes.forEach(shape => shape._setMask(this.cursorRadiusMask));
-		game.canvas.terrainHeightLayer._eventListenerObj.on("globalmousemove", this.#updateCursorMaskPosition);
+		TerrainHeightLayer.current?._eventListenerObj.on("globalmousemove", this.#updateCursorMaskPosition);
 	}
 
 	#updateCursorMaskPosition = event => {
