@@ -74,7 +74,7 @@ export function registerSceneControls(controls) {
 		icon: "fas fa-chart-simple",
 		layer: "terrainHeightLayer",
 		activeTool: tools.paint,
-		visible: game.user.can("UPDATE_SCENE"),
+		visible: game.user.can("ITEM_CREATE"),
 		tools: [
 			{
 				name: tools.paint,

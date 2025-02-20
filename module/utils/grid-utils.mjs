@@ -49,10 +49,18 @@ export function getGridCenter(row, col) {
  * @returns {number[]}
  */
 function getHexPolyAligned(row, col, points = undefined) {
-	const grid = canvas.grid.grid;
-	const gridPos = HexagonalGrid.offsetToPixels({ row, col }, grid.options);
-	const rightGridPos = HexagonalGrid.offsetToPixels({ row, col: col + 1 }, grid.options);
-	const belowGridPos = HexagonalGrid.offsetToPixels({ row: row + 1, col }, grid.options);
+	const grid = canvas.grid;
+	const options = {
+        columns: grid.columns,
+        even: grid.even,
+        size: grid.size,
+        width: grid.sizeX,
+        height: grid.sizeY
+      };
+
+	const gridPos = HexagonalGrid.offsetToPixels({ row, col }, options);
+	const rightGridPos = HexagonalGrid.offsetToPixels({ row, col: col + 1 }, options);
+	const belowGridPos = HexagonalGrid.offsetToPixels({ row: row + 1, col }, options);
 
 	switch (canvas.grid.type) {
 		// Pointy top

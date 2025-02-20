@@ -96,7 +96,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
 		join((rulerStartPoint) => {
-			this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
+			if (this.#lineStartIndicator !== undefined) {
+				this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
+			}
 		}, lineOfSightRulerConfig$.p1$, sceneControls.activeControl$, sceneControls.activeTool$);
 	}
 
