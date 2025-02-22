@@ -111,38 +111,3 @@ export function fromSceneUnits(val) {
 		? val / canvas.scene.dimensions.distance
 		: null;
 }
-
-/**
- * Creates a function to adjusts the given hex cell offsets based on the current grid settings and given alt orientation
- * @param {[number, number]} anchor
- * @param {boolean} isAltOrientation
- * @returns {(offset: { x: number; y: number }) => { x: number; y: number }}
- */
-function createAdjustHexCellOffsets([anchorX, anchorY], isAltOrientation) {
-
-	// I wish I could describe more accurately what's going on here and why, but it basically just involved a lot of
-	// trial and error. Good luck and god bless if anyone needs to make any adjustments in future.
-
-	const isColumnar = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(canvas.grid.type);
-	const isGridEven = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXEVENR].includes(canvas.grid.type);
-
-	return ({ x: offsetX, y: offsetY }) => {
-		// Swap offsets for columnar grids
-		if (isColumnar)
-			[offsetX, offsetY] = [offsetY, offsetX];
-
-		// Account for token alternate orientations
-		if (isColumnar && isAltOrientation)
-			offsetY *= -1;
-		else if (!isColumnar && isAltOrientation)
-			offsetX *= -1;
-
-		// Even/odd rows offset differently, so account for that
-		if (isColumnar && Math.abs(offsetY % 2) === 1 && Math.abs(anchorY % 2) === (isGridEven ? 1 : 0))
-			offsetX--;
-		else if (!isColumnar && Math.abs(offsetX % 2) === 1 && Math.abs(anchorX % 2) === (isGridEven ? 1 : 0))
-			offsetY--;
-
-		return { x: anchorX + offsetX, y: anchorY + offsetY };
-	};
-}
