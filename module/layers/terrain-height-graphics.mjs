@@ -190,10 +190,10 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// Create a radial gradient texture
 		radius *= canvas.grid.size;
 
-		const canvas = document.createElement("canvas");
-		canvas.width = canvas.height = radius * 2;
+		const canvasElement = document.createElement("canvas");
+		canvasElement.width = canvasElement.height = radius * 2;
 
-		const context = canvas.getContext("2d");
+		const context = canvasElement.getContext("2d");
 		const gradient = context.createRadialGradient(radius, radius, 0, radius, radius, radius);
 		gradient.addColorStop(0.8, "rgba(255, 255, 255, 1)");
 		gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -201,7 +201,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		context.fillStyle = gradient;
 		context.fillRect(0, 0, radius * 2, radius * 2);
 
-		const texture = PIXI.Texture.from(canvas);
+		const texture = PIXI.Texture.from(canvasElement);
 
 		// Create sprite
 		this.cursorRadiusMask = new PIXI.Sprite(texture);
