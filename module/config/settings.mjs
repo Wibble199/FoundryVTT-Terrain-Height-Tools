@@ -35,8 +35,8 @@ export function registerSettings() {
 		default: true,
 		config: true,
 		onChange: () => {
-			if (game.canvas?.ready)
-				game.canvas.primary?.sortChildren();
+			if (canvas?.ready)
+				canvas.primary?.sortChildren();
 		}
 	});
 

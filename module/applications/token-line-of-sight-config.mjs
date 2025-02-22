@@ -13,7 +13,7 @@ export class TokenLineOfSightConfig extends withSubscriptions(Application) {
 
 	/** @override */
 	static get defaultOptions() {
-		return mergeObject(super.defaultOptions, {
+		return foundry.utils.mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.TokenLineOfSightConfigTitle"),
 			id: "tht_tokenLineOfSightConfig",
 			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],

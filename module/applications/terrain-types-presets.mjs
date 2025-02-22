@@ -37,7 +37,7 @@ export class TerrainTypesPreset extends Application {
 
 	/** @override */
 	static get defaultOptions() {
-		return mergeObject(super.defaultOptions, {
+		return foundry.utils.mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ImportTerrainTypesPreset"),
 			id: "tht_terrainTypesPresets",
 			template: `modules/${moduleName}/templates/terrain-types-presets.hbs`,

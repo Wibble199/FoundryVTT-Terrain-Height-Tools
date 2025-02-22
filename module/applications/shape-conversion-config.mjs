@@ -6,7 +6,7 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 
 	/** @override */
 	static get defaultOptions() {
-		return mergeObject(super.defaultOptions, {
+		return foundry.utils.mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ShapeConversionConfigTitle"),
 			id: "tht_shapeConversionConfig",
 			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],

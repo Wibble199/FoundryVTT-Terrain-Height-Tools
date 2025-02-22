@@ -53,7 +53,7 @@ export class TerrainStackViewer extends Application {
 
 	/** @override */
 	static get defaultOptions() {
-		return mergeObject(super.defaultOptions, {
+		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "tht_terrainStackViewer",
 			template: `modules/${moduleName}/templates/terrain-stack-viewer.hbs`,
 			popOut: false

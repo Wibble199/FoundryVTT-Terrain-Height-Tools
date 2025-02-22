@@ -89,7 +89,7 @@ export class Polygon {
 		// intersections), and count how many edges a ray from this point to the edge of the canvas crosses. If it's an
 		// odd number, then this is within the polygon. We don't need to woyry about the offset causing the point to no
 		// longer be within the polygon as all the grid shapes are convex.
-		const testPoint = other.vertices.find(p => p.y === otherBb.y1).offset({ y: game.canvas.grid.h * 0.05 });
+		const testPoint = other.vertices.find(p => p.y === otherBb.y1).offset({ y: canvas.grid.sizeY * 0.05 });
 
 		const numberOfIntersections = this.edges
 			.map(e => e.intersectsYAt(testPoint.y))

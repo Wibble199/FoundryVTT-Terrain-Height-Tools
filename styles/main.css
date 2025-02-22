@@ -216,10 +216,6 @@ ul.terrain-type-palette li .terrain-type-name {
 	margin: 0 3px 1px;
 }
 
-#tht_terrainTypesConfig [data-action="toggleExpand"] {
-	display: none;
-}
-
 #tht_terrainTypesConfig .terrain-type-content {
 	display: grid;
 	grid-template-rows: repeat(2, min-content);

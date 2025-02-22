@@ -18,7 +18,7 @@ export class TerrainShapeChoiceDialog extends FormApplication {
 
 	/** @override */
 	static get defaultOptions() {
-		return mergeObject(super.defaultOptions, {
+		return foundry.utils.mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.SelectAShape"),
 			template: `modules/${moduleName}/templates/terrain-shape-choice-dialog.hbs`,
 			classes: [...(super.defaultOptions.classes ?? []), "terrain-shape-choice-dialog"],

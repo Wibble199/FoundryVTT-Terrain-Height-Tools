@@ -6,17 +6,20 @@
  */
 export function getGridCellPolygon(row, col) {
 	// Gridless is not supported
-	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
 
 	// For hex grids, use the custom getHexPolyAligned function to generate them for us
-	if (game.canvas.grid.isHex) {
-		const pointsFlat = getHexPolyAligned(row, col);
-		return pointArrayToObjects(pointsFlat);
+	if (canvas.grid.isHexagonal) {
+		// We round the x and y values, as this is what happens when a token's position is saved (happens because the
+		// TokenDocument schema defines x and y as integers). If we didn't do this, there are occasionally tiny
+		// intersections at corners when drawing token LoS due to the lack of rounding.
+		const { x: ox, y: oy } = canvas.grid.getCenterPoint({ i: row, j: col });
+		return canvas.grid.getShape().map(({ x: sx, y: sy }) => ({ x: Math.round(sx + ox), y: Math.round(sy + oy) }));
 	}
 
 	// Can get the points for a square grid easily
-	const [x, y] = game.canvas.grid.grid.getPixelsFromGridPosition(row, col);
-	const { w, h } = game.canvas.grid;
+	const { x, y } = canvas.grid.getTopLeftPoint({ i: row, j: col });
+	const { sizeX: w, sizeY: h } = canvas.grid;
 	return [
 		{ x, y },
 		{ x: x + w, y },
@@ -40,59 +43,27 @@ export function getGridCenter(row, col) {
 }
 
 /**
- * Foundry's default hex grid implementation does not perfectly align the vertices of the grid polygons: It is within
- * a few tenths of a pixel, which looks fine visually but causes rounding and snapping problems with the LOS calcs.
- * So this method creates hex polygons of the given size in a way that makes the vertices align perfectly.
- * @param {number} row The row of the cell whose vertices to get (in grid coordinates).
- * @param {number} col The column of the cell whose vertices to get (in grid coordinates).
- * @param {PointArray[]} [points] An optional array of polygon points.
- * @returns {number[]}
- */
-function getHexPolyAligned(row, col, points = undefined) {
-	const grid = canvas.grid.grid;
-	const gridPos = HexagonalGrid.offsetToPixels({ row, col }, grid.options);
-	const rightGridPos = HexagonalGrid.offsetToPixels({ row, col: col + 1 }, grid.options);
-	const belowGridPos = HexagonalGrid.offsetToPixels({ row: row + 1, col }, grid.options);
-
-	switch (canvas.grid.type) {
-		// Pointy top
-		case CONST.GRID_TYPES.HEXODDR:
-		case CONST.GRID_TYPES.HEXEVENR:
-			return grid.getPolygon(gridPos.x, gridPos.y, rightGridPos.x - gridPos.x, (belowGridPos.y - gridPos.y) / 0.75, points);
-
-		// Flat top
-		case CONST.GRID_TYPES.HEXODDQ:
-		case CONST.GRID_TYPES.HEXEVENQ:
-			return grid.getPolygon(gridPos.x, gridPos.y, (rightGridPos.x - gridPos.x) / 0.75, belowGridPos.y - gridPos.y, points);
-
-		// Gridless/square
-		default:
-			throw new Error(`Given grid type (${type}) is not a hex grid.`);
-	}
-}
-
-/**
  * Given a token, returns all the vertices of that token's border.
  * @param {Token} token
  * @returns {{ x: number; y: number; }[]}
  */
 export function getGridVerticesFromToken(token) {
 	// Gridless is not supported
-	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
 
-	/** @type {TokenDocument} */
-	const { x, y, width, height } = token.document;
-
-	// For hex grids, use the getBorderPolygon method
-	if (game.canvas.grid.isHex) {
-		const pointsFlat = game.modules.get("hex-size-support")?.api?.isAltOrientation(token) === true
-			? canvas.grid.grid.getAltBorderPolygon(width, height, 0)
-			: canvas.grid.grid.getBorderPolygon(width, height, 0);
-		return pointArrayToObjects(pointsFlat, x, y);
+	// For hex tokens, grab the vertices from getShape().points
+	if (canvas.grid.isHexagonal) {
+		// We round this off in an attempt to fix the issue where small intersections are detected when using the token
+		// LoS tool. This doesn't completely fix the issue, but improves it. It seems to stem from TokenDocuments' x and
+		// y properties being rounded.
+		return pointArrayToObjects(token.getShape().points)
+			.map(({ x, y }) => ({ x: Math.round(x + token.x), y: Math.round(y + token.y) }));
 	}
 
-	// Can get the vertices for a square grid easily
-	const w = width * game.canvas.grid.w, h = height * game.canvas.grid.h;
+	// For square grids, there are no points on getShape()
+	const { x, y } = token.document;
+	const { width: w, height: h } = token.getShape();
+
 	return [
 		{ x: x, y: y },
 		{ x: x + w, y: y },
@@ -124,7 +95,7 @@ function pointArrayToObjects(arr, xOffset = 0, yOffset = 0) {
  */
 export function toSceneUnits(val) {
 	return typeof val === "number"
-		? val * game.canvas.scene.dimensions.distance
+		? val * canvas.scene.dimensions.distance
 		: null;
 }
 
@@ -137,7 +108,7 @@ export function toSceneUnits(val) {
  */
 export function fromSceneUnits(val) {
 	return typeof val === "number"
-		? val / game.canvas.scene.dimensions.distance
+		? val / canvas.scene.dimensions.distance
 		: null;
 }
 
@@ -151,18 +122,19 @@ export function fromSceneUnits(val) {
  */
 export function getCellsUnderTokenPosition(position, isAltOrientation) {
 	// Gridless: (not supported)
-	if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
 
 	// Square grids:
-	if (!game.canvas.grid.isHex) {
-		const topLeftCell = game.canvas.grid.grid.getGridPositionFromPixels(
-			position.x + game.canvas.grid.grid.w / 2,
-			position.y + game.canvas.grid.grid.h / 2);
+	if (!canvas.grid.isHexagonal) {
+		const topLeftCell = canvas.grid.getOffset({
+			x: position.x + canvas.grid.sizeX / 2,
+			y: position.y + canvas.grid.sizeY / 2
+		});
 
 		const tokenCells = [];
 		for (let xOffset = 0; xOffset < position.width; xOffset++)
 		for (let yOffset = 0; yOffset < position.height; yOffset++)
-			tokenCells.push({ x: topLeftCell[0] + xOffset, y: topLeftCell[1] + yOffset });
+			tokenCells.push({ x: topLeftCell.i + xOffset, y: topLeftCell.j + yOffset });
 
 		return tokenCells;
 	}
@@ -180,7 +152,7 @@ export function getCellsUnderTokenPosition(position, isAltOrientation) {
 
 	// Find the center of the token
 	// This will be our "anchor" cell, which, for sizes > 1, other cells will be added around it
-	const tokenRect = game.canvas.grid.grid.getRect(position.width, position.height);
+	const tokenRect = canvas.grid.grid.getRect(position.width, position.height);
 	const tokenAnchorCellPosPx = {
 		x: position.x + tokenRect.width / 2,
 		y: position.y + tokenRect.height / 2
@@ -193,20 +165,20 @@ export function getCellsUnderTokenPosition(position, isAltOrientation) {
 		// So, the amount we need to move is 0.5 * 0.75 * `h` or `w` (true height/width of the cells).
 		// FOR POINTY HEXES: if alt orientation, move up, otherwise move down
 		// FOR FLAT HEXES: if alt orientation, move left, otherwise right
-		const isColumnar = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(game.canvas.grid.type);
+		const isColumnar = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(canvas.grid.type);
 		if (isColumnar)
-			tokenAnchorCellPosPx.x += (0.375 * game.canvas.grid.grid.w) * (isAltOrientation ? -1 : 1);
+			tokenAnchorCellPosPx.x += (0.375 * canvas.grid.sizeX) * (isAltOrientation ? -1 : 1);
 		else
-			tokenAnchorCellPosPx.y += (0.375 * game.canvas.grid.grid.h) * (isAltOrientation ? -1 : 1);
+			tokenAnchorCellPosPx.y += (0.375 * canvas.grid.sizeY) * (isAltOrientation ? -1 : 1);
 	}
 
-	/** @type {[number, number]} */
-	const tokenAnchorCellPosGc = game.canvas.grid.grid.getGridPositionFromPixels(tokenAnchorCellPosPx.x, tokenAnchorCellPosPx.y);
+	/** @type {{ i: number, j: number }} */
+	const { i, j } = canvas.grid.getOffset({ x: tokenAnchorCellPosPx.x, y: tokenAnchorCellPosPx.y });
 
-	const tokenCells = [{ x: tokenAnchorCellPosGc[0], y: tokenAnchorCellPosGc[1] }];
+	const tokenCells = [{ x: i, y: j }];
 
 	// Grow the tokens based on the token size:
-	const adjustHexCellOffsets = createAdjustHexCellOffsets(tokenAnchorCellPosGc, isAltOrientation);
+	const adjustHexCellOffsets = createAdjustHexCellOffsets([i, j], isAltOrientation);
 	if (size >= 2) {
 		tokenCells.push(...[
 			{ x: -1, y: 0 },
@@ -257,8 +229,8 @@ function createAdjustHexCellOffsets([anchorX, anchorY], isAltOrientation) {
 	// I wish I could describe more accurately what's going on here and why, but it basically just involved a lot of
 	// trial and error. Good luck and god bless if anyone needs to make any adjustments in future.
 
-	const isColumnar = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(game.canvas.grid.type);
-	const isGridEven = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXEVENR].includes(game.canvas.grid.type);
+	const isColumnar = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(canvas.grid.type);
+	const isGridEven = [CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXEVENR].includes(canvas.grid.type);
 
 	return ({ x: offsetX, y: offsetY }) => {
 		// Swap offsets for columnar grids

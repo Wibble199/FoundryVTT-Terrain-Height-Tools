@@ -71,7 +71,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 	get sort() {
 		/** @type {boolean} */
-		const renderAboveTiles = game.canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
+		const renderAboveTiles = canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
 			?? game.settings.get(moduleName, settings.terrainLayerAboveTilesDefault);
 
 		return renderAboveTiles ? 9999999999 : -9999999998;
@@ -188,7 +188,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		if (radius <= 0 || this.#shapes.length === 0) return;
 
 		// Create a radial gradient texture
-		radius *= game.canvas.grid.size;
+		radius *= canvas.grid.size;
 
 		const canvas = document.createElement("canvas");
 		canvas.width = canvas.height = radius * 2;
@@ -209,7 +209,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		this.addChild(this.cursorRadiusMask);
 
 		// Get current mouse coordinates
-		const pos = game.canvas.mousePosition;
+		const pos = canvas.mousePosition;
 		this.cursorRadiusMask.position.set(pos.x, pos.y);
 
 		// Set mask
@@ -225,7 +225,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	#onHighlightObjects(active) {
 		// When using the "highlight objects" keybind, if the user has the radius option enabled and we're on the token
 		// layer, show the entire height map
-		if (game.canvas.activeLayer.name === "TokenLayer") {
+		if (canvas.activeLayer.name === "TokenLayer") {
 			this.isHighlightingObjects$.value = active;
 		}
 	}
@@ -367,7 +367,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 			label.x = x;
 			label.y = y;
 			label.rotation = rotated
-				? (x < game.canvas.dimensions.width / 2 ? -1 : 1) * Math.PI / 2
+				? (x < canvas.dimensions.width / 2 ? -1 : 1) * Math.PI / 2
 				: 0;
 		};
 
@@ -402,8 +402,8 @@ class TerrainShapeGraphics extends PIXI.Container {
 		/** @type {number[]} */
 		const testPoints = [...new Set(labelPositionAnchors
 			.map(y => y * this.#shape.polygon.boundingBox.h + this.#shape.polygon.boundingBox.y1)
-			.map(y => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXODDR].includes(game.canvas.grid.type)
-				? canvas.grid.grid.getCenter(this.#shape.polygon.boundingBox.xMid, y)[1]
+			.map(y => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXODDR].includes(canvas.grid.type)
+				? canvas.grid.getCenterPoint({ x: this.#shape.polygon.boundingBox.xMid, y }).y
 				: y))];
 
 		let widestPoint = { y: 0, x: 0, width: -Infinity };
@@ -429,8 +429,8 @@ class TerrainShapeGraphics extends PIXI.Container {
 			/** @type {number[]} */
 			const testPoints = [...new Set(labelPositionAnchors
 				.map(x => x * this.#shape.polygon.boundingBox.w + this.#shape.polygon.boundingBox.x1)
-				.map(x => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(game.canvas.grid.type)
-					? canvas.grid.grid.getCenter(x, this.#shape.polygon.boundingBox.yMid)[0]
+				.map(x => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(canvas.grid.type)
+					? canvas.grid.getCenterPoint({ x, y: this.#shape.polygon.boundingBox.yMid }).x
 					: x))];
 
 			let tallestPoint = { y: 0, x: 0, height: -Infinity };
