@@ -59,22 +59,19 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		];
 	}
 
-	// Sorting within the PrimaryCanvasGroup works by the `elevation`, then by whether it is a token, then by whether it
-	// is a Drawing, then finally by the `sort`.
-	// Using an elevation of 0 puts it at the same level as tokens, tiles (except overhead tiles, which are 4), drawings
-	// etc.
-	// If the layer is to be drawn on top of tiles, use a very a high number (because the PCG explicitly checks for
-	// DrawingShape and TokenMesh it will never be drawn over these regardless of the sort)
-	// If the layer is to be drawn below tiles, use a very low number (but higher than -9999999999 which is for some other
-	// sprite mesh) so that it is always below the tiles.
+	// Sorting within the PrimaryCanvasGroup works by the `elevation`, then by `sortLayer` (500 for tiles, 700 for
+	// tokens) then finally by the `sort`.
+	// We will always use an elevation of 0, so that overhead tokens always render above.
+	// A higher number means that it will be rendered below.
+	// A future enhancement could be to render the shapes at their respective elevation, but for now that's not the case
 	get elevation() { return 0; }
 
-	get sort() {
+	get sortLayer() {
 		/** @type {boolean} */
 		const renderAboveTiles = canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
 			?? game.settings.get(moduleName, settings.terrainLayerAboveTilesDefault);
 
-		return renderAboveTiles ? 9999999999 : -9999999998;
+		return renderAboveTiles ? 490 : 510;
 	}
 
 	/**
