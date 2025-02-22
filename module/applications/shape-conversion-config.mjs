@@ -6,7 +6,7 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 
 	/** @override */
 	static get defaultOptions() {
-		return mergeObject(super.defaultOptions, {
+		return foundry.utils.mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ShapeConversionConfigTitle"),
 			id: "tht_shapeConversionConfig",
 			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],
@@ -25,13 +25,14 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 
 		this._subscriptions = [
 			convertConfig$.subscribe(v => {
-				html.find("[name='toDrawings']").prop("checked", v.toDrawings);
+				html.find("[name='toDrawing']").prop("checked", v.toDrawing);
+				html.find("[name='toRegion']").prop("checked", v.toRegion);
 				html.find("[name='toWalls']").prop("checked", v.toWalls);
 				html.find("[name='deleteAfter']").prop("checked", v.deleteAfter);
 			}, true)
 		];
 
-		html.find("[name='toDrawings'],[name='toWalls'],[name='deleteAfter']").on("input", e => {
+		html.find("[name='toDrawing'],[name='toRegion'],[name='toWalls'],[name='deleteAfter']").on("input", e => {
 			const { name, checked } = e.target;
 			convertConfig$.value = { [name]: checked };
 		});

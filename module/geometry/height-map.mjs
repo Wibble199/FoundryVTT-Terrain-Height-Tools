@@ -362,7 +362,7 @@ export class HeightMap {
 		this.#shapes = [];
 
 		// Gridless scenes not supported
-		if (game.canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return;
+		if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return;
 
 		const t1 = performance.now();
 
@@ -512,7 +512,7 @@ export class HeightMap {
 			} else {
 				const testPoint = holePolygon.vertices
 					.find(p => p.y === holePolygon.boundingBox.y1)
-					.offset({ y: game.canvas.grid.h * 0.05 });
+					.offset({ y: canvas.grid.sizeY * 0.05 });
 
 				const intersectsWithEdges = containingPolygons.flatMap(shape => shape.polygon.edges
 					.map(edge => ({

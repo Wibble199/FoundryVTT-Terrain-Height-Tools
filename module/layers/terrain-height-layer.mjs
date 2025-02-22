@@ -21,7 +21,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * be able to, for example the masking effect for the height map vision radius:
 	 * - The vision radius needs to always be able to receive the mousemove event to update the position of the mask, but
 	 *   the parent object of the terrain height graphics does not always have its events turned on.
-	 * - We also can't add listeners to the game.canvas.stage instance, because some part of core Foundry functionality
+	 * - We also can't add listeners to the canvas.stage instance, because some part of core Foundry functionality
 	 *   calls `removeAllListeners` sometimes, which then causes the event to get unbound.
 	 * Having a dedicated object that THT controls that will always have events turn on seems like an easy, reliable fix.
 	 * @type {PIXI.Container | undefined}
@@ -57,7 +57,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	/** @override */
 	static get layerOptions() {
-		return mergeObject(super.layerOptions, {
+		return foundry.utils.mergeObject(super.layerOptions, {
 			baseClass: InteractionLayer,
 			zIndex: 300
 		});
@@ -86,17 +86,17 @@ export class TerrainHeightLayer extends InteractionLayer {
 		} else {
 			this._eventListenerObj = new PIXI.Container();
 			this._eventListenerObj.eventMode = "static";
-			game.canvas.interface.addChild(this._eventListenerObj);
+			canvas.interface.addChild(this._eventListenerObj);
 
 			this._eventListenerObj.on("globalmousemove", this.#onGlobalMouseMove);
 
 			this._graphics = new TerrainHeightGraphics();
-			game.canvas.primary.addChild(this._graphics);
+			canvas.primary.addChild(this._graphics);
 
 			this._highlightGraphics = new GridHighlightGraphics();
-			game.canvas.interface.addChild(this._highlightGraphics);
+			canvas.interface.addChild(this._highlightGraphics);
 
-			this._heightMap = new HeightMap(game.canvas.scene);
+			this._heightMap = new HeightMap(canvas.scene);
 
 			await this._graphics.update(this._heightMap);
 
@@ -144,7 +144,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	async _onSceneUpdate(scene, data) {
 		// Do nothing if the updated scene is not the one the user is looking at
-		if (scene.id !== game.canvas.scene.id) return;
+		if (scene.id !== canvas.scene.id) return;
 
 		this._heightMap.reload();
 		await this._updateGraphics();
@@ -190,7 +190,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	#onGlobalMouseMove = event => {
 		const { x, y } = this.toLocal(event.data.global);
-		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
+		const { i: row, j: col } = canvas.grid.getOffset({ x, y });
 		this._hoveredCell$.value = { row, col };
 	};
 
@@ -227,8 +227,9 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * @param {string} [tool=undefined]
 	 */
 	async #useTool(x, y, tool = undefined) {
-		/** @type {[number, number]} */
-		const cell = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
+		/** @type {{ i: number, j: number }} */
+		const { i, j } = canvas.grid.getOffset({ x, y });
+		const cell = [i, j];
 
 		switch (tool ?? this._pendingTool) {
 			case tools.paint: {
@@ -379,15 +380,16 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * Converts a shape to drawings and/or walls.
 	 * @param {import("../geometry/height-map-shape.mjs").HeightMapShape} shape
 	 * @param {Object} [options]
-	 * @param {boolean} [options.toDrawings] Whether to convert the shape to drawings.
+	 * @param {boolean} [options.toDrawing] Whether to convert the shape to drawings.
+	 * @param {boolean} [options.toRegion] Whether to convert the shape to a new scene region.
 	 * @param {boolean} [options.toWalls] Whether to convert the shape to walls.
 	 * @param {boolean} [options.deleteAfter] Whether to delete the shape after the conversion.
 	 */
-	async _convertShape(shape, { toDrawings = false, toWalls = false, deleteAfter = false } = {}) {
+	async _convertShape(shape, { toDrawing = false, toRegion = false, toWalls = false, deleteAfter = false } = {}) {
 		const terrainData = getTerrainType(shape.terrainTypeId);
 		if (!terrainData) return;
 
-		if (toDrawings) {
+		if (toDrawing) {
 			const { x1, y1, w, h } = shape.polygon.boundingBox;
 			await canvas.scene.createEmbeddedDocuments("Drawing", [
 				{
@@ -439,6 +441,31 @@ export class TerrainHeightLayer extends InteractionLayer {
 					};
 				})
 			].filter(Boolean));
+		}
+
+		if (toRegion) {
+			await canvas.scene.createEmbeddedDocuments("Region", [
+				{
+					name: terrainData.name,
+					color: Color.from(terrainData.fillColor),
+					elevation: terrainData.usesHeight
+						? { top: shape.top, bottom: shape.bottom }
+						: { top: null, bottom: null },
+					shapes: [
+						{
+							type: "polygon",
+							hole: false,
+							points: shape.polygon.vertices.flatMap(v => [v.x, v.y])
+						},
+						...shape.holes.map(hole => ({
+							type: "polygon",
+							hole: true,
+							points: hole.vertices.flatMap(v => [v.x, v.y])
+						}))
+					],
+					visibility: CONST.REGION_VISIBILITY.ALWAYS
+				}
+			]);
 		}
 
 		if (toWalls) {

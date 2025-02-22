@@ -15,7 +15,7 @@ export class TerrainTypesConfig extends FormApplication {
 
 	/** @override */
 	static get defaultOptions() {
-		return mergeObject(super.defaultOptions, {
+		return foundry.utils.mergeObject(super.defaultOptions, {
 			title: game.i18n.localize("SETTINGS.TerrainTypes.Button"),
 			id: "tht_terrainTypesConfig",
 			template: `modules/${moduleName}/templates/terrain-types-config.hbs`,

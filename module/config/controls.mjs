@@ -40,7 +40,7 @@ export const sceneControls = {
  */
 export function registerSceneControls(controls) {
 	// Don't show the controls on gridless scenes as they are not supported
-	if (game.canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
+	if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
 
 	// Add a LOS ruler and toggle map button in the token controls
 	controls.find(grp => grp.name === "token").tools.push(
@@ -74,7 +74,7 @@ export function registerSceneControls(controls) {
 		icon: "fas fa-chart-simple",
 		layer: "terrainHeightLayer",
 		activeTool: tools.paint,
-		visible: game.user.can("UPDATE_SCENE"),
+		visible: game.user.isGM,
 		tools: [
 			{
 				name: tools.paint,

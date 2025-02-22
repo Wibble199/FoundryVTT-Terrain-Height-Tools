@@ -96,7 +96,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
 		join((rulerStartPoint) => {
-			this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
+			if (this.#lineStartIndicator) {
+				this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
+			}
 		}, lineOfSightRulerConfig$.p1$, sceneControls.activeControl$, sceneControls.activeTool$);
 	}
 
@@ -115,7 +117,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/** @override */
 	async _draw() {
-		if (game.canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
+		if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
 
 		this.hitArea = canvas.dimensions.rect;
 		this.zIndex = 900; // Above token layer, below control layers
@@ -339,11 +341,11 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// Otherwise, snap to nearest cell center OR cell corner (whichever is closer):
 
 		// Work out the center of the hovered cell and the points of the hex/square around the cell
-		const [row, col] = game.canvas.grid.grid.getGridPositionFromPixels(x, y);
+		const { i, j } = canvas.grid.getOffset({ x, y });
 
 		const snapPoints = [
-			getGridCenter(row, col),
-			...getGridCellPolygon(row, col)
+			getGridCenter(i, j),
+			...getGridCellPolygon(i, j)
 		];
 
 		// Of all these points, find the one closest to the mouse
