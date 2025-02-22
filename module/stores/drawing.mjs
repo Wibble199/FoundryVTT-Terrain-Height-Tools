@@ -26,7 +26,8 @@ export const eraseConfig$ = fromObject({
  * Config state for the conversion tool.
  */
 export const convertConfig$ = fromObject({
-	toDrawings: true,
+	toDrawing: true,
+	toRegion: false,
 	toWalls: false,
 	deleteAfter: true
 });

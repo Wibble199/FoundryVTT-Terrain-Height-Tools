@@ -380,15 +380,16 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * Converts a shape to drawings and/or walls.
 	 * @param {import("../geometry/height-map-shape.mjs").HeightMapShape} shape
 	 * @param {Object} [options]
-	 * @param {boolean} [options.toDrawings] Whether to convert the shape to drawings.
+	 * @param {boolean} [options.toDrawing] Whether to convert the shape to drawings.
+	 * @param {boolean} [options.toRegion] Whether to convert the shape to a new scene region.
 	 * @param {boolean} [options.toWalls] Whether to convert the shape to walls.
 	 * @param {boolean} [options.deleteAfter] Whether to delete the shape after the conversion.
 	 */
-	async _convertShape(shape, { toDrawings = false, toWalls = false, deleteAfter = false } = {}) {
+	async _convertShape(shape, { toDrawing = false, toRegion = false, toWalls = false, deleteAfter = false } = {}) {
 		const terrainData = getTerrainType(shape.terrainTypeId);
 		if (!terrainData) return;
 
-		if (toDrawings) {
+		if (toDrawing) {
 			const { x1, y1, w, h } = shape.polygon.boundingBox;
 			await canvas.scene.createEmbeddedDocuments("Drawing", [
 				{
@@ -440,6 +441,31 @@ export class TerrainHeightLayer extends InteractionLayer {
 					};
 				})
 			].filter(Boolean));
+		}
+
+		if (toRegion) {
+			await canvas.scene.createEmbeddedDocuments("Region", [
+				{
+					name: terrainData.name,
+					color: Color.from(terrainData.fillColor),
+					elevation: terrainData.usesHeight
+						? { top: shape.top, bottom: shape.bottom }
+						: { top: null, bottom: null },
+					shapes: [
+						{
+							type: "polygon",
+							hole: false,
+							points: shape.polygon.vertices.flatMap(v => [v.x, v.y])
+						},
+						...shape.holes.map(hole => ({
+							type: "polygon",
+							hole: true,
+							points: hole.vertices.flatMap(v => [v.x, v.y])
+						}))
+					],
+					visibility: CONST.REGION_VISIBILITY.ALWAYS
+				}
+			]);
 		}
 
 		if (toWalls) {
