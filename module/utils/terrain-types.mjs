@@ -36,7 +36,7 @@ import { alphaToHex } from "./misc-utils.mjs";
  */
 export function createDefaultTerrainType(id = undefined) {
 	return {
-		id: id ?? randomID(),
+		id: id ?? foundry.utils.randomID(),
 		name: "New Terrain Type",
 		usesHeight: true,
 		isSolid: true,

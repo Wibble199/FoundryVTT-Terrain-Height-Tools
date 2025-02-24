@@ -54,7 +54,7 @@ export class TerrainTypesConfig extends FormApplication {
 		const formData = super._getSubmitData(updateData);
 
 		/** @type {(TerrainType & { isZone: boolean; })[]} */
-		const terrainTypes = Object.entries(expandObject(formData))
+		const terrainTypes = Object.entries(foundry.utils.expandObject(formData))
 			.sort((a, b) => a[0] - b[0])
 			.map(([_, value]) => value);
 
@@ -135,7 +135,11 @@ export class TerrainTypesConfig extends FormApplication {
 		this.sync();
 		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
 		const existingTerrainType = this.object.find(t => t.id === terrainTypeId);
-		const newTerrainType = { ...existingTerrainType, id: randomID(), name: existingTerrainType.name + " (2)" };
+		const newTerrainType = {
+			...existingTerrainType,
+			id: foundry.utils.randomID(),
+			name: existingTerrainType.name + " (2)"
+		};
 		this.object.push(newTerrainType);
 		this._expandedTypes[newTerrainType.id] = true;
 		this.render();

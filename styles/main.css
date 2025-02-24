@@ -299,6 +299,10 @@ ul.terrain-type-palette li .terrain-type-name {
 	font-family: Consolas, Courier New, Courier, monaco, monospace;
 }
 
+#tht_terrainTypesConfig file-picker {
+	align-items: stretch;
+}
+
 
 /* --------------------------- */
 /* Terrain Types Import/Export */

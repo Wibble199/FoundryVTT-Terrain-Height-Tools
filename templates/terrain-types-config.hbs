@@ -50,7 +50,7 @@
 
 						<div class="form-group-stacked">
 							<label>{{localize "DRAWING.StrokeColor"}}</label>
-							{{colorPicker name=(concat idx ".lineColor") value=terrainType.lineColor}}
+							<color-picker name="{{idx}}.lineColor" value="{{terrainType.lineColor}}" />
 						</div>
 
 						<div class="form-group-stacked">
@@ -84,7 +84,7 @@
 
 						<div class="form-group-stacked">
 							<label>{{localize "DRAWING.FillColor"}}</label>
-							{{colorPicker name=(concat idx ".fillColor") value=terrainType.fillColor}}
+							<color-picker name="{{idx}}.fillColor" value="{{terrainType.fillColor}}" />
 						</div>
 
 						<div class="form-group-stacked">
@@ -97,8 +97,7 @@
 						<div class="form-group-stacked">
 							<label>{{localize "DRAWING.FillTexture"}}</label>
 							<div class="form-group">
-								{{filePicker target=(concat idx ".fillTexture") type="image"}}
-								<input class="image" type="text" name="{{idx}}.fillTexture" placeholder="path/image.png" value="{{terrainType.fillTexture}}"/>
+								<file-picker name="{{idx}}.fillTexture" type="image" value="{{terrainType.fillTexture}}"></file-picker>
 							</div>
 						</div>
 
@@ -153,7 +152,7 @@
 
 						<div class="form-group-stacked">
 							<label>{{localize "DRAWING.TextColor"}}</label>
-							{{colorPicker name=(concat idx ".textColor") value=terrainType.textColor}}
+							<color-picker name="{{idx}}.textColor" value="{{terrainType.textColor}}" />
 						</div>
 
 						<div class="form-group-stacked">
