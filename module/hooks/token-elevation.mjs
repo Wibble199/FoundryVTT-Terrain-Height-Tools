@@ -1,6 +1,6 @@
 import { moduleName, settings } from "../consts.mjs";
 import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
-import { toSceneUnits } from "../utils/grid-utils.mjs";
+import { getSpacesUnderToken, toSceneUnits } from "../utils/grid-utils.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 
 /**
@@ -61,16 +61,15 @@ export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) 
 function getHighestTerrainUnderToken(token, position) {
 	const hm = TerrainHeightLayer.current?._heightMap;
 
-	// We may not want to get the cells under the current position. In this case, we need to work out the offset between
-	// the token's actual position (which is what getOccupiedSpaces returns) and the desired position.
-	const offset = position
-		? { x: position.x - token.x, y: position.y - token.y }
-		: { x: 0, y: 0 };
+	// If a position has been provided, use that position. Otherwise, use the token's position.
+	const { x, y } = position ?? token;
+	const { width, height, hexagonalShape } = token.document;
+	const { type: gridType, size: gridSize } = canvas.grid;
 
 	let highest = 0;
 
-	for (const space of token.getOccupiedSpaces()) {
-		const { i, j } = canvas.grid.getOffset({ x: space.x + offset.x, y: space.y + offset.y });
+	for (const space of getSpacesUnderToken(x, y, width, height, gridType, gridSize, hexagonalShape)) {
+		const { i, j } = canvas.grid.getOffset(space);
 		const terrains = hm.get(i, j);
 		if (!(terrains?.length > 0)) continue; // no terrain at this cell
 

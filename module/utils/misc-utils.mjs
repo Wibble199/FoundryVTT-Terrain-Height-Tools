@@ -88,3 +88,24 @@ export class OrderedSet {
 		};
 	}
 }
+
+/**
+ * Wraps a function such that the return value of the function is cached based on the parameters passed to it.
+ * @template {(...args: any) => any} T
+ * @param {T} func Function to wrap.
+ * @param {(args: Parameters<T>) => string} keyFunc Optional function to generate cache key from the arguments. If not
+ * provided, defaults to all arguments joined by a "|".
+ * @returns {T}
+ */
+export function cacheReturn(func, keyFunc = undefined) {
+	const cache = new Map();
+	keyFunc ??= args => args.join("|");
+
+	return function(...args) {
+		const key = keyFunc(args);
+		if (cache.has(key)) return cache.get(key);
+		const result = func(...args);
+		cache.set(key, result);
+		return result;
+	}
+}
