@@ -27,12 +27,17 @@ export function registerSettings() {
 		}
 	});
 
+	// Note that during the v11 -> v12 migration, I made the mistake of getting this setting backwards, so when this
+	// value is TRUE that actually means that the terrain layer should be rendered BELOW the tiles.
+	// The UI labels have been corrected so that users have the expected behaviour, but the name of the setting has not
+	// been changed so that users do not have to re-do their settings.
+	// Will fix if there are ever any more breaking changes (such as a v13 port).
 	game.settings.register(moduleName, settings.terrainLayerAboveTilesDefault, {
 		name: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Name",
 		hint: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Hint",
 		scope: "world",
 		type: Boolean,
-		default: true,
+		default: false,
 		config: true,
 		onChange: () => {
 			if (canvas?.ready)
@@ -175,6 +180,11 @@ export function registerSettings() {
  * @param {jQuery} html
  */
 export function addAboveTilesToSceneConfig(sceneConfig, html) {
+	// Note that during the v11 -> v12 migration, I made the mistake of getting this value backwards, so when this
+	// value is TRUE that actually means that the terrain layer should be rendered BELOW the tiles.
+	// The UI labels have been corrected so that users have the expected behaviour, but the name of the flag has not
+	// been changed so that users do not have to re-do their settings.
+	// Will fix if there are ever any more breaking changes (such as a v13 port).
 	/** @type {boolean | null | undefined} */
 	const currentValue = sceneConfig.object.getFlag(moduleName, flags.terrainLayerAboveTiles);
 
@@ -186,10 +196,10 @@ export function addAboveTilesToSceneConfig(sceneConfig, html) {
 				<option value="null" ${currentValue === null || currentValue === undefined ? "selected" : ""}>
 					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.UseGlobal")}
 				</option>
-				<option value="true" ${currentValue === true ? "selected" : ""}>
+				<option value="false" ${currentValue === false ? "selected" : ""}>
 					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.AboveTiles")}
 				</option>
-				<option value="false" ${currentValue === false ? "selected" : ""}>
+				<option value="true" ${currentValue === true ? "selected" : ""}>
 					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.BelowTiles")}
 				</option>
 			</select>

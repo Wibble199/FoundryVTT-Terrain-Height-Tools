@@ -67,11 +67,16 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	get elevation() { return 0; }
 
 	get sortLayer() {
+		// Note that during the v11 -> v12 migration, I made the mistake of getting this setting backwards, so when this
+		// value is TRUE that actually means that the terrain layer should be rendered BELOW the tiles.
+		// The UI labels have been corrected so that users have the expected behaviour, but the name of the flags and
+		// settings have not been changed so that users do not have to re-do their config.
+		// Will fix if there are ever any more breaking changes (such as a v13 port).
 		/** @type {boolean} */
-		const renderAboveTiles = canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
+		const renderBelowTiles = canvas.scene?.getFlag(moduleName, flags.terrainLayerAboveTiles)
 			?? game.settings.get(moduleName, settings.terrainLayerAboveTilesDefault);
 
-		return renderAboveTiles ? 490 : 510;
+		return renderBelowTiles ? 490 : 510;
 	}
 
 	/**
