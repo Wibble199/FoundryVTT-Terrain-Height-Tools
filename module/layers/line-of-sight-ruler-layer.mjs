@@ -459,6 +459,8 @@ class LineOfSightRulerGroup extends PIXI.Container {
 		// Redraw individual rulers
 		const points = calculateRaysBetweenTokensOrPoints(config.a, config.b, config.ah, config.bh);
 
+		if (!points) return;
+
 		rulers[0].updateRuler(points.centre[0], points.centre[1], config.includeNoHeightTerrain ?? false, true);
 		if (nRulers === 3) {
 			rulers[1].updateRuler(points.left[0], points.left[1], config.includeNoHeightTerrain ?? false, false);

@@ -43,6 +43,10 @@ export function calculateRaysBetweenTokensOrPoints(a, b, token1RelativeHeight = 
 		return { left: [a, b], centre: [a, b], right: [a, b] };
 	}
 
+	// If the tokens are no longer present on the canvas, cannot get their position.
+	if (a instanceof Token && !a.parent) return null;
+	if (b instanceof Token && !b.parent) return null;
+
 	// Work out the vertices for each token
 	const aVertices = a instanceof Token ? getGridVerticesFromToken(a) : [a];
 	const bVertices = b instanceof Token ? getGridVerticesFromToken(b) : [b];
