@@ -15,6 +15,8 @@ import { alphaToHex } from "./misc-utils.mjs";
  * @property {number} lineOpacity
  * @property {number} lineDashSize
  * @property {number} lineGapSize
+ * @property {number} lineFadeDistance
+ * @property {number} lineFadeOpacity
  * @property {number} fillType
  * @property {string} fillColor
  * @property {number} fillOpacity
@@ -48,6 +50,8 @@ export function createDefaultTerrainType(id = undefined) {
 		lineOpacity: 0.8,
 		lineDashSize: 15,
 		lineGapSize: 10,
+		lineFadeDistance: 0,
+		lineFadeOpacity: 0.4,
 		fillType: CONST.DRAWING_FILL_TYPES.SOLID,
 		fillColor: "#FF0000",
 		fillOpacity: 0.2,

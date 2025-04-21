@@ -70,6 +70,24 @@
 								<input type="number" name="{{idx}}.lineGapSize" value="{{terrainType.lineGapSize}}" min="1" step="1">
 							</div>
 						</div>
+
+						<div class="flexrow">
+							<div class="form-group-stacked">
+								<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeDistance"}} <span class="hint">({{localize "Pixels"}})</span></label>
+								<div class="form-group">
+									{{rangePicker name=(concat idx ".lineFadeDistance") value=terrainType.lineFadeDistance min="0" max="1" step="0.05"}}
+								</div>
+							</div>
+						</div>
+
+						<div class="flexrow">
+							<div class="form-group-stacked">
+								<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeOpacity"}}</label>
+								<div class="form-group">
+									{{rangePicker name=(concat idx ".lineFadeOpacity") value=terrainType.lineFadeOpacity min="0" max="1" step="0.1"}}
+								</div>
+							</div>
+						</div>
 					</div>
 
 					<div class="vertical-separator"></div>
