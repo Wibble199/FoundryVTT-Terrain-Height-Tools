@@ -1,7 +1,7 @@
 import { cacheReturn } from "./misc-utils.mjs";
 
 /** The side length of a hexagon with a grid size of 1 (apothem of 0.5). */
-export const HEX_UNIT_SIDE_LENGTH = 1 / Math.sqrt(3);
+const HEX_UNIT_SIDE_LENGTH = 1 / Math.sqrt(3);
 
 /**
  * Returns a set of coordinates for the grid cell at the given position.

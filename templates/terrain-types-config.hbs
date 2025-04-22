@@ -56,7 +56,7 @@
 						<div class="form-group-stacked">
 							<label>{{localize "DRAWING.LineOpacity"}}</label>
 							<div class="form-group">
-								{{rangePicker name=(concat idx ".lineOpacity") value=terrainType.lineOpacity min="0" max="1" step="0.1"}}
+								{{rangePicker name=(concat idx ".lineOpacity") value=terrainType.lineOpacity min="0" max="1" step="0.05"}}
 							</div>
 						</div>
 
@@ -71,20 +71,27 @@
 							</div>
 						</div>
 
+						<hr/>
+
 						<div class="flexrow">
 							<div class="form-group-stacked">
-								<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeDistance"}} <span class="hint">({{localize "Pixels"}})</span></label>
+								<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeDistance"}} <span class="hint">(%)</span></label>
 								<div class="form-group">
-									{{rangePicker name=(concat idx ".lineFadeDistance") value=terrainType.lineFadeDistance min="0" max="1" step="0.05"}}
+									{{rangePicker name=(concat idx ".lineFadeDistance") value=terrainType.lineFadeDistance min="0" max="0.5" step="0.05"}}
 								</div>
 							</div>
+						</div>
+
+						<div class="form-group-stacked">
+							<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeColor"}}</label>
+							<color-picker name="{{idx}}.lineFadeColor" value="{{terrainType.lineFadeColor}}" />
 						</div>
 
 						<div class="flexrow">
 							<div class="form-group-stacked">
 								<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeOpacity"}}</label>
 								<div class="form-group">
-									{{rangePicker name=(concat idx ".lineFadeOpacity") value=terrainType.lineFadeOpacity min="0" max="1" step="0.1"}}
+									{{rangePicker name=(concat idx ".lineFadeOpacity") value=terrainType.lineFadeOpacity min="0" max="1" step="0.05"}}
 								</div>
 							</div>
 						</div>

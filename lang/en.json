@@ -96,6 +96,7 @@
 		"IsZone.Hint": "Whether the terrain is a zone. Zones do not have height or elevation.",
 		"LabelFormat.Name": "Label Format",
 		"LineDashSize": "Dash Size",
+		"LineFadeColor": "Fade Color",
 		"LineFadeDistance": "Fade Distance",
 		"LineFadeOpacity": "Fade Opacity",
 		"LineGapSize": "Gap Size",

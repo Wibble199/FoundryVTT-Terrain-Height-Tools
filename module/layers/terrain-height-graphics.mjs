@@ -1,7 +1,7 @@
 import { flags, lineTypes, moduleName, settings } from "../consts.mjs";
 import { HeightMap, LineSegment, Point, Polygon } from "../geometry/index.mjs";
 import { chunk } from '../utils/array-utils.mjs';
-import { HEX_UNIT_SIDE_LENGTH, toSceneUnits } from "../utils/grid-utils.mjs";
+import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { debug } from "../utils/log.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath, drawInnerFade } from "../utils/pixi-utils.mjs";
@@ -307,14 +307,10 @@ class TerrainShapeGraphics extends PIXI.Container {
 		const lineStyle = this.#getLineStyleFromTerrainType();
 
 		if (this.#terrainType.lineFadeDistance > 0 && this.#terrainType.lineFadeOpacity > 0) {
-			const baseDistance = canvas.grid.isHexagonal
-				? canvas.grid.size * HEX_UNIT_SIDE_LENGTH
-				: canvas.grid.size;
-
 			const fadeStyle = {
-				color: Color.from(this.#terrainType.lineColor ?? "#000000"),
+				color: Color.from(this.#terrainType.lineFadeColor ?? "#000000"),
 				alpha: this.#terrainType.lineFadeOpacity ?? 0,
-				distance: this.#terrainType.lineFadeDistance * baseDistance,
+				distance: this.#terrainType.lineFadeDistance * canvas.grid.size,
 				resolution: 20
 			};
 

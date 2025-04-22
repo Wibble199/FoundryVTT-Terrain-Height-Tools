@@ -1,8 +1,5 @@
 import { LineSegment } from "../geometry/line-segment.mjs";
 
-/** @type {Map<string, { x: number; y: number; }>} */
-const offsetCache = new Map();
-
 const gradientTextureResolution = 100;
 /** @type {PIXI.Texture | undefined} */
 let gradientTexture;
@@ -100,18 +97,9 @@ export function drawInnerFade(graphics, points, { color = 0x000000, alpha = 1, d
 		const p3 = thisEdge.isParallelTo(nextEdge) ? thisEdge.p2 : thisEdge.intersectsAt(nextEdge, { ignoreLength: true });
 		const p4 = thisEdge.isParallelTo(prevEdge) ? thisEdge.p1 : thisEdge.intersectsAt(prevEdge, { ignoreLength: true });
 
-
-		// TODO: TEMP DEBUG ------------------------------
-		/*color = Math.round(Math.random() * 0xFFFFFF);
-		graphics.lineStyle({ color, width: 1, alignment: 0 });
-		graphics.moveTo(thisEdge.p1.x, thisEdge.p1.y).lineTo(thisEdge.p2.x, thisEdge.p2.y);
-		graphics.lineStyle({ width: 0 });*/
-		// -----------------------------------------------
-
-
 		// Draw
 		const matrix = new PIXI.Matrix()
-			.scale(distance / (gradientTextureResolution - 1), 1) // add 1px buffer to the scale otherwise there is a tiny dark line on the inner edge
+			.scale(distance / gradientTextureResolution, 1)
 			.rotate(thisEdge.angle + Math.PI / 2)
 			.translate(p1.x, p1.y);
 
@@ -128,20 +116,23 @@ export function drawInnerFade(graphics, points, { color = 0x000000, alpha = 1, d
 function getGradientTexture() {
 	if (gradientTexture) return gradientTexture;
 
+	// Add a 10% buffer to help prevent a thin darker line from appearing on the inside at certain zoom levels
+	const textureBuffer = 1.1;
+
 	// https://pixijs.com/7.x/examples/textures/gradient-basic
 	// Create a canvas and render a texture graphic
 	const canvas = document.createElement("canvas");
-	canvas.width = gradientTextureResolution;
+	canvas.width = gradientTextureResolution * textureBuffer;
 	canvas.height = 1;
 
 	const canvasContext = canvas.getContext("2d");
 
-	const gradient = canvasContext.createLinearGradient(0, 0, gradientTextureResolution, 0);
-	gradient.addColorStop(0.01, `rgba(255, 255, 255, 1)`);
-	gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+	const gradient = canvasContext.createLinearGradient(0, 0, gradientTextureResolution * textureBuffer, 0);
+	gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
+	gradient.addColorStop(1 / textureBuffer, `rgba(255, 255, 255, 0)`);
 
 	canvasContext.fillStyle = gradient;
-	canvasContext.fillRect(0, 0, gradientTextureResolution, 1);
+	canvasContext.fillRect(0, 0, gradientTextureResolution * textureBuffer, 1);
 
 	gradientTexture = PIXI.Texture.from(canvas);
 	return gradientTexture;
