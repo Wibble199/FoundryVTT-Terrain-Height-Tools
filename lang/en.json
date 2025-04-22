@@ -9,6 +9,7 @@
 		"TerrainHeightToolsPaint": "Paint",
 		"TerrainHeightToolsPipette": "Copy Terrain Configuration",
 		"TerrainHeightToolsShapeConvert": "Convert Shapes to Drawings/Walls",
+		"TerrainHeightToolsTerrainVisibility": "Terrain Visibility",
 		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight"
 	},
 	"KEYBINDINGS": {
@@ -62,6 +63,7 @@
 		"ClearConfirmContent": "Permanently delete all terrain data from this scene?",
 		"ClearConfirmTitle": "Clear All Terrain",
 		"ClearSelectedToken": "Clear selected token",
+		"ClickToShowHideTerrain": "Click on a terrain type to show or hide it from this scene for all players.",
 		"ConvertSelectedShape": "Convert selected shape",
 		"ConvertToDrawing": "Convert to Drawing",
 		"ConvertToRegion": "Convert to Scene Region",

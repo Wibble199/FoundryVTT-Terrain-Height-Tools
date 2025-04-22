@@ -1,0 +1,9 @@
+<p class="flex0" style="margin-top: 0; font-size: 0.95em;">{{localize "TERRAINHEIGHTTOOLS.ClickToShowHideTerrain"}}</p>
+<ul class="terrain-type-palette">
+	{{#each availableTerrains}}
+		<li {{#if visible}}class="active"{{/if}} data-terrain-id="{{id}}">
+			<div class="preview-box" style="border-color: {{borderColor}}; background: {{backgroundColor}};"></div>
+			<label class="terrain-type-name">{{name}}</label>
+		</li>
+	{{/each}}
+</ul>

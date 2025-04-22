@@ -13,7 +13,8 @@ export const tools = /** @type {const} */ ({
 	eraseShape: "eraseShape",
 	lineOfSight: "terrainHeightToolsLineOfSight",
 	tokenLineOfSight: "terrainHeightToolsTokenLineOfSight",
-	convert: "convert"
+	convert: "convert",
+	terrainVisibility: "terrainVisibility"
 });
 
 /** @enum {keyof typeof settings} */
@@ -46,6 +47,7 @@ export const keybindings = /** @type {const} */ ({
 /** @enum {keyof typeof flags} */
 export const flags = /** @type {const} */ ({
 	heightData: "heightData",
+	invisibleTerrainTypes: "invisibleTerrainTypes",
 	terrainLayerAboveTiles: "terrainLayerAboveTiles"
 });
 

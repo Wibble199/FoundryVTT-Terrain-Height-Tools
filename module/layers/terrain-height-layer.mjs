@@ -1,5 +1,5 @@
 import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-dialog.mjs";
-import { moduleName, tools } from "../consts.mjs";
+import { flags, moduleName, tools } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { Signal } from "../utils/signal.mjs";
@@ -142,12 +142,18 @@ export class TerrainHeightLayer extends InteractionLayer {
 		this.#subscriptions = [];
 	}
 
-	async _onSceneUpdate(scene, data) {
+	async _onSceneUpdate(scene, delta) {
 		// Do nothing if the updated scene is not the one the user is looking at
 		if (scene.id !== canvas.scene.id) return;
 
-		this._heightMap.reload();
-		await this._updateGraphics();
+		// If only the terrain type visiblity settings have changed, just do a visibility update. Otherwise do a full
+		// redraw.
+		if (delta.flags?.[moduleName]?.[flags.invisibleTerrainTypes]) {
+			await this._graphics?._updateShapesVisibility();
+		} else {
+			this._heightMap.reload();
+			await this._updateGraphics();
+		}
 	}
 
 	// ---- //

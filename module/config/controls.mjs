@@ -2,6 +2,7 @@ import { LineOfSightRulerConfig } from '../applications/line-of-sight-ruler-conf
 import { ShapeConversionConifg } from "../applications/shape-conversion-config.mjs";
 import { TerrainErasePalette } from "../applications/terrain-erase-palette.mjs";
 import { TerrainPaintPalette } from "../applications/terrain-paint-palette.mjs";
+import { TerrainVisibilityConfig } from "../applications/terrain-visibility-config.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
@@ -29,6 +30,9 @@ export const sceneControls = {
 
 	/** @type {TokenLineOfSightConfig | undefined} */
 	tokenLineOfSightConfig: undefined,
+
+	/** @type {TerrainVisibilityConfig | undefined} */
+	terrainVisibilityConfig: undefined,
 
 	/** @type {ShapeConversionConifg | undefined} */
 	shapeConversionConfig: undefined
@@ -97,6 +101,11 @@ export function registerSceneControls(controls) {
 				icon: "fas fa-eye-dropper"
 			},
 			{
+				name: tools.terrainVisibility,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsTerrainVisibility"),
+				icon: "fas fa-eye-slash"
+			},
+			{
 				name: tools.convert,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsShapeConvert"),
 				icon: "fas fa-arrow-turn-right"
@@ -150,6 +159,12 @@ export function renderToolSpecificApplications(controls) {
 		controls.activeControl === "token" && controls.activeTool === tools.tokenLineOfSight,
 		sceneControls.tokenLineOfSightConfig,
 		() => sceneControls.tokenLineOfSightConfig = new TokenLineOfSightConfig());
+
+	// Show the visibility config if the visibility tool is selected
+	renderToolSpecificApplication(
+		controls.activeControl === moduleName && controls.activeTool === tools.terrainVisibility,
+		sceneControls.terrainVisibilityConfig,
+		() => sceneControls.terrainVisibilityConfig = new TerrainVisibilityConfig());
 
 	// Show the conversion config if the convert tool is selected
 	renderToolSpecificApplication(
