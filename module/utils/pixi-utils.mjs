@@ -1,5 +1,11 @@
+import { LineSegment } from "../geometry/line-segment.mjs";
+
 /** @type {Map<string, { x: number; y: number; }>} */
 const offsetCache = new Map();
+
+const gradientTextureResolution = 100;
+/** @type {PIXI.Texture | undefined} */
+let gradientTexture;
 
 /**
  * Draws a dotted path on the given graphics object, using the line style configured on the graphics object.
@@ -59,77 +65,84 @@ export function drawDashedPath(graphics, points, { closed = false, dashSize = 20
 }
 
 /**
- * Draws a line along the given (closed) path, and draws other lines inside the shape to mimic a fade out effect.
- * @param {PIXI.Graphics} graphics The graphics instance to draw the line to.
- * @param {({ x: number; y: number } | [number, number])[]} points The (x,y) points of the line to draw.
+ * Draws gradient fills along the inside of the given polygon to mimic an inner fade out effect.
+ * @param {PIXI.Graphics} graphics The graphics instance to draw the polygon to.
+ * @param {({ x: number; y: number } | [number, number])[]} points The (x,y) points of the polygon to draw.
  * @param {Object} [options={}]
  * @param {number} [options.color=0] The colour of the fade.
  * @param {number} [options.alpha=1] The starting alpha of the fade.
  * @param {number} [options.distance=15] How far the fade should be drawn.
- * @param {number} [options.resolution=10] How many sub-lines make up the fade. Higher = better visual, lower = faster.
- * @param {number} [options.alignment=0] Alignment of the sub-lines.
  */
-export function drawFadePath(graphics, points, { color = 0x000000, alpha = 1, distance = 15, resolution = 10, alignment = 0 } = {}) {
+export function drawInnerFade(graphics, points, { color = 0x000000, alpha = 1, distance = 15 } = {}) {
 	// If the line wouldn't be visible, do nothing
-	if (alpha === 0) return;
+	if (alpha === 0 || distance <= 0) return;
 
 	// Normalise points into objects
-	points = points.map(p => Array.isArray(p) ? { x: p[0], y: p[1] } : p);
+	const pointsN = points.map(p => Array.isArray(p) ? { x: p[0], y: p[1] } : p);
 
-	// Work out the angles between edges at each vertex.
-	const offsets = points.map((p2, i) => {
-		const p1 = points[(i - 1 + points.length) % points.length];
-		const p3 = points[(i + 1) % points.length];
-
-		const angleA = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-		const angleB = Math.atan2(p3.y - p2.y, p3.x - p2.x);
-
-		return getNormalisedVertexOffsetForAngle(angleA, angleB);
+	// Work out the edges of the inner polygon
+	const innerEdges = pointsN.map((p1, idx) => {
+		const p2 = pointsN[(idx + 1) % pointsN.length];
+		const innerEdge = new LineSegment(p1, p2).translatePerpendicular(distance);
+		return { p1, p2, innerEdge };
 	});
 
-	// Create a clone of the lineStyle where we can alter the alpha.
-	// Default alpha to 1. Override width depending on the side of the fade.
-	const lineStyle = { alpha, color, width: distance / resolution, alignment };
-	const alphaStep = alpha / resolution;
+	const texture = getGradientTexture(color, alpha);
 
-	for (let i = 0; i < resolution; i++) {
-		const d = i * distance / resolution;
+	// Work out the inner sub-polygons and draw them with a fill
+	for (let i = 0; i < innerEdges.length; i++) {
+		// p1 and p2 are just the points as defined on the outer polygon itself
+		const { p1, p2, innerEdge: thisEdge } = innerEdges[i];
+		const prevEdge = innerEdges[(i + innerEdges.length - 1) % innerEdges.length].innerEdge;
+		const nextEdge = innerEdges[(i + 1) % innerEdges.length].innerEdge;
 
-		graphics.lineStyle(lineStyle);
-		graphics.moveTo(points[0].x + offsets[0].x * d, points[0].y + offsets[0].y * d);
-		for (let j = 1; j < points.length; j++) {
-			graphics.lineTo(points[j].x + offsets[j].x * d, points[j].y + offsets[j].y * d);
-		}
-		graphics.lineTo(points[0].x + offsets[0].x * d, points[0].y + offsets[0].y * d);
+		// p3 and p4 are derived from their neighbors' inner edges to prevent overlap or gaps
+		const p3 = thisEdge.isParallelTo(nextEdge) ? thisEdge.p2 : thisEdge.intersectsAt(nextEdge, { ignoreLength: true });
+		const p4 = thisEdge.isParallelTo(prevEdge) ? thisEdge.p1 : thisEdge.intersectsAt(prevEdge, { ignoreLength: true });
 
-		lineStyle.alpha -= alphaStep;
+
+		// TODO: TEMP DEBUG ------------------------------
+		/*color = Math.round(Math.random() * 0xFFFFFF);
+		graphics.lineStyle({ color, width: 1, alignment: 0 });
+		graphics.moveTo(thisEdge.p1.x, thisEdge.p1.y).lineTo(thisEdge.p2.x, thisEdge.p2.y);
+		graphics.lineStyle({ width: 0 });*/
+		// -----------------------------------------------
+
+
+		// Draw
+		const matrix = new PIXI.Matrix()
+			.scale(distance / (gradientTextureResolution - 1), 1) // add 1px buffer to the scale otherwise there is a tiny dark line on the inner edge
+			.rotate(thisEdge.angle + Math.PI / 2)
+			.translate(p1.x, p1.y);
+
+		graphics.beginTextureFill({ texture, matrix, color, alpha });
+		graphics.moveTo(p1.x, p1.y).lineTo(p2.x, p2.y).lineTo(p3.x, p3.y).lineTo(p4.x, p4.y);
+		graphics.endFill();
 	}
 }
 
 /**
- * @param {number} angleA Angle of the first edge.
- * @param {number} angleB Angle of the second edge.
+ * Gets or creates a gradient texture.
+ * @returns {PIXI.Texture}
  */
-function getNormalisedVertexOffsetForAngle(angleA, angleB) {
-	const cacheKey = `${angleA}|${angleB}`;
+function getGradientTexture() {
+	if (gradientTexture) return gradientTexture;
 
-	let offset = offsetCache.get(cacheKey);
-	if (offset) return offset;
+	// https://pixijs.com/7.x/examples/textures/gradient-basic
+	// Create a canvas and render a texture graphic
+	const canvas = document.createElement("canvas");
+	canvas.width = gradientTextureResolution;
+	canvas.height = 1;
 
-	// Work out the angle between the two edges
-	let angleBetween = angleA - angleB + Math.PI;
-	while (angleBetween < 0) angleBetween += 2 * Math.PI;
-	while (angleBetween >= Math.PI * 2) angleBetween -= 2 * Math.PI;
+	const canvasContext = canvas.getContext("2d");
 
-	// Use trig to work out the distance we move along the angle between for a unit offset distance
-	const trueDistance = Math.sin(Math.PI - angleBetween / 2);
+	const gradient = canvasContext.createLinearGradient(0, 0, gradientTextureResolution, 0);
+	gradient.addColorStop(0.01, `rgba(255, 255, 255, 1)`);
+	gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
 
-	// Then, we can use that distance and angleBetween to work out the X and Y offset
-	const angleMid = angleA + Math.PI - (angleBetween / 2);
-	offset = {
-		x: trueDistance * Math.cos(angleMid),
-		y: trueDistance * Math.sin(angleMid)
-	};
-	offsetCache.set(cacheKey, offset);
-	return offset;
+	canvasContext.fillStyle = gradient;
+	canvasContext.fillRect(0, 0, gradientTextureResolution, 1);
+
+	gradientTexture = PIXI.Texture.from(canvas);
+	return gradientTexture;
 }

@@ -4,7 +4,7 @@ import { chunk } from '../utils/array-utils.mjs';
 import { HEX_UNIT_SIDE_LENGTH, toSceneUnits } from "../utils/grid-utils.mjs";
 import { debug } from "../utils/log.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
-import { drawDashedPath, drawFadePath } from "../utils/pixi-utils.mjs";
+import { drawDashedPath, drawInnerFade } from "../utils/pixi-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
 import { getTerrainTypeMap } from '../utils/terrain-types.mjs';
 import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
@@ -318,8 +318,8 @@ class TerrainShapeGraphics extends PIXI.Container {
 				resolution: 20
 			};
 
-			drawFadePath(this.#graphics, this.#shape.polygon.vertices, fadeStyle);
-			for (const hole of this.#shape.holes) drawFadePath(this.#graphics, hole.vertices, fadeStyle);
+			drawInnerFade(this.#graphics, this.#shape.polygon.vertices, fadeStyle);
+			for (const hole of this.#shape.holes) drawInnerFade(this.#graphics, hole.vertices, fadeStyle);
 		}
 
 		// After drawing the fill and fade, then do the lines
