@@ -4,7 +4,7 @@ import { chunk } from '../utils/array-utils.mjs';
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { debug } from "../utils/log.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
-import { drawDashedPath } from "../utils/pixi-utils.mjs";
+import { drawDashedPath, drawInnerFade } from "../utils/pixi-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
 import { getTerrainTypeMap } from '../utils/terrain-types.mjs';
 import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
@@ -235,7 +235,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 class TerrainShapeGraphics extends PIXI.Container {
 
-	/** @type {import("../geometry/height-map.mjs").HeightMapShape} */
+	/** @type {import("../geometry/height-map-shape.mjs").HeightMapShape} */
 	#shape;
 
  	/** @type {import("../utils/terrain-types.mjs").TerrainType} */
@@ -254,7 +254,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 	#textureMatrix;
 
 	/**
-	 * @param {import("../geometry/height-map.mjs").HeightMapShape} shape
+	 * @param {import("../geometry/height-map-shape.mjs").HeightMapShape} shape
 	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainType
 	 * @param {{ texture: PIXI.Texture; matrix: PIXI.Matrix; } | undefined} texture
 	*/
@@ -291,13 +291,9 @@ class TerrainShapeGraphics extends PIXI.Container {
 	}
 
 	#drawGraphics() {
-		// If the line style is dashed, don't draw the lines straight away, as the moveTo/lineTo used to draw the dashed
-		// line makes the holes not work properly.
-		// Instead, do the fill now, then the holes, THEN draw the dashed lines.
-		// If we're using solid or no lines, we don't need to worry about this.
-		this.#setGraphicsStyleFromTerrainType();
-		if (this.#terrainType.lineType === lineTypes.dashed) this.#graphics.lineStyle({ width: 0 });
-
+		// Draw the fill
+		this.#graphics.lineStyle({ width: 0 });
+		this.#setFillStyleFromTerrainType();
 		this.#drawPolygon(this.#shape.polygon);
 
 		for (const hole of this.#shape.holes) {
@@ -306,9 +302,25 @@ class TerrainShapeGraphics extends PIXI.Container {
 			this.#graphics.endHole();
 		}
 
-		// After drawing fill, then do the dashed lines
+		// After drawing the fill, then add the fade effect on top (if enabled)
+		this.#graphics.endFill();
+		const lineStyle = this.#getLineStyleFromTerrainType();
+
+		if (this.#terrainType.lineFadeDistance > 0 && this.#terrainType.lineFadeOpacity > 0) {
+			const fadeStyle = {
+				color: Color.from(this.#terrainType.lineFadeColor ?? "#000000"),
+				alpha: this.#terrainType.lineFadeOpacity ?? 0,
+				distance: this.#terrainType.lineFadeDistance * canvas.grid.size,
+				resolution: 20
+			};
+
+			drawInnerFade(this.#graphics, this.#shape.polygon.vertices, fadeStyle);
+			for (const hole of this.#shape.holes) drawInnerFade(this.#graphics, hole.vertices, fadeStyle);
+		}
+
+		// After drawing the fill and fade, then do the lines
+		this.#graphics.lineStyle(lineStyle);
 		if (this.#terrainType.lineType === lineTypes.dashed) {
-			this.#setGraphicsStyleFromTerrainType();
 			const dashedLineStyle = {
 				closed: true,
 				dashSize: this.#terrainType.lineDashSize ?? 15,
@@ -317,6 +329,10 @@ class TerrainShapeGraphics extends PIXI.Container {
 
 			drawDashedPath(this.#graphics, this.#shape.polygon.vertices, dashedLineStyle);
 			for (const hole of this.#shape.holes) drawDashedPath(this.#graphics, hole.vertices, dashedLineStyle);
+
+		} else {
+			this.#drawPolygon(this.#shape.polygon);
+			for (const hole of this.#shape.holes) this.#drawPolygon(hole);
 		}
 	}
 
@@ -332,7 +348,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 		this.#graphics.endFill();
 	}
 
-	#setGraphicsStyleFromTerrainType() {
+	#setFillStyleFromTerrainType() {
 		const color = Color.from(this.#terrainType.fillColor ?? "#000000");
 		if (this.#terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE)
 			this.#graphics.beginFill(0x000000, 0);
@@ -345,13 +361,15 @@ class TerrainShapeGraphics extends PIXI.Container {
 			});
 		else
 			this.#graphics.beginFill(color, this.#terrainType.fillOpacity ?? 0.4);
+	}
 
-		this.#graphics.lineStyle({
+	#getLineStyleFromTerrainType() {
+		return {
 			width: this.#terrainType.lineType === lineTypes.none ? 0 : this.#terrainType.lineWidth ?? 0,
 			color: Color.from(this.#terrainType.lineColor ?? "#000000"),
 			alpha: this.#terrainType.lineOpacity ?? 1,
 			alignment: 0
-		});
+		};
 	}
 
 	#createLabel() {

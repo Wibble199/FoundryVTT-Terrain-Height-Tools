@@ -48,6 +48,16 @@ export class LineSegment {
 		return this.p2.y - this.p1.y;
 	}
 
+	/** Unit length in the X direction (i.e. the difference in X this LineSegment would have if it had a length of 1) */
+	get ux() {
+		return this.dx / this.length;
+	}
+
+	/** Unit length in the Y direction (i.e. the difference in Y this LineSegment would have if it had a length of 1) */
+	get uy() {
+		return this.dy / this.length;
+	}
+
 	get slope() {
 		return this.p1.x !== this.p2.x
 			? this.dy / this.dx
@@ -176,9 +186,11 @@ export class LineSegment {
 	 * Returns undefined if the line segments do not intersect.
 	 * Parallel lines are never considered to intersect.
 	 * @param {LineSegment} other
+	 * @param {Object} [options]
+	 * @param {boolean} [options.ignoreLength=false] If true, treats both the lines as having infinite length.
 	 * @returns {{ x: number; y: number; t: number; u: number } | undefined}
 	 */
-	intersectsAt(other) {
+	intersectsAt(other, { ignoreLength = false } = {}) {
 		if (this.lengthSquared <= 0 || other.lengthSquared <= 0) return undefined;
 
 		const { x: x1, y: y1 } = this.p1;
@@ -197,13 +209,13 @@ export class LineSegment {
 		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 
 		// If the intersection point lies outside of either line, then there is no intersection
-		if (t < -Number.EPSILON || t > 1 + Number.EPSILON || u < -Number.EPSILON || u > 1 + Number.EPSILON) return undefined;
+		if (!ignoreLength && (t < -Number.EPSILON || t > 1 + Number.EPSILON || u < -Number.EPSILON || u > 1 + Number.EPSILON)) return undefined;
 
 		return {
 			x: x1 + t * (x2 - x1),
 			y: y1 + t * (y2 - y1),
-			t: Math.max(Math.min(t, 1), 0),
-			u: Math.max(Math.min(u, 1), 0)
+			t: ignoreLength ? t : Math.max(Math.min(t, 1), 0),
+			u: ignoreLength ? u : Math.max(Math.min(u, 1), 0)
 		};
 	}
 
@@ -269,5 +281,25 @@ export class LineSegment {
 
 	toString() {
 		return `LineSegment { (${this.p1.x}, ${this.p1.y}) -> (${this.p2.x}, ${this.p2.y}) }`;
+	}
+
+	/**
+	 * Creates a new LineSegment that is the result of this this LineSegment translated by the given distance in the
+	 * direction that is perpendicular to itself. The resulting LineSegment will be parallel to this segment.
+	 * @param {number} distance Distance to shift the line. Positive will result in the line being moved to the 'right'.
+	 */
+	translatePerpendicular(distance) {
+		// Get the unit vector of this segment
+		const { ux, uy } = this;
+
+		// Perpendicular (rotate the ux-uy vector)
+		const px = -uy;
+		const py = ux;
+
+		// Multiply the perpendicular vector by the distance to work out the offset
+		const offset = { x: px * distance, y: py * distance };
+
+		// Work out the translated points
+		return new LineSegment(this.p1.offset(offset), this.p2.offset(offset));
 	}
 }
