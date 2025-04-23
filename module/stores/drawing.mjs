@@ -29,5 +29,6 @@ export const convertConfig$ = fromObject({
 	toDrawing: true,
 	toRegion: false,
 	toWalls: false,
+	setWallHeightFlags: true,
 	deleteAfter: true
 });

@@ -16,6 +16,13 @@
 		<span>{{localize "TERRAINHEIGHTTOOLS.ConvertToWalls"}}</span>
 	</label>
 
+	{{#if isWallHeightEnabled}}
+	<label class="flexrow align-items-center" style="padding-left: 1rem">
+		<input type="checkbox" name="setWallHeightFlags">
+		<span>{{localize "TERRAINHEIGHTTOOLS.SetWallHeightFlags"}}</span>
+	</label>
+	{{/if}}
+
 	<label class="flexrow align-items-center">
 		<input type="checkbox" name="deleteAfter">
 		<span>{{localize "TERRAINHEIGHTTOOLS.DeleteAfterConversion"}}</span>

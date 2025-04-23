@@ -138,6 +138,7 @@
 		"SelectAShapeConvertHint": "There are multiple shapes at this location. Please select one to convert.",
 		"SelectAShapeEraseHint": "There are multiple shapes at this location. Please select one to erase.",
 		"SelectToken": "Select token",
+		"SetWallHeightFlags": "Set Wall Height",
 		"ShapeConversionConfigTitle": "Shape Conversion",
 		"ShapeConversionHint": "Click on a shape on the canvas to convert it.",
 		"MissingLibWrapperWarning": "Terrain Height Tools now requires the libWrapper module to work. Please ensure it is installed and enabled or you may encounter issues.",

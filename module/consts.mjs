@@ -4,6 +4,7 @@ export const socketName = `module.${moduleName}`;
 
 export const defaultGroupName = "default";
 
+export const wallHeightModuleName = "wall-height";
 
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({

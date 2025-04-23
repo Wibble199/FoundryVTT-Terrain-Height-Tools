@@ -1,4 +1,4 @@
-import { moduleName } from "../consts.mjs";
+import { moduleName, wallHeightModuleName } from "../consts.mjs";
 import { convertConfig$ } from "../stores/drawing.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
@@ -20,6 +20,13 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 		return []; // disable close
 	}
 
+	/** @override */
+	getData() {
+		return {
+			isWallHeightEnabled: game.modules.get(wallHeightModuleName)?.active ?? false
+		};
+	}
+
 	activateListeners(html) {
 		super.activateListeners(html);
 
@@ -28,11 +35,12 @@ export class ShapeConversionConifg extends withSubscriptions(Application) {
 				html.find("[name='toDrawing']").prop("checked", v.toDrawing);
 				html.find("[name='toRegion']").prop("checked", v.toRegion);
 				html.find("[name='toWalls']").prop("checked", v.toWalls);
+				html.find("[name='setWallHeightFlags']").prop("checked", v.setWallHeightFlags).prop("disabled", !v.toWalls);
 				html.find("[name='deleteAfter']").prop("checked", v.deleteAfter);
 			}, true)
 		];
 
-		html.find("[name='toDrawing'],[name='toRegion'],[name='toWalls'],[name='deleteAfter']").on("input", e => {
+		html.find("input").on("input", e => {
 			const { name, checked } = e.target;
 			convertConfig$.value = { [name]: checked };
 		});

@@ -1,5 +1,5 @@
 import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-dialog.mjs";
-import { flags, moduleName, tools } from "../consts.mjs";
+import { flags, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { Signal } from "../utils/signal.mjs";
@@ -389,9 +389,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * @param {boolean} [options.toDrawing] Whether to convert the shape to drawings.
 	 * @param {boolean} [options.toRegion] Whether to convert the shape to a new scene region.
 	 * @param {boolean} [options.toWalls] Whether to convert the shape to walls.
+	 * @param {boolean} [options.setWallHeightFlags] Whether to populate Wall Height module flags when converting to walls.
 	 * @param {boolean} [options.deleteAfter] Whether to delete the shape after the conversion.
 	 */
-	async _convertShape(shape, { toDrawing = false, toRegion = false, toWalls = false, deleteAfter = false } = {}) {
+	async _convertShape(shape, { toDrawing = false, toRegion = false, toWalls = false, setWallHeightFlags = true, deleteAfter = false } = {}) {
 		const terrainData = getTerrainType(shape.terrainTypeId);
 		if (!terrainData) return;
 
@@ -475,6 +476,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 		}
 
 		if (toWalls) {
+			const flags = setWallHeightFlags && game.modules.get(wallHeightModuleName)?.active
+				? { "wall-height": { top: shape.top, bottom: shape.bottom } }
+				: {};
+
 			await canvas.scene.createEmbeddedDocuments("Wall", [...shape.polygon.edges, ...shape.holes.flatMap(h => h.edges)]
 				.map(edge => ({
 					c: [
@@ -488,7 +493,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 					light: CONST.WALL_SENSE_TYPES.NORMAL,
 					move: CONST.WALL_SENSE_TYPES.NORMAL,
 					sight: CONST.WALL_SENSE_TYPES.NORMAL,
-					sound: CONST.WALL_SENSE_TYPES.NORMAL
+					sound: CONST.WALL_SENSE_TYPES.NORMAL,
+					flags
 				})));
 		}
 
