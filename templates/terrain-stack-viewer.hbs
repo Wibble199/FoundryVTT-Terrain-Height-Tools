@@ -1,7 +1,4 @@
-<div id="tht_terrainStackViewer" class="app">
-	<h3><i class="fas fa-chart-simple" style="margin-right: 6px;"></i> {{localize "TERRAINHEIGHTTOOLS.Terrain"}}</h3>
-	<hr/>
-
+<main style="display: contents;">
 	{{#if (and (not heightLayers.length) (not noHeightLayers.length))}}
 		<p style="text-align: center;">Hover terrain to show details</p>
 	{{/if}}
@@ -27,7 +24,7 @@
 					x="15%" y="{{add (multiply (add elevation height) ../proportionalModeScale -1) (multiply borderWidth ../proportionalBorderScale 0.5) 1}}"
 					width="80%" height="{{add (multiply height ../proportionalModeScale) (multiply borderWidth ../proportionalBorderScale -1) -2}}"
 					fill="{{backgroundColor}}" stroke="{{borderColor}}" stroke-width="{{multiply borderWidth ../proportionalBorderScale}}" />
-				<text
+				<text class="shape-label"
 					x="55%" y="{{multiply (add elevation (multiply height 0.5)) ../proportionalModeScale -1}}"
 					text-anchor="middle" dominant-baseline="middle"
 					fill="{{textColor}}">{{name}}</text>
@@ -51,4 +48,4 @@
 			<p class="terrain-layer-block-title">{{name}}</p>
 		</div>
 	{{/each}}
-</div>
+</main>

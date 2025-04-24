@@ -3,34 +3,54 @@ import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
 import { getCssColorsFor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 
-export class TerrainShapeChoiceDialog extends FormApplication {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+export class TerrainShapeChoiceDialog extends HandlebarsApplicationMixin(ApplicationV2) {
 
 	#terrainShapes;
 
 	/** @type {((index: number) => void) | undefined} */
-	#updateCallback;
+	#submitCallback;
 
 	/** @param {import("../geometry/height-map-shape.mjs").HeightMapShape[]} terrainShapes */
 	constructor(terrainShapes, options = {}) {
-		super({}, options);
+		super(options);
 		this.#terrainShapes = this.#calculateShapeRenderData(terrainShapes);
 	}
 
-	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.SelectAShape"),
-			template: `modules/${moduleName}/templates/terrain-shape-choice-dialog.hbs`,
-			classes: [...(super.defaultOptions.classes ?? []), "terrain-shape-choice-dialog"],
-			closeOnSubmit: false
-		});
-	}
+	static DEFAULT_OPTIONS = {
+		tag: "form",
+		window: {
+			title: "TERRAINHEIGHTTOOLS.SelectAShape",
+			contentClasses: ["terrain-shape-choice-dialog"]
+		},
+		form: {
+			closeOnSubmit: false,
+			handler: TerrainShapeChoiceDialog.#submitForm
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/terrain-shape-choice-dialog.hbs`
+		},
+		footer: {
+			template: "templates/generic/form-footer.hbs"
+		}
+	};
 
 	/** @override */
-	getData() {
+	async _prepareContext() {
 		return {
 			shapes: this.#terrainShapes,
-			options: this.options
+			options: this.options,
+			buttons: [
+				{
+					type: "submit",
+					label: this.options.submitLabel,
+					icon: this.options.submitIcon
+				}
+			]
 		};
 	}
 
@@ -63,12 +83,15 @@ export class TerrainShapeChoiceDialog extends FormApplication {
 			);
 	}
 
-	/** @override */
-	async _updateObject(_, formData) {
-		const selectedTerrainShapeIndex = +formData.selectedTerrainShapeIndex;
+	/**
+	 * @this {TerrainShapeChoiceDialog}
+	 * @param {FormDataExtended} formData
+	 */
+	static async #submitForm(_event, _form, formData) {
+		const selectedTerrainShapeIndex = +formData.object.selectedTerrainShapeIndex;
 		if (isNaN(selectedTerrainShapeIndex)) return;
 
-		this.#updateCallback?.(selectedTerrainShapeIndex);
+		this.#submitCallback?.(selectedTerrainShapeIndex);
 		await this.close({ submit: false, force: true });
 	}
 
@@ -77,13 +100,14 @@ export class TerrainShapeChoiceDialog extends FormApplication {
 	 * @param {Object} [options]
 	 * @param {string} [options.hint] Hint message to show.
 	 * @param {string} [options.submitLabel] Submit button label.
+	 * @param {string} [options.submitIcon] Submit button icon.
 	 * @returns {Promise<import("../geometry/height-map-shape.mjs").HeightMapShape>}
 	 */
 	static show(terrainShapes, options) {
 		return new Promise(resolve => {
 			const app = new TerrainShapeChoiceDialog(terrainShapes, options);
 			app.render(true);
-			app.#updateCallback = selectedIndex => resolve(app.#terrainShapes[selectedIndex].original);
+			app.#submitCallback = selectedIndex => resolve(app.#terrainShapes[selectedIndex].original);
 		});
 	}
 }

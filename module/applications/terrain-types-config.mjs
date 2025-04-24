@@ -4,6 +4,8 @@ import { error } from "../utils/log.mjs";
 import { createDefaultTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesPreset } from "./terrain-types-presets.mjs";
 
+const { DialogV2 } = foundry.applications.api;
+
 export class TerrainTypesConfig extends FormApplication {
 
 	constructor() {
@@ -170,55 +172,68 @@ export class TerrainTypesConfig extends FormApplication {
 
 	#showImportTerrainTypeSettingsDialog() {
 		this.sync();
-		new Dialog({
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ImportTerrainTypes"),
+		new DialogV2({
+			id: "tht_terrainTypesImport",
+			window: {
+				title: game.i18n.localize("TERRAINHEIGHTTOOLS.ImportTerrainTypes"),
+				icon: "fas fa-upload",
+				resizable: true
+			},
 			content: `<textarea placeholder="${game.i18n.localize("TERRAINHEIGHTTOOLS.ImportTextPlaceholder")}"></textarea>`,
-			buttons: {
-				importCombine: {
+			buttons: [
+				{
 					icon: "<i class='fas fa-upload'></i>",
 					label: game.i18n.localize("TERRAINHEIGHTTOOLS.ImportCombine"),
-					callback: html => {
-						if (!this._importTerrainTypeSettings(html.find("textarea").val(), false))
+					action: "importCombine",
+					callback: (_event, _target, element) => {
+						if (!this._importTerrainTypeSettings(element.querySelector("textarea").value, false))
 							throw new Error("Invalid data"); // Throw as an error to prevent dialog from closing
 					}
 				},
-				importReplace: {
+				{
 					icon: "<i class='fas fa-upload'></i>",
 					label: game.i18n.localize("TERRAINHEIGHTTOOLS.ImportReplace"),
-					callback: html => {
-						if (!this._importTerrainTypeSettings(html.find("textarea").val(), true))
+					action: "importReplace",
+					callback: (_event, _target, element) => {
+						if (!this._importTerrainTypeSettings(element.querySelector("textarea").value, true))
 							throw new Error("Invalid data"); // Throw as an error to prevent dialog from closing
 					}
 				},
-				close: {
+				{
 					icon: "<i class='fas fa-times'></i>",
-					label: game.i18n.localize("Close")
+					label: game.i18n.localize("Close"),
+					action: "close"
 				}
+			],
+			position: {
+				width: 720,
+				height: 350
 			}
-		}, {
-			id: "tht_terrainTypesImport",
-			width: 720,
-			height: 350,
-			resizable: true
 		}).render(true);
 	}
 
 	#showExportTerrainTypeSettingsDialog() {
 		this.sync();
-		new Dialog({
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ExportTerrainTypes"),
-			content: `<textarea readonly>${JSON.stringify(this.object)}</textarea>`,
-			buttons: {
-				close: {
-					icon: "<i class='fas fa-check'></i>",
-					label: game.i18n.localize("Close")
-				}
-			}
-		}, {
+		new DialogV2({
 			id: "tht_terrainTypesExport",
-			width: 720,
-			height: 350,
-			resizable: true
+			window: {
+				title: game.i18n.localize("TERRAINHEIGHTTOOLS.ExportTerrainTypes"),
+				icon: "fas fa-download",
+				contentClasses: ["terrain-height-tool-window"],
+				resizable: true
+			},
+			content: `<textarea readonly>${JSON.stringify(this.object)}</textarea>`,
+			buttons: [
+				{
+					icon: "<i class='fas fa-check'></i>",
+					label: game.i18n.localize("Close"),
+					action: "close"
+				}
+			],
+			position: {
+				width: 720,
+				height: 350
+			}
 		}).render(true);
 	}
 

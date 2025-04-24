@@ -1,47 +1,49 @@
-<ul class="terrain-type-palette">
-	{{#if (eq availableTerrains.length 0)}}
-		<li><a data-action="configure-terrain-types">{{localize "TERRAINHEIGHTTOOLS.NoTerrainTypesWarn"}}</a></li>
-	{{/if}}
-	{{#each availableTerrains}}
-		<li data-terrain-id="{{id}}">
-			<div class="preview-box" style="border-color: {{borderColor}}; background: {{backgroundColor}};"></div>
-			<label class="terrain-type-name">{{name}}</label>
-		</li>
-	{{/each}}
-</ul>
+<main style="display: contents;">
+	<ul class="terrain-type-palette">
+		{{#if (eq availableTerrains.length 0)}}
+			<li><a data-action="configureTerrainTypes">{{localize "TERRAINHEIGHTTOOLS.NoTerrainTypesWarn"}}</a></li>
+		{{/if}}
+		{{#each availableTerrains}}
+			<li data-terrain-id="{{id}}" data-action="selectTerrain">
+				<div class="preview-box" style="border-color: {{borderColor}}; background: {{backgroundColor}};"></div>
+				<label class="terrain-type-name">{{name}}</label>
+			</li>
+		{{/each}}
+	</ul>
 
-<hr/>
+	<hr/>
 
-<div class="flex0">
-	<div class="tht-form-group flexrow">
-		<label>
-			{{localize "TERRAINHEIGHTTOOLS.Height.Name"}}
-			<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.Height.Hint"}}"></i>
-		</label>
-		<input type="number" name="selectedHeight" min="1">
-	</div>
-	<div class="tht-form-group flexrow">
-		<label>
-			{{localize "TERRAINHEIGHTTOOLS.Elevation.Name"}}
-			<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.Elevation.Hint"}}"></i>
-		</label>
-		<input type="number" name="selectedElevation" min="0">
-	</div>
-
-	<div class="tht-form-group flexrow max-content-width margin-x-auto">
-		<div class="tht-radio-button" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Hint"}}">
-			<input id="tht_terrainPaintPalette_mode_totalReplace" type="radio" name="mode" value="totalReplace">
-			<label for="tht_terrainPaintPalette_mode_totalReplace">{{localize "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Name"}}</label>
+	<div class="flex0">
+		<div class="tht-form-group flexrow">
+			<label>
+				{{localize "TERRAINHEIGHTTOOLS.Height.Name"}}
+				<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.Height.Hint"}}"></i>
+			</label>
+			<input type="number" name="selectedHeight" min="1">
+		</div>
+		<div class="tht-form-group flexrow">
+			<label>
+				{{localize "TERRAINHEIGHTTOOLS.Elevation.Name"}}
+				<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.Elevation.Hint"}}"></i>
+			</label>
+			<input type="number" name="selectedElevation" min="0">
 		</div>
 
-		<div class="tht-radio-button" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.PaintMode.AdditiveMerge.Hint"}}">
-			<input id="tht_terrainPaintPalette_mode_additiveMerge" type="radio" name="mode" value="additiveMerge">
-			<label for="tht_terrainPaintPalette_mode_additiveMerge">{{localize "TERRAINHEIGHTTOOLS.PaintMode.AdditiveMerge.Name"}}</label>
-		</div>
+		<div class="tht-form-group flexrow max-content-width margin-x-auto">
+			<div class="tht-radio-button" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Hint"}}">
+				<input id="tht_terrainPaintPalette_mode_totalReplace" type="radio" name="mode" value="totalReplace">
+				<label for="tht_terrainPaintPalette_mode_totalReplace">{{localize "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Name"}}</label>
+			</div>
 
-		<div class="tht-radio-button" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.PaintMode.DestructiveMerge.Hint"}}">
-			<input id="tht_terrainPaintPalette_mode_destructiveMerge" type="radio" name="mode" value="destructiveMerge">
-			<label for="tht_terrainPaintPalette_mode_destructiveMerge">{{localize "TERRAINHEIGHTTOOLS.PaintMode.DestructiveMerge.Name"}}</label>
+			<div class="tht-radio-button" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.PaintMode.AdditiveMerge.Hint"}}">
+				<input id="tht_terrainPaintPalette_mode_additiveMerge" type="radio" name="mode" value="additiveMerge">
+				<label for="tht_terrainPaintPalette_mode_additiveMerge">{{localize "TERRAINHEIGHTTOOLS.PaintMode.AdditiveMerge.Name"}}</label>
+			</div>
+
+			<div class="tht-radio-button" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.PaintMode.DestructiveMerge.Hint"}}">
+				<input id="tht_terrainPaintPalette_mode_destructiveMerge" type="radio" name="mode" value="destructiveMerge">
+				<label for="tht_terrainPaintPalette_mode_destructiveMerge">{{localize "TERRAINHEIGHTTOOLS.PaintMode.DestructiveMerge.Name"}}</label>
+			</div>
 		</div>
 	</div>
-</div>
+</main>

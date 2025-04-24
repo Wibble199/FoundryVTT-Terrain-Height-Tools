@@ -3,49 +3,62 @@ import { includeNoHeightTerrain$, lineOfSightRulerConfig$ } from "../stores/line
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class LineOfSightRulerConfig extends withSubscriptions(Application) {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+export class LineOfSightRulerConfig extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+
+	static DEFAULT_OPTIONS = {
+		id: "tht_lineOfSightRulerConfig",
+		window: {
+			title: "TERRAINHEIGHTTOOLS.LineOfSightConfigTitle",
+			icon: "fas fa-ruler-combined",
+			contentClasses: ["terrain-height-tool-window"]
+		},
+		position: {
+			width: 200
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/line-of-sight-config.hbs`,
+		}
+	};
 
 	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.LineOfSightConfigTitle"),
-			id: "tht_lineOfSightRulerConfig",
-			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],
-			template: `modules/${moduleName}/templates/line-of-sight-config.hbs`,
-			width: 200,
-			height: 192
-		});
+	async _renderFrame(options) {
+		const frame = await super._renderFrame(options);
+		this.window.close.remove(); // Remove close button
+		return frame;
 	}
 
 	/** @override */
-	activateListeners(html) {
-		super.activateListeners(html);
-
+	_onRender() {
 		this._unsubscribeFromAll();
 
 		this._subscriptions = [
 			lineOfSightRulerConfig$.h1$.subscribe(v =>
-				html.find("[name='rulerStartHeight']").val(toSceneUnits(v)), true),
+				this.element.querySelector("[name='rulerStartHeight']").value = toSceneUnits(v), true),
 
 			lineOfSightRulerConfig$.h2$.subscribe(v =>
-				html.find("[name='rulerEndHeight']").val(v !== undefined ? toSceneUnits(v) : ''), true),
+				this.element.querySelector("[name='rulerEndHeight']").value = v !== undefined ? toSceneUnits(v) : '', true),
 
 			includeNoHeightTerrain$.subscribe(v =>
-				html.find("[name='rulerIncludeNoHeightTerrain']").prop("checked", v), true)
+				this.element.querySelector("[name='rulerIncludeNoHeightTerrain']").checked = v, true)
 		];
 
 		// Start height
-		html.find("[name='rulerStartHeight']").on("input", e => {
+		this.element.querySelector("[name='rulerStartHeight']").addEventListener("input", e => {
 			const val = fromSceneUnits(+e.target.value);
 			if (!isNaN(val) && lineOfSightRulerConfig$.h1$.value !== val)
 				lineOfSightRulerConfig$.h1$.value = val;
 		});
 
 		// End height
-		html.find("[name='rulerEndHeight']").on("input", e => {
+		this.element.querySelector("[name='rulerEndHeight']").addEventListener("input", e => {
 			// Allow leaving blank to inherit start height
 			if (e.target.value === '' && lineOfSightRulerConfig$.h2$.value !== undefined) {
-				lineOfSightRulerConfig$.h2.value = undefined;
+				lineOfSightRulerConfig$.h2$.value = undefined;
 				return;
 			}
 
@@ -55,7 +68,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(Application) {
 		});
 
 		// Include flat terrain
-		html.find("[name='rulerIncludeNoHeightTerrain']").on("change", e => {
+		this.element.querySelector("[name='rulerIncludeNoHeightTerrain']").addEventListener("change", e => {
 			includeNoHeightTerrain$.value = e.target.checked ?? false
 		});
 	}

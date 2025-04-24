@@ -6,7 +6,9 @@ import { moduleName } from "../consts.mjs";
  * @property {boolean} replace
  */
 
-export class TerrainTypesPreset extends Application {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+export class TerrainTypesPreset extends HandlebarsApplicationMixin(ApplicationV2) {
 
 	/** @type {(result: TerrainTypesPresetDialogResult) => void} */
 	#resolve;
@@ -30,45 +32,64 @@ export class TerrainTypesPreset extends Application {
 		this.#presets = fetch("modules/terrain-height-tools/presets/index.json").then(res => res.json());
 	}
 
+	static DEFAULT_OPTIONS = {
+		id: "tht_terrainTypesPresets",
+		window: {
+			title: "TERRAINHEIGHTTOOLS.ImportTerrainTypesPreset",
+			resizable: true
+		},
+		position: {
+			width: 720
+		},
+		form: {
+			closeOnSubmit: false
+		},
+		actions: {
+			importCombine: TerrainTypesPreset.#importCombine,
+			importReplace: TerrainTypesPreset.#importReplace
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/terrain-types-presets.hbs`
+		},
+		footer: {
+			template: "templates/generic/form-footer.hbs"
+		}
+	};
+
 	/** @returns {Promise<TerrainTypesPresetDialogResult>} */
 	static async show() {
 		return new Promise((resolve, reject) => new TerrainTypesPreset(resolve, reject).render(true));
 	}
 
 	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ImportTerrainTypesPreset"),
-			id: "tht_terrainTypesPresets",
-			template: `modules/${moduleName}/templates/terrain-types-presets.hbs`,
-			scrollY: [".preset-list"],
-			width: 720,
-			resizable: true,
-			closeOnSubmit: false
-		});
-	}
-
-	/** @override */
-	async getData(options = {}) {
-		const data = await super.getData(options);
-		data.presets = await this.#presets;
-		return data;
+	async _prepareContext() {
+		return {
+			presets: await this.#presets,
+			buttons: [
+				{
+					type: "button",
+					label: "Close",
+					icon: "fas fa-times",
+					action: "close"
+				}
+			]
+		};
 	}
 
 	// -------------- //
 	// Event handlers //
 	// -------------- //
-	/** @override */
-	activateListeners(html) {
-		html.find("[data-action='import-combine'],[data-action='import-replace']").on("click", this.#importPreset.bind(this));
-		html.find("[data-action='close']").on("click", () => this.close());
-	}
-
-	/** @param {MouseEvent} event */
-	async #importPreset(event) {
+	/**
+	 * @this {TerrainTypesPreset}
+	 * @param {HTMLElement} target
+	 * @param {boolean} replace Whether to replace (true) or combine (false).
+	 */
+	async #importPreset(target, replace) {
 		// Figure out which one was clicked
-		const index = +event.currentTarget.closest("[data-preset-index]").dataset.presetIndex;
-		const replace = event.currentTarget.dataset.action === "import-replace";
+		const index = +target.closest("[data-preset-index]").dataset.presetIndex;
 
 		// Fetch data from file
 		const filename = (await this.#presets)[index].file;
@@ -77,6 +98,22 @@ export class TerrainTypesPreset extends Application {
 
 		// Close window and return the preset data to the caller
 		this.close({ result: { data, replace } });
+	}
+
+	/**
+	 * @this {TerrainTypesPreset}
+	 * @param {HTMLElement} target
+	*/
+	static #importCombine(_event, target) {
+		return this.#importPreset(target, false);
+	}
+
+	/**
+	 * @this {TerrainTypesPreset}
+	 * @param {HTMLElement} target
+	*/
+	static #importReplace(_event, target) {
+		return this.#importPreset(target, true);
 	}
 
 	/**

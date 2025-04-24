@@ -2,29 +2,29 @@
 	<p style="margin-top: 0; font-size: 0.95em;">{{localize "TERRAINHEIGHTTOOLS.ShapeConversionHint"}}</p>
 
 	<label class="flexrow align-items-center">
-		<input type="checkbox" name="toDrawing">
+		<input type="checkbox" name="toDrawing" class="flex0">
 		<span>{{localize "TERRAINHEIGHTTOOLS.ConvertToDrawing"}}</span>
 	</label>
 
 	<label class="flexrow align-items-center">
-		<input type="checkbox" name="toRegion">
+		<input type="checkbox" name="toRegion" class="flex0">
 		<span>{{localize "TERRAINHEIGHTTOOLS.ConvertToRegion"}}</span>
 	</label>
 
 	<label class="flexrow align-items-center">
-		<input type="checkbox" name="toWalls">
+		<input type="checkbox" name="toWalls" class="flex0">
 		<span>{{localize "TERRAINHEIGHTTOOLS.ConvertToWalls"}}</span>
 	</label>
 
 	{{#if isWallHeightEnabled}}
 	<label class="flexrow align-items-center" style="padding-left: 1rem">
-		<input type="checkbox" name="setWallHeightFlags">
+		<input type="checkbox" name="setWallHeightFlags" class="flex0">
 		<span>{{localize "TERRAINHEIGHTTOOLS.SetWallHeightFlags"}}</span>
 	</label>
 	{{/if}}
 
 	<label class="flexrow align-items-center">
-		<input type="checkbox" name="deleteAfter">
+		<input type="checkbox" name="deleteAfter" class="flex0">
 		<span>{{localize "TERRAINHEIGHTTOOLS.DeleteAfterConversion"}}</span>
 	</label>
 </form>

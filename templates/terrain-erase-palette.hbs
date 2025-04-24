@@ -1,41 +1,43 @@
-<p class="flex0" style="margin-top: 0;">{{localize "TERRAINHEIGHTTOOLS.TerrainTypesToErase"}}</p>
-<ul class="terrain-type-palette">
-	{{#each availableTerrains}}
-		<li data-terrain-id="{{id}}">
-			<div class="preview-box" style="border-color: {{borderColor}}; background: {{backgroundColor}};"></div>
-			<label class="terrain-type-name">{{name}}</label>
-		</li>
-	{{/each}}
-</ul>
+<main style="display: contents;">
+	<p class="flex0" style="margin-top: 0;">{{localize "TERRAINHEIGHTTOOLS.TerrainTypesToErase"}}</p>
+	<ul class="terrain-type-palette">
+		{{#each availableTerrains}}
+			<li data-terrain-id="{{id}}" data-action="selectTerrain">
+				<div class="preview-box" style="border-color: {{borderColor}}; background: {{backgroundColor}};"></div>
+				<label class="terrain-type-name">{{name}}</label>
+			</li>
+		{{/each}}
+	</ul>
 
-<div class="flex0" style="text-align: right;">
-	<a data-action="selectAll" data-tooltip="{{localize "SelectAll"}}">
-		<i class="fas fa-circle"></i>
-	</a>
-	<a data-action="selectNone" data-tooltip="{{localize "SelectNone"}}">
-		<i class="far fa-circle"></i>
-	</a>
-	<a data-action="selectInverse" data-tooltip="{{localize "InvertSelection"}}">
-		<i class="fas fa-circle-half-stroke"></i>
-	</a>
-</div>
-
-<hr/>
-
-<div class="flex0">
-	<div class="tht-form-group flexrow">
-		<label class="flex1">
-			{{localize "TERRAINHEIGHTTOOLS.Top"}}
-			<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.EraseTop.Hint"}}"></i>
-		</label>
-		<input type="number" class="flex1 erase-range-input" name="top" min="0" placeholder="+ &#xf534;">
+	<div class="flex0" style="text-align: right;">
+		<a data-action="selectAll" data-tooltip="{{localize "SelectAll"}}">
+			<i class="fas fa-circle"></i>
+		</a>
+		<a data-action="selectNone" data-tooltip="{{localize "SelectNone"}}">
+			<i class="far fa-circle"></i>
+		</a>
+		<a data-action="selectInverse" data-tooltip="{{localize "InvertSelection"}}">
+			<i class="fas fa-circle-half-stroke"></i>
+		</a>
 	</div>
 
-	<div class="tht-form-group flexrow">
-		<label class="flex1">
-			{{localize "TERRAINHEIGHTTOOLS.Bottom"}}
-			<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.EraseBottom.Hint"}}"></i>
-		</label>
-		<input type="number" class="flex1 erase-range-input" name="bottom" min="0" placeholder="- &#xf534;">
+	<hr/>
+
+	<div class="flex0">
+		<div class="tht-form-group flexrow">
+			<label class="flex1">
+				{{localize "TERRAINHEIGHTTOOLS.Top"}}
+				<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.EraseTop.Hint"}}"></i>
+			</label>
+			<input type="number" class="flex1 erase-range-input" name="top" min="0" placeholder="+ &#xf534;">
+		</div>
+
+		<div class="tht-form-group flexrow">
+			<label class="flex1">
+				{{localize "TERRAINHEIGHTTOOLS.Bottom"}}
+				<i class="fa fa-question-circle tht-form-group-hint" data-tooltip="{{localize "TERRAINHEIGHTTOOLS.EraseBottom.Hint"}}"></i>
+			</label>
+			<input type="number" class="flex1 erase-range-input" name="bottom" min="0" placeholder="- &#xf534;">
+		</div>
 	</div>
-</div>
+</main>

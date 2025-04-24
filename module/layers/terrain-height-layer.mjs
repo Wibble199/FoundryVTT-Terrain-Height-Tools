@@ -252,7 +252,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 				const shape = await this.#getSingleShape(...cell, {
 					hint: "TERRAINHEIGHTTOOLS.SelectAShapeCopyHint",
-					submitLabel: "TERRAINHEIGHTTOOLS.CopySelectedShapeConfiguration"
+					submitLabel: "TERRAINHEIGHTTOOLS.CopySelectedShapeConfiguration",
+					submitIcon: "fas fa-eye-dropper"
 				});
 				if (!shape) return;
 
@@ -283,7 +284,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 				const shape = await this.#getSingleShape(...cell, {
 					hint: "TERRAINHEIGHTTOOLS.SelectAShapeEraseHint",
-					submitLabel: "TERRAINHEIGHTTOOLS.EraseSelectedShape"
+					submitLabel: "TERRAINHEIGHTTOOLS.EraseSelectedShape",
+					submitIcon: "fas fa-eraser"
 				});
 				if (!shape) return;
 
@@ -297,7 +299,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 				const shape = await this.#getSingleShape(...cell, {
 					hint: "TERRAINHEIGHTTOOLS.SelectAShapeConvertHint",
-					submitLabel: "TERRAINHEIGHTTOOLS.ConvertSelectedShape"
+					submitLabel: "TERRAINHEIGHTTOOLS.ConvertSelectedShape",
+					submitIcon: "fas fa-arrow-turn-right"
 				});
 				if (!shape) return;
 

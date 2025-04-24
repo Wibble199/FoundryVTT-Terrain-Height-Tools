@@ -3,29 +3,42 @@ import { fromHook } from "../utils/signal.mjs";
 import { getCssColorsFor, getInvisibleSceneTerrainTypes, getTerrainTypes, setSceneTerrainTypeVisible } from '../utils/terrain-types.mjs';
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class TerrainVisibilityConfig extends withSubscriptions(Application) {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.PaletteTitle"),
-			id: "tht_terrainVisibilityToggle",
-			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],
-			template: `modules/${moduleName}/templates/terrain-visibility-config.hbs`,
-			scrollY: ["ul"],
-			width: 220,
-			height: 351,
+export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+
+	static DEFAULT_OPTIONS = {
+		id: "tht_terrainVisibilityToggle",
+		window: {
+			title: "TERRAINHEIGHTTOOLS.PaletteTitle",
+			icon: "fas fa-eye-slash",
+			contentClasses: ["terrain-height-tool-window"],
 			resizable: true
-		});
+		},
+		position: {
+			width: 220,
+			height: 362
+		},
+		actions: {
+			toggleTerrainVisible: TerrainVisibilityConfig.#toggleTerrainVisible
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/terrain-visibility-config.hbs`
+		}
+	};
+
+	/** @override */
+	async _renderFrame(options) {
+		const frame = await super._renderFrame(options);
+		this.window.close.remove(); // Remove close button
+		return frame;
 	}
 
 	/** @override */
-	_getHeaderButtons() {
-		return []; // disable close
-	}
-
-	/** @override */
-	getData() {
+	async _prepareContext() {
 		const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
 		return {
 			availableTerrains: getTerrainTypes().map(t => ({
@@ -38,27 +51,26 @@ export class TerrainVisibilityConfig extends withSubscriptions(Application) {
 	}
 
 	/** @override */
-	activateListeners(html) {
-		super.activateListeners(html);
-
+	_onRender() {
 		this._unsubscribeFromAll();
 		this._subscriptions = [
 			fromHook("updateScene", scene => scene.active).subscribe(() => {
 				const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
-				html.find("[data-terrain-id]").each((_, /** @type {HTMLElement} */ el) => {
+				this.element.querySelectorAll("[data-terrain-id]").forEach(el => {
 					const isVisible = !invisibleTerrainTypes.has(el.dataset.terrainId);
 					el.classList.toggle("active", isVisible);
 				});
 			})
 		];
-
-		html.find("[data-terrain-id]").on("click", this.#onTerrainClick.bind(this));
 	}
 
-	/** @param {MouseEvent} event */
-	async #onTerrainClick(event) {
-		const { terrainId } = event.currentTarget.dataset;
-		event.currentTarget.classList.toggle("active");
+	/**
+	 * @this {TerrainVisibilityConfig}
+	 * @param {HTMLElement} target
+	 */
+	static async #toggleTerrainVisible(_event, target) {
+		const { terrainId } = target.dataset;
+		target.classList.toggle("active");
 		await setSceneTerrainTypeVisible(canvas.scene, terrainId);
 	}
 }

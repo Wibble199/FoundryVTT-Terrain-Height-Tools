@@ -114,11 +114,15 @@ export function registerSceneControls(controls) {
 				name: "clear",
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsClear"),
 				icon: "fas fa-trash",
-				onClick: () => Dialog.confirm({
-					title: game.i18n.localize("TERRAINHEIGHTTOOLS.ClearConfirmTitle"),
-					content: `<p>${game.i18n.format("TERRAINHEIGHTTOOLS.ClearConfirmContent")}</p>`,
-					yes: () => TerrainHeightLayer.current?.clear()
-				}),
+				onClick: async () => {
+					const shouldDelete = await foundry.applications.api.DialogV2.confirm({
+						window: { title: "TERRAINHEIGHTTOOLS.ClearConfirmTitle" },
+						content: `<p>${game.i18n.format("TERRAINHEIGHTTOOLS.ClearConfirmContent")}</p>`,
+						rejectClose: false
+					});
+
+					if (shouldDelete) TerrainHeightLayer.current?.clear();
+				},
 				button: true
 			}
 		]
@@ -190,10 +194,10 @@ function renderToolSpecificApplication(condition, application, factory) {
 
 		// Only position it once so that if the user moves it, we keep it in the same place
 		Hooks.once(`render${application.constructor.name}`, () => {
-			const { left } = $('#ui-right').position();
+			const left = ui.sidebar?.element[0].getBoundingClientRect()?.left;
 			application.setPosition({
 				top: 5,
-				left: left - application.constructor.defaultOptions.width - 15
+				left: left - application.constructor.DEFAULT_OPTIONS.position.width - 7
 			});
 		});
 

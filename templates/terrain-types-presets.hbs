@@ -1,35 +1,30 @@
-<p class="flex0">{{localize "TERRAINHEIGHTTOOLS.ImportTerrainTypesPresetHint"}}</p>
+<main style="display: contents">
+	<p class="flex0">{{localize "TERRAINHEIGHTTOOLS.ImportTerrainTypesPresetHint"}}</p>
 
-<ul class="preset-list">
-	{{#each presets as |preset idx|}}
-		<li class="flexcolumn" {{#if preset.image}}style="background-image:url('modules/terrain-height-tools/presets/{{preset.image}}')"{{/if}} data-preset-index="{{idx}}">
-			<div class="preset-header">
-				<p>
-					<span class="preset-name">{{preset.name}}</span>
-					<span class="preset-author">by {{preset.submittedBy}}</span>
-				</p>
-				<p class="preset-description">{{preset.description}}</p>
-			</div>
+	<ul class="preset-list">
+		{{#each presets as |preset idx|}}
+			<li class="flexcolumn" {{#if preset.image}}style="background-image:url('modules/terrain-height-tools/presets/{{preset.image}}')"{{/if}} data-preset-index="{{idx}}">
+				<div class="preset-header">
+					<p style="margin: 0;">
+						<span class="preset-name">{{preset.name}}</span>
+						<span class="preset-author">by {{preset.submittedBy}}</span>
+					</p>
+					<p class="preset-description" style="margin: 0;">{{preset.description}}</p>
+				</div>
 
-			<div style="flex-grow:1">&nbsp;</div> <!-- Spacer -->
+				<div style="flex-grow:1">&nbsp;</div> <!-- Spacer -->
 
-			<div class="preset-import-buttons">
-				<button data-action="import-combine">
-					<i class='fas fa-upload'></i>
-					{{localize "TERRAINHEIGHTTOOLS.ImportCombine"}}
-				</button>
-				<button data-action="import-replace">
-					<i class='fas fa-upload'></i>
-					{{localize "TERRAINHEIGHTTOOLS.ImportReplace"}}
-				</button>
-			</div>
-		</li>
-	{{/each}}
-</ul>
-
-<div class="flexrow flex0">
-	<button type="button" data-action="close">
-		<i class="fas fa-times"></i>
-		{{localize "Close"}}
-	</button>
-</div>
+				<div class="preset-import-buttons">
+					<button data-action="importCombine">
+						<i class='fas fa-upload'></i>
+						{{localize "TERRAINHEIGHTTOOLS.ImportCombine"}}
+					</button>
+					<button data-action="importReplace">
+						<i class='fas fa-upload'></i>
+						{{localize "TERRAINHEIGHTTOOLS.ImportReplace"}}
+					</button>
+				</div>
+			</li>
+		{{/each}}
+	</ul>
+</main>

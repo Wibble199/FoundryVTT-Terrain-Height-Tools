@@ -10,7 +10,9 @@ const proportionalModeScale = 28;
 // How many pixels a 1-width border should be shown as in the SVG.
 const proportionalModeBorderScale = 0.5;
 
-export class TerrainStackViewer extends Application {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+export class TerrainStackViewer extends HandlebarsApplicationMixin(ApplicationV2) {
 
 	#visible = false;
 
@@ -34,7 +36,7 @@ export class TerrainStackViewer extends Application {
 					activeControl === moduleName ||
 					(terrain.length > 0 && activeControl === "token" && game.settings.get(moduleName, settings.showTerrainStackViewerOnTokenLayer));
 
-				this._element?.css({ display: this.#visible ? "block" : "none" });
+				this.#updateVisibility();
 
 				// when first turning visible, do a re-render, otherwise pressing the key while hoving a cell won't
 				// immediately show that cell's terrain data
@@ -51,34 +53,48 @@ export class TerrainStackViewer extends Application {
 		Hooks.on("canvasTearDown", () => this._terrain$.value = []);
 	}
 
+	static DEFAULT_OPTIONS = {
+		id: "tht_terrainStackViewer",
+		window: {
+			title: "TERRAINHEIGHTTOOLS.Terrain",
+			icon: "fas fa-chart-simple",
+			contentClasses: ["terrain-height-tool-window"],
+			minimizable: false,
+			positioned: false
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/terrain-stack-viewer.hbs`
+		}
+	};
+
 	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			id: "tht_terrainStackViewer",
-			template: `modules/${moduleName}/templates/terrain-stack-viewer.hbs`,
-			popOut: false
-		});
+	_insertElement(element) {
+		const existing = document.getElementById(element.id);
+		if (existing) existing.replaceWith(element);
+		else document.getElementById("ui-bottom").prepend(element);
 	}
 
 	/** @override */
-	get element() {
-		if (this._element) return this._element;
-
-		// If the element has not yet been created, add it to the UI in the desired place
-		const el = $("<div></div>");
-		$("#ui-bottom").prepend(el);
-		return el;
+	async _renderFrame(options) {
+		const frame = await super._renderFrame(options);
+		this.window.close.remove(); // Remove close button
+		return frame;
 	}
 
 	/** @override */
-	async _render(force, options) {
-		if (force || this.#visible)
-			await super._render(force, options);
-		this._element?.css({ display: this.#visible ? "block" : "none" })
+	_onRender() {
+		this.#updateVisibility();
+	}
+
+	#updateVisibility() {
+		this.element.style.display = this.#visible ? "block" : "none";
 	}
 
 	/** @override */
-	getData() {
+	async _prepareContext() {
 		const terrainTypes = getTerrainTypeMap();
 
 		const terrain = this._terrain$.value

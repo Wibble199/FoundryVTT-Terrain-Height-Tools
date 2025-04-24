@@ -2,47 +2,61 @@ import { moduleName, wallHeightModuleName } from "../consts.mjs";
 import { convertConfig$ } from "../stores/drawing.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class ShapeConversionConifg extends withSubscriptions(Application) {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.ShapeConversionConfigTitle"),
-			id: "tht_shapeConversionConfig",
-			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],
-			template: `modules/${moduleName}/templates/shape-conversion-config.hbs`,
+export class ShapeConversionConifg extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+
+	static DEFAULT_OPTIONS = {
+		id: "tht_shapeConversionConfig",
+		window: {
+			title: "TERRAINHEIGHTTOOLS.ShapeConversionConfigTitle",
+			icon: "fas fa-arrow-turn-right",
+			contentClasses: ["terrain-height-tool-window"]
+		},
+		position: {
 			width: 200
-		});
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/shape-conversion-config.hbs`
+		}
+	};
+
+	/** @override */
+	async _renderFrame(options) {
+		const frame = await super._renderFrame(options);
+		this.window.close.remove(); // Remove close button
+		return frame;
 	}
 
 	/** @override */
-	_getHeaderButtons() {
-		return []; // disable close
-	}
-
-	/** @override */
-	getData() {
+	async _prepareContext() {
 		return {
 			isWallHeightEnabled: game.modules.get(wallHeightModuleName)?.active ?? false
 		};
 	}
 
-	activateListeners(html) {
-		super.activateListeners(html);
-
+	/** @override */
+	_onRender() {
+		this._unsubscribeFromAll();
 		this._subscriptions = [
 			convertConfig$.subscribe(v => {
-				html.find("[name='toDrawing']").prop("checked", v.toDrawing);
-				html.find("[name='toRegion']").prop("checked", v.toRegion);
-				html.find("[name='toWalls']").prop("checked", v.toWalls);
-				html.find("[name='setWallHeightFlags']").prop("checked", v.setWallHeightFlags).prop("disabled", !v.toWalls);
-				html.find("[name='deleteAfter']").prop("checked", v.deleteAfter);
+				this.element.querySelector("[name='toDrawing']").checked = v.toDrawing;
+				this.element.querySelector("[name='toRegion']").checked = v.toRegion;
+				this.element.querySelector("[name='toWalls']").checked = v.toWalls;
+				this.element.querySelector("[name='deleteAfter']").checked = v.deleteAfter;
+
+				const setWallHeightFlags = this.element.querySelector("[name='setWallHeightFlags']")
+				setWallHeightFlags.checked = v.setWallHeightFlags;
+				setWallHeightFlags.disabled = !v.toWalls;
 			}, true)
 		];
 
-		html.find("input").on("input", e => {
+		this.element.querySelectorAll("input").forEach(el => el.addEventListener("input", e => {
 			const { name, checked } = e.target;
 			convertConfig$.value = { [name]: checked };
-		});
+		}));
 	}
 }

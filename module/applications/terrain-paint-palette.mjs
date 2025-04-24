@@ -5,36 +5,53 @@ import { getCssColorsFor, getTerrainType, getTerrainTypes } from '../utils/terra
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
-export class TerrainPaintPalette extends withSubscriptions(Application) {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("TERRAINHEIGHTTOOLS.PaletteTitle"),
-			id: "tht_terrainPaintPalette",
-			classes: [...(super.defaultOptions.classes ?? []), "terrain-height-tool-window"],
-			template: `modules/${moduleName}/templates/terrain-paint-palette.hbs`,
-			scrollY: ["ul"],
+export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+
+	static DEFAULT_OPTIONS = {
+		id: "tht_terrainPaintPalette",
+		window: {
+			title: "TERRAINHEIGHTTOOLS.PaletteTitle",
+			icon: "fas fa-paintbrush",
+			contentClasses: ["terrain-height-tool-window"],
+			resizable: true,
+			minimizable: false
+		},
+		position: {
 			width: 220,
-			height: 358,
-			resizable: true
-		});
+			height: 378,
+		},
+		actions: {
+			configureTerrainTypes: TerrainPaintPalette.#configureTerrainTypes,
+			selectTerrain: TerrainPaintPalette.#selectTerrain
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/terrain-paint-palette.hbs`,
+		}
+	};
+
+	/** @override */
+	async _renderFrame(options) {
+		const frame = await super._renderFrame(options);
+
+		// Remove close button
+		this.window.close.remove();
+
+		// Add configure terrain types button
+		const configureButton = document.createElement("button");
+		configureButton.classList.add("header-control", "fas", "fa-cog");
+		configureButton.dataset.action = "configureTerrainTypes";
+		this.window.header.append(configureButton);
+
+		return frame;
 	}
 
 	/** @override */
-	_getHeaderButtons() {
-		return [
-			{
-				label: "",
-				icon: "fas fa-cog",
-				class: "configure",
-				onclick: () => this.#configureTerrainTypes()
-			}
-		];
-	}
-
-	/** @override */
-	getData() {
+	async _prepareContext() {
 		return {
 			availableTerrains: getTerrainTypes().map(t => ({
 				id: t.id,
@@ -46,70 +63,54 @@ export class TerrainPaintPalette extends withSubscriptions(Application) {
 		};
 	}
 
-	/** @param {string} terrainId */
-	#isHeightEnabledFor(terrainId) {
-		return getTerrainType(terrainId).usesHeight;
-	}
-
 	/** @override */
-	activateListeners(html) {
-		super.activateListeners(html);
-
+	_onRender() {
 		this._unsubscribeFromAll();
 		this._subscriptions = [
 			paintingConfig$.terrainTypeId$.subscribe(terrainTypeId => {
 				// Highlight the selected terrain type
-				html.find("[data-terrain-id].active").removeClass("active");
-				html.find(`[data-terrain-id='${terrainTypeId}']`).addClass("active");
+				this.element.querySelectorAll("[data-terrain-id].active").forEach(el => el.classList.remove("active"));
+				this.element.querySelector(`[data-terrain-id='${terrainTypeId}']`)?.classList.add("active");
 
 				// Enable/disable inputs based on whether this terrain type uses height
 				const usesHeight = getTerrainType(terrainTypeId)?.usesHeight ?? false;
-				html.find("[name='selectedHeight'],[name='selectedElevation']").prop("disabled", !usesHeight);
+				this.element.querySelectorAll("[name='selectedHeight'],[name='selectedElevation']").forEach(el => el.disabled = !usesHeight);
 			}, true),
 
 			// Update height input
 			paintingConfig$.height$.subscribe(height =>
-				html.find("[name='selectedHeight']").val(toSceneUnits(height)), true),
+				this.element.querySelector("[name='selectedHeight']").value = toSceneUnits(height), true),
 
 			// Update elevation input
 			paintingConfig$.elevation$.subscribe(elevation =>
-				html.find("[name='selectedElevation']").val(toSceneUnits(elevation)), true),
+				this.element.querySelector("[name='selectedElevation']").value = toSceneUnits(elevation), true),
 
 			// Update mode select
 			paintingConfig$.mode$.subscribe(mode =>
-				html.find(`[name='mode'][value='${mode}']`).prop("checked", true), true)
+				this.element.querySelector(`[name='mode'][value='${mode}']`).checked = true, true)
 		];
 
-		html.find("[data-terrain-id]").on("click", this.#onTerrainSelect.bind(this));
-
-		html.find("[data-action='configure-terrain-types']").on("click", this.#configureTerrainTypes.bind(this));
-
 		// On input change, update the relevant Signal
-		html.find("[name='selectedHeight']").on("input", evt =>
+		this.element.querySelector("[name='selectedHeight']").addEventListener("input", evt =>
 			paintingConfig$.height$.value = fromSceneUnits(this.#getInputValue(evt)));
 
-		html.find("[name='selectedElevation']").on("input", evt =>
+		this.element.querySelector("[name='selectedElevation']").addEventListener("input", evt =>
 			paintingConfig$.elevation$.value = fromSceneUnits(this.#getInputValue(evt)));
 
 		// On blur, set the value of the input to the Signal, so that if it was left as an invalid number it resets and shows the correct value again
-		html.find("[name='selectedHeight']").on("blur", evt =>
+		this.element.querySelector("[name='selectedHeight']").addEventListener("blur", evt =>
 			evt.currentTarget.value = toSceneUnits(paintingConfig$.height$.value));
 
-		html.find("[name='selectedElevation']").on("blur", evt =>
+		this.element.querySelector("[name='selectedElevation']").addEventListener("blur", evt =>
 			evt.currentTarget.value = toSceneUnits(paintingConfig$.elevation$.value));
 
-		html.find("[name='mode']").on("change", evt =>
-			paintingConfig$.mode$.value = evt.target.value);
+		this.element.querySelectorAll("[name='mode']").forEach(el => el.addEventListener("change", evt =>
+			paintingConfig$.mode$.value = evt.target.value));
 	}
 
-	/** @param {MouseEvent} event */
-	#onTerrainSelect(event) {
-		const { terrainId } = event.currentTarget.dataset;
-		event.currentTarget.closest("ul.terrain-type-palette").querySelectorAll("li.active").forEach(li => li.classList.remove("active"));
-		event.currentTarget.closest("li").classList.add("active");
-		this.element.find("[name='selectedHeight'],[name='selectedElevation']").prop("disabled", !this.#isHeightEnabledFor(terrainId));
-
-		paintingConfig$.terrainTypeId$.value = terrainId;
+	/** @param {string} terrainId */
+	#isHeightEnabledFor(terrainId) {
+		return getTerrainType(terrainId).usesHeight;
 	}
 
 	/**
@@ -121,7 +122,20 @@ export class TerrainPaintPalette extends withSubscriptions(Application) {
 		return Math.max(isNaN(value) ? 0 : value, 0);
 	}
 
-	#configureTerrainTypes() {
+	/**
+	 * @this {TerrainPaintPalette}
+	 * @param {HTMLElement} target
+	 */
+	static #selectTerrain(_event, target) {
+		const { terrainId } = target.dataset;
+		target.closest("ul.terrain-type-palette").querySelectorAll("li.active").forEach(li => li.classList.remove("active"));
+		target.closest("li").classList.add("active");
+		this.element.querySelectorAll("[name='selectedHeight'],[name='selectedElevation']").forEach(el => el.disabled = !this.#isHeightEnabledFor(terrainId));
+
+		paintingConfig$.terrainTypeId$.value = terrainId;
+	}
+
+	static #configureTerrainTypes() {
 		new TerrainTypesConfig().render(true);
 	}
 }
