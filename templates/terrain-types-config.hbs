@@ -243,6 +243,22 @@
 							</div>
 							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Hint"}}</p>
 						</div>
+
+						<div class="form-group">
+							<label>{{localize "TERRAINHEIGHTTOOLS.DefaultHeight.Name"}}</label>
+							<div class="form-fields">
+								<input type="number" name="{{idx}}.defaultHeight" value="{{terrainType.defaultHeight}}" step="1">
+							</div>
+							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.DefaultHeight.Hint"}}</p>
+						</div>
+
+						<div class="form-group">
+							<label>{{localize "TERRAINHEIGHTTOOLS.DefaultElevation.Name"}}</label>
+							<div class="form-fields">
+								<input type="number" name="{{idx}}.defaultElevation" value="{{terrainType.defaultElevation}}" step="1">
+							</div>
+							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.DefaultElevation.Hint"}}</p>
+						</div>
 					</div>
 				</div>
 			{{/each}}

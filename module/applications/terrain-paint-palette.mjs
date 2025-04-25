@@ -92,7 +92,7 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 
 		// On input change, update the relevant Signal
 		this.element.querySelector("[name='selectedHeight']").addEventListener("input", evt =>
-			paintingConfig$.height$.value = fromSceneUnits(this.#getInputValue(evt)));
+			paintingConfig$.height$.value = fromSceneUnits(this.#getInputValue(evt, 1)));
 
 		this.element.querySelector("[name='selectedElevation']").addEventListener("input", evt =>
 			paintingConfig$.elevation$.value = fromSceneUnits(this.#getInputValue(evt)));
@@ -117,9 +117,9 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 	 * @param {KeyboardEvent} event
 	 * @param {number} min
 	 */
-	#getInputValue(event) {
+	#getInputValue(event, min = 0) {
 		const value = +event.currentTarget.value;
-		return Math.max(isNaN(value) ? 0 : value, 0);
+		return Math.max(isNaN(value) ? 0 : value, min);
 	}
 
 	/**
@@ -128,11 +128,17 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 	 */
 	static #selectTerrain(_event, target) {
 		const { terrainId } = target.dataset;
+		const terrainType = getTerrainType(terrainId);
+
 		target.closest("ul.terrain-type-palette").querySelectorAll("li.active").forEach(li => li.classList.remove("active"));
 		target.closest("li").classList.add("active");
 		this.element.querySelectorAll("[name='selectedHeight'],[name='selectedElevation']").forEach(el => el.disabled = !this.#isHeightEnabledFor(terrainId));
 
-		paintingConfig$.terrainTypeId$.value = terrainId;
+		paintingConfig$.value = {
+			terrainTypeId: terrainId,
+			height: terrainType.defaultHeight ?? paintingConfig$.height$.value,
+			elevation: terrainType.defaultElevation ?? paintingConfig$.elevation$.value
+		};
 	}
 
 	static #configureTerrainTypes() {
