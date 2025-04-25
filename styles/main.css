@@ -166,129 +166,123 @@ ul.terrain-type-palette li .terrain-type-name {
 /* -------------------- */
 /* Terrain Types Config */
 /* -------------------- */
-#tht_terrainTypesConfig form {
-	height: 100%;
-	display: flex;
-	flex-direction: column;
+#tht_terrainTypesConfig,
+#tht_terrainTypesConfig .window-content {
+	overflow: visible;
 }
 
-#tht_terrainTypesConfig form > p {
-	flex: 0;
+#tht_terrainTypesConfig main {
+	flex: 1 1 auto;
+}
+
+#tht_terrainTypesConfig hr {
+	margin: 0.5rem 0;
+	border-top: 1px solid rgb(135 135 135 / 25%);
+	background: none;
+}
+
+#tht_terrainTypesConfig .sheet-tabs {
+	border-color: rgb(135 135 135 / 25%);
+}
+
+#tht_terrainTypesConfig .terrain-type-list-container {
+	flex: 1 1 0;
+	display: flex;
+	align-items: stretch;
+	min-height: 0;
+	gap: 1rem;
+}
+
+#tht_terrainTypesConfig .terrain-type-list,
+#tht_terrainTypesConfig .terrain-type-edit-pane {
+	overflow-y: auto;
 }
 
 #tht_terrainTypesConfig .terrain-type-list {
+	flex: 0 0 320px;
 	list-style: none;
+	margin: 0;
 	padding: 0;
-	margin: 8px 0;
-	overflow-y: scroll;
+}
+
+#tht_terrainTypesConfig .terrain-type-list-vertical-separator {
+	border-right: 4px double rgb(135 135 135 / 25%);
+}
+
+#tht_terrainTypesConfig .terrain-type-list > li {
+	display: flex;
+	gap: 0.25rem;
+	padding: 0.3rem;
+	margin-bottom: 0.25rem;
+	cursor: pointer;
+	align-items: center;
+	border-top: 1px solid transparent;
+	border-bottom: 1px solid transparent;
+}
+
+#tht_terrainTypesConfig .terrain-type-list > li > span {
 	flex: 1 1 0;
 }
 
-#tht_terrainTypesConfig .terrain-type-list li {
-	padding: 6px;
-	border: 1px solid var(--color-border-light-primary);
-	border-radius: 3px;
-	box-shadow: 0px 0px 4px -1px rgb(0 0 0 / 50%);
+#tht_terrainTypesConfig .terrain-type-list > li > button {
+	flex: 0 0 24px;
+	height: 24px;
+	padding: 0;
+	font-size: var(--font-size-12);
+	line-height: 24px;
 }
 
-#tht_terrainTypesConfig .terrain-type-list li:not(:first-child) {
-	margin-top: 8px;
-}
-
-#tht_terrainTypesConfig .terrain-type-header > button {
-	flex: 0 0 30px;
-}
-
-#tht_terrainTypesConfig .terrain-type-header > input {
-	height: auto;
-	margin: 0 3px 1px;
-}
-
-#tht_terrainTypesConfig .terrain-type-content {
-	display: grid;
-	grid-template-rows: repeat(2, min-content);
-	grid-template-columns: 1fr min-content 1fr min-content 1fr;
-	grid-gap: 8px;
-	margin: 8px 0;
-}
-
-#tht_terrainTypesConfig .terrain-type-content.collapsed {
-	display: none;
-}
-
-#tht_terrainTypesConfig .terrain-type-content .vertical-separator {
-	border-left: 2px groove #FFFFFF;
-}
-
-#tht_terrainTypesConfig .terrain-type-content .terrain-type-content-full-width {
-	grid-column: 1 / 6;
-	display: flex;
-}
-
-#tht_terrainTypesConfig .terrain-type-content .terrain-type-content-full-width > div {
-	display: flex;
-	align-items: center;
-}
-
-#tht_terrainTypesConfig .terrain-type-content .terrain-type-content-full-width > div:not(:first-child) {
-	margin-left: 16px;
-}
-
-#tht_terrainTypesConfig .terrain-type-content .form-group input[type="checkbox"] {
-	margin-left: 0;
-}
-
-#tht_terrainTypesConfig textarea.autoresize {
-	min-height: auto;
-	resize: vertical;
-	field-sizing: content;
-}
-
-#tht_terrainTypesConfig .form-group-stacked:has(> .focus-tooltip) {
-	position: relative;
-}
-
-#tht_terrainTypesConfig .focus-tooltip {
-	position: absolute;
-	top: calc(100% + 1px);
-	z-index: var(--z-index-tooltip);
-	pointer-events: none;
-	transition: opacity 250ms ease-out;
-}
-
-#tht_terrainTypesConfig .has-focus-tooltip:not(:focus) + .focus-tooltip {
-	opacity: 0;
-}
-
-#tht_terrainTypesConfig .has-focus-tooltip:focus + .focus-tooltip {
-	opacity: 1;
-}
-
-#tht_terrainTypesConfig .label-placeholder-tooltip {
-	top: 16px;
-	right: calc(100% + 4px);
-	width: 280px;
-	padding: 4px 6px 6px;
-	background: #ededed;
-	color: var(--color-text-dark-primary);
-	border: 1px solid var(--color-border-highlight-alt);
-	border-radius: 3px;
-	font-size: var(--font-size-13);
-    box-shadow: 0 0 4px #000000, 0 0 6px inset var(--color-shadow-highlight);
-}
-
-#tht_terrainTypesConfig .label-placeholder-tooltip table {
+#tht_terrainTypesConfig .terrain-type-list > li > button > i {
 	margin: 0;
 }
 
-#tht_terrainTypesConfig .label-placeholder-tooltip table th {
-	width: 1px;
-	padding-right: 6px;
-	font-family: Consolas, Courier New, Courier, monaco, monospace;
+#tht_terrainTypesConfig .terrain-type-list > li:hover {
+	border-color: var(--color-border-dark-secondary);
 }
 
-#tht_terrainTypesConfig file-picker {
-	align-items: stretch;
+#tht_terrainTypesConfig .terrain-type-list > li.active {
+	border-color: var(--color-border-highlight);
+}
+
+#tht_terrainTypesConfig .terrain-type-edit-pane {
+	flex: 1 1 0;
+	padding-right: 0.5rem;
+}
+
+#tht_terrainTypesConfig textarea {
+	min-height: auto;
+	padding: 0.5rem 1rem;
+	resize: vertical;
+	field-sizing: content;
+	background: var(--color-cool-4);
+	border: 1px solid transparent;
+}
+
+.theme-light #tht_terrainTypesConfig textarea {
+	background: rgba(0, 0, 0, 0.1);
+	border: 1px solid var(--color-dark-6);
+}
+
+#tht_terrainTypesConfig .form-field-hint-icon {
+	flex: 0 0 min-content;
+	margin-left: 0.25rem;
+	cursor: help;
+}
+
+#tooltip.tht_terrainTypesConfig_label-placeholder-tooltip {
+	font-size: var(--font-size-14);
+}
+
+#tooltip.tht_terrainTypesConfig_label-placeholder-tooltip table {
+	margin: 0;
+}
+
+#tooltip.tht_terrainTypesConfig_label-placeholder-tooltip table tr:nth-child(odd) {
+	background-color: rgba(255, 255, 255, 0.05);
+}
+
+#tooltip.tht_terrainTypesConfig_label-placeholder-tooltip table tr:nth-child(even) {
+	background-color: rgba(255, 255, 255, 0.1);
 }
 
 
@@ -530,4 +524,12 @@ ul.terrain-type-palette li .terrain-type-name {
 .margin-x-auto {
 	margin-left: auto;
 	margin-right: auto;
+}
+
+.gap-1rem {
+	gap: 1rem;
+}
+
+.cursor-help {
+	cursor: help;
 }

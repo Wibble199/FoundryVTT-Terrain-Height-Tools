@@ -90,7 +90,8 @@ export class TerrainStackViewer extends HandlebarsApplicationMixin(ApplicationV2
 	}
 
 	#updateVisibility() {
-		this.element.style.display = this.#visible ? "block" : "none";
+		if (this.element)
+			this.element.style.display = this.#visible ? "block" : "none";
 	}
 
 	/** @override */

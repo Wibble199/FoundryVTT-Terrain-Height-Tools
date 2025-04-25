@@ -1,62 +1,131 @@
 /** @import { TerrainType } from "../utils/terrain-types.mjs" */
 import { lineTypes, moduleName, settings } from "../consts.mjs";
-import { error } from "../utils/log.mjs";
 import { createDefaultTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainTypesPreset } from "./terrain-types-presets.mjs";
 
-const { DialogV2 } = foundry.applications.api;
+const { ApplicationV2, DialogV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-export class TerrainTypesConfig extends FormApplication {
+export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2) {
+
+	#terrainTypes;
+
+	#selectedTerrainTypeId;
 
 	constructor() {
-		super(getTerrainTypes());
+		super();
 
-		/** @type {{ [typeId: string]: true; }} */
-		this._expandedTypes = {};
+		this.#terrainTypes = getTerrainTypes();
+		this.#selectedTerrainTypeId = this.#terrainTypes[0]?.id ?? "";
 	}
 
-	/** @override */
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			title: game.i18n.localize("SETTINGS.TerrainTypes.Button"),
-			id: "tht_terrainTypesConfig",
-			template: `modules/${moduleName}/templates/terrain-types-config.hbs`,
-			scrollY: [".terrain-type-list"],
-			width: 840,
-			height: 720,
+	static DEFAULT_OPTIONS = {
+		id: "tht_terrainTypesConfig",
+		tag: "form",
+		classes: ["sheet"],
+		window: {
+			title: "SETTINGS.TerrainTypes.Button",
+			contentClasses: ["standard-form"],
 			resizable: true,
+		},
+		position: {
+			width: 860,
+			height: 720
+		},
+		form: {
+			handler: TerrainTypesConfig.#onFormSubmit,
+			submitOnChange: true,
 			closeOnSubmit: false
-		});
-	}
+		},
+		actions: {
+			selectTerrainType: TerrainTypesConfig.#selectTerrainType,
+			moveTerrainTypeUp: TerrainTypesConfig.#moveTerrainTypeUp,
+			moveTerrainTypeDown: TerrainTypesConfig.#moveTerrainTypeDown,
+			duplicateTerrainType: TerrainTypesConfig.#duplicateTerrainType,
+			deleteTerrainType: TerrainTypesConfig.#deleteTerrainType,
+			addTerrainType: TerrainTypesConfig.#addTerrainType,
+			importTerrainTypesPreset: TerrainTypesConfig.#showImportPresetsDialog,
+			importTerrainTypes: TerrainTypesConfig.#showImportTerrainTypeSettingsDialog,
+			exportTerrainTypes: TerrainTypesConfig.#showExportTerrainTypeSettingsDialog,
+			saveTerrainTypes: TerrainTypesConfig.#saveTerrainTypes
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: `modules/${moduleName}/templates/terrain-types-config.hbs`,
+			scrollable: [".terrain-type-list", ".terrain-type-edit-pane"]
+		},
+		footer: {
+			template: "templates/generic/form-footer.hbs",
+		}
+	};
+
+	tabGroups = {
+		main: "lines"
+	};
 
 	/** @override */
-	getData(options = {}) {
-		const data = super.getData(options);
+	async _prepareContext() {
+		return {
+			terrainTypes: this.#terrainTypes,
 
-		data.fillTypes = Object.fromEntries(Object.entries(CONST.DRAWING_FILL_TYPES)
-			.map(([name, value]) => [value, `DRAWING.FillType${name.titleCase()}`]));
+			fillTypes: Object.fromEntries(Object.entries(CONST.DRAWING_FILL_TYPES)
+				.map(([name, value]) => [value, `DRAWING.FillType${name.titleCase()}`])),
 
-		data.lineTypes = Object.fromEntries(Object.entries(lineTypes)
-			.map(([name, value]) => [value, `TERRAINHEIGHTTOOLS.LineType${name.titleCase()}`]));
+			lineTypes: Object.fromEntries(Object.entries(lineTypes)
+				.map(([name, value]) => [value, `TERRAINHEIGHTTOOLS.LineType${name.titleCase()}`])),
 
-		data.fonts = FontConfig.getAvailableFontChoices();
+			fonts: FontConfig.getAvailableFontChoices(),
 
-		data.expandedTypes = this._expandedTypes;
+			selectedTerrainTypeId: this.#selectedTerrainTypeId,
 
-		data.labelPlaceholderHtml = this.#getLabelPlaceholderTooltipHtml();
+			labelPlaceholderHtml: this.#getLabelPlaceholderTooltipHtml(),
 
-		return data;
+			activeTab: this.tabGroups.main,
+
+			// Footer buttons
+			buttons: [
+				{
+					type: "button",
+					icon: "fas fa-plus",
+					label: "TERRAINHEIGHTTOOLS.AddTerrainType",
+					action: "addTerrainType"
+				},
+				{
+					type: "button",
+					icon: "fas fa-palette",
+					label: "TERRAINHEIGHTTOOLS.ImportTerrainTypesPreset",
+					action: "importTerrainTypesPreset"
+				},
+				{
+					type: "button",
+					icon: "fas fa-upload",
+					label: "TERRAINHEIGHTTOOLS.ImportTerrainTypes",
+					action: "importTerrainTypes"
+				},
+				{
+					type: "button",
+					icon: "fas fa-download",
+					label: "TERRAINHEIGHTTOOLS.ExportTerrainTypes",
+					action: "exportTerrainTypes"
+				},
+				{
+					type: "button",
+					label: "Save Changes",
+					icon: "fas fa-save",
+					action: "saveTerrainTypes"
+				}
+			]
+		};
 	}
 
 	/**
-	 * @override
+	 * @param {FormDataExtended} formData
 	 * @returns {TerrainType[]}
 	 */
-	_getSubmitData(updateData = {}) {
-		const formData = super._getSubmitData(updateData);
-
+	#getTerrainTypesFromForm(formData) {
 		/** @type {(TerrainType & { isZone: boolean; })[]} */
-		const terrainTypes = Object.entries(foundry.utils.expandObject(formData))
+		const terrainTypes = Object.entries(foundry.utils.expandObject(formData.object))
 			.sort((a, b) => a[0] - b[0])
 			.map(([_, value]) => value);
 
@@ -70,97 +139,118 @@ export class TerrainTypesConfig extends FormApplication {
 		return terrainTypes;
 	}
 
-	/** @override */
-	async _updateObject(_, formData) {
-		// TODO: check valid
-		//if (true) {
-		await game.settings.set(moduleName, settings.terrainTypes, formData);
-		this.close();
-		//}
+	/** @param {{ isFirstRender: boolean; }} options */
+	_onRender(_context, options) {
+		if (options.isFirstRender) {
+			new ContextMenu(this.element, ".terrain-type-list > li", [
+				{ name: "Delete", icon: "<i class='fas fa-trash'></i>", callback: (...args) => console.log("CM", ...args) }
+			]);
+		}
 	}
 
-	/** Saves the UI state into the object. */
-	sync() {
-		this.object = this._getSubmitData();
-	}
-
-	// -------------- //
-	// Event handlers //
-	// -------------- //
-	/** @override */
-	activateListeners(html) {
-		super.activateListeners(html);
-		html.find("[data-action='toggle-expand']").on("click", this.#toggleExpand.bind(this));
-		html.find("[data-action='move-up']").on("click", event => this.#moveTerrainType(event, -1));
-		html.find("[data-action='move-down']").on("click", event => this.#moveTerrainType(event, 1));
-		html.find("[data-action='duplicate']").on("click", this.#duplicateTerrainType.bind(this));
-		html.find("[data-action='delete']").on("click", this.#deleteTerrainType.bind(this));
-		html.find("[data-action='terrain-type-add']").on("click", this.#addTerrainType.bind(this));
-		html.find("[data-action='terrain-types-import-preset']").on("click", this.#showImportPresetsDialog.bind(this));
-		html.find("[data-action='terrain-types-import']").on("click", this.#showImportTerrainTypeSettingsDialog.bind(this));
-		html.find("[data-action='terrain-types-export']").on("click", this.#showExportTerrainTypeSettingsDialog.bind(this));
-	}
-
-	#toggleExpand(event) {
-		this.sync();
-		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
-		if (this._expandedTypes[terrainTypeId])
-			delete this._expandedTypes[terrainTypeId];
-		else
-			this._expandedTypes[terrainTypeId] = true;
+	// --------------- //
+	// Action handlers //
+	// --------------- //
+	/**
+	 * @this {TerrainTypesConfig}
+	 * @param {FormDataExtended} formData
+	 */
+	static #onFormSubmit(_event, _form, formData) {
+		this.#terrainTypes = this.#getTerrainTypesFromForm(formData);
 		this.render();
 	}
 
-	#addTerrainType() {
-		this.sync();
+	/**
+	 * @this {TerrainTypesConfig}
+	 * @param {HTMLElement} target
+	 */
+	static #selectTerrainType(_event, target) {
+		this.#selectedTerrainTypeId = target.dataset.terrainTypeId;
+		this.render();
+	}
+
+	/** @this {TerrainTypesConfig} */
+	static #addTerrainType() {
 		/** @type {TerrainType} */
 		const newTerrainType = createDefaultTerrainType();
-		this.object.push(newTerrainType);
-		this._expandedTypes[newTerrainType.id] = true;
+		this.#terrainTypes.push(newTerrainType);
+		this.#selectedTerrainTypeId = newTerrainType.id;
 		this.render();
 	}
 
-	#moveTerrainType(event, dir) {
-		this.sync();
-		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
-		const index = this.object.findIndex(t => t.id === terrainTypeId);
+	/**
+	 * @this {TerrainTypesConfig}
+	 * @param {HTMLElement} target
+	 */
+	static #moveTerrainTypeUp(_event, target) {
+		this.#moveTerrainType(target, -1);
+	}
+
+	/**
+	 * @this {TerrainTypesConfig}
+	 * @param {HTMLElement} target
+	 */
+	static #moveTerrainTypeDown(_event, target) {
+		this.#moveTerrainType(target, 1);
+	}
+
+	/**
+	 * @param {HTMLElement} target
+	 * @param {1 | -1} dir
+	 */
+	#moveTerrainType(target, dir) {
+		const { terrainTypeId } = target.closest("[data-terrain-type-id]").dataset;
+		const index = this.#terrainTypes.findIndex(t => t.id === terrainTypeId);
 
 		// Cannot move if already at the start/end
-		if ((dir > 0 && index >= this.object.length) || (dir < 0 && index <= 0)) return;
+		if ((dir > 0 && index >= this.#terrainTypes.length) || (dir < 0 && index <= 0)) return;
 
-		const [terrainType] = this.object.splice(index, 1);
-		this.object.splice(index + dir, 0, terrainType);
+		const [terrainType] = this.#terrainTypes.splice(index, 1);
+		this.#terrainTypes.splice(index + dir, 0, terrainType);
 		this.render();
 	}
 
-	#duplicateTerrainType(event) {
-		this.sync();
-		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
-		const existingTerrainType = this.object.find(t => t.id === terrainTypeId);
+	/**
+	 * @this {TerrainTypesConfig}
+	 * @param {*} event
+	 */
+	static #duplicateTerrainType(_event, target) {
+		const { terrainTypeId } = target.closest("[data-terrain-type-id]").dataset;
+		const existingTerrainType = this.#terrainTypes.find(t => t.id === terrainTypeId);
 		const newTerrainType = {
 			...existingTerrainType,
 			id: foundry.utils.randomID(),
 			name: existingTerrainType.name + " (2)"
 		};
-		this.object.push(newTerrainType);
-		this._expandedTypes[newTerrainType.id] = true;
+		this.#terrainTypes.push(newTerrainType);
+		this.#selectedTerrainTypeId = newTerrainType.id;
 		this.render();
 	}
 
-	#deleteTerrainType(event) {
-		this.sync();
-		const { terrainTypeId } = event.currentTarget.closest("[data-terrain-type-id]").dataset;
-		const index = this.object.findIndex(t => t.id === terrainTypeId);
-		this.object.splice(index, 1);
+	/**
+	 * @this {TerrainTypesConfig}
+	 * @param {HTMLElement} target
+	 */
+	static #deleteTerrainType(_event, target) {
+		const { terrainTypeId } = target.closest("[data-terrain-type-id]").dataset;
+		const index = this.#terrainTypes.findIndex(t => t.id === terrainTypeId);
+		this.#terrainTypes.splice(index, 1);
 		this.render();
+	}
+
+	/** @this {TerrainTypesConfig} */
+	static async #saveTerrainTypes() {
+		const formData = new FormDataExtended(this.element);
+		const terrainTypes = this.#getTerrainTypesFromForm(formData);
+		await game.settings.set(moduleName, settings.terrainTypes, terrainTypes);
+		await this.close();
 	}
 
 	// ------------- //
 	// Import/export //
 	// ------------- //
-	async #showImportPresetsDialog() {
-		this.sync();
-
+	/** @this {TerrainTypesConfig} */
+	static async #showImportPresetsDialog() {
 		// Ask user to select a preset
 		try {
 			const { data, replace } = await TerrainTypesPreset.show();
@@ -170,8 +260,8 @@ export class TerrainTypesConfig extends FormApplication {
 		}
 	}
 
-	#showImportTerrainTypeSettingsDialog() {
-		this.sync();
+	/** @this {TerrainTypesConfig} */
+	static #showImportTerrainTypeSettingsDialog() {
 		new DialogV2({
 			id: "tht_terrainTypesImport",
 			window: {
@@ -212,8 +302,8 @@ export class TerrainTypesConfig extends FormApplication {
 		}).render(true);
 	}
 
-	#showExportTerrainTypeSettingsDialog() {
-		this.sync();
+	/** @this {TerrainTypesConfig} */
+	static #showExportTerrainTypeSettingsDialog() {
 		new DialogV2({
 			id: "tht_terrainTypesExport",
 			window: {
@@ -222,7 +312,7 @@ export class TerrainTypesConfig extends FormApplication {
 				contentClasses: ["terrain-height-tool-window"],
 				resizable: true
 			},
-			content: `<textarea readonly>${JSON.stringify(this.object)}</textarea>`,
+			content: `<textarea readonly>${JSON.stringify(this.#terrainTypes)}</textarea>`,
 			buttons: [
 				{
 					icon: "<i class='fas fa-check'></i>",
@@ -238,8 +328,7 @@ export class TerrainTypesConfig extends FormApplication {
 	}
 
 	/**
-	 * @param {string | Partial<TerrainType>[]} data Data to import. Either a JSON
-	 * string or an already-parsed array.
+	 * @param {string | Partial<TerrainType>[]} data Data to import. Either a JSON string or an already-parsed array.
 	 * @param {boolean} replace Whether or not to delete all existing terrain types on a successful import.
 	 * @returns {boolean} Boolean indicating if the import was successful.
 	 */
@@ -249,7 +338,7 @@ export class TerrainTypesConfig extends FormApplication {
 		const parsed = Array.isArray(data) ? data : JSON.parse(data);
 
 		if (!Array.isArray(parsed)) {
-			error("Failed to import terrain type data: Expected JSON to be an array.");
+			ui.notifications.error("Failed to import terrain type data: Expected JSON to be an array.");
 			return false;
 		}
 
@@ -257,14 +346,14 @@ export class TerrainTypesConfig extends FormApplication {
 		const defaultTerrainType = createDefaultTerrainType();
 		for (let i = 0; i < parsed.length; i++) {
 			if (typeof parsed[i] !== "object") {
-				error(`Expected item at index ${i} to be an object, but found`, item);
+				ui.notifications.error(`Expected item at index ${i} to be an object, but found`, item);
 				return false;
 			}
 
 			// If we're in combine mode (replace = false), then see if there is one already with the same ID
 			const existing = replace
 				? undefined
-				: this.object.find(t => t.id === parsed[i].id);
+				: this.#terrainTypes.find(t => t.id === parsed[i].id);
 
 			// Combine it with defaults,
 			const sanitisedTerrainType = {
@@ -276,7 +365,7 @@ export class TerrainTypesConfig extends FormApplication {
 			// Check that property types match those declared in the defaultTerrainType
 			for (const [key, value] of Object.entries(defaultTerrainType)) {
 				if (typeof sanitisedTerrainType[key] !== typeof value) {
-					error(`Expected property '${key}' of item at index ${i} to be of type ${typeof value}, but found`, sanitisedTerrainType[key]);
+					ui.notifications.error(`Expected property '${key}' of item at index ${i} to be of type ${typeof value}, but found`, sanitisedTerrainType[key]);
 					return false;
 				}
 			}
@@ -285,12 +374,12 @@ export class TerrainTypesConfig extends FormApplication {
 		}
 
 		if (replace) {
-			this.object = sanitisedData;
+			this.#terrainTypes = sanitisedData;
 		} else {
 			// If combining, remove any existing with the same ID as an imported one
 			const newIds = sanitisedData.map(t => t.id);
-			this.object = [
-				...this.object.filter(t => !newIds.includes(t.id)),
+			this.#terrainTypes = [
+				...this.#terrainTypes.filter(t => !newIds.includes(t.id)),
 				...sanitisedData
 			];
 		}
@@ -306,10 +395,7 @@ export class TerrainTypesConfig extends FormApplication {
 			["%t%", game.i18n.localize("TERRAINHEIGHTTOOLS.Placeholders.Top")]
 		];
 		return `
-			<p>
-				<i class="fas fa-info-circle"></i>
-				${game.i18n.localize("TERRAINHEIGHTTOOLS.Placeholders.PlaceholderHelpText")}
-			</p>
+			<p>${game.i18n.localize("TERRAINHEIGHTTOOLS.Placeholders.PlaceholderHelpText")}</p>
 			<table>
 				<tbody>
 					${placeholders.map(([key, description]) => `<tr>

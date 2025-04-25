@@ -1,222 +1,251 @@
-<form>
-	{{{localize "TERRAINHEIGHTTOOLS.DeleteTerrainTypeHint"}}}
+<main style="display: contents;">
+	<div class="terrain-type-list-container">
+		<!-- List of terrain types -->
+		<ul class="terrain-type-list">
+			{{#each terrainTypes as |terrainType idx|}}
+				<li {{#if (eq terrainType.id ../selectedTerrainTypeId)}}class="active"{{/if}} data-terrain-type-id="{{terrainType.id}}" data-action="selectTerrainType">
+					<span>{{terrainType.name}}</span>
+					<button type="button" data-action="moveTerrainTypeUp" title="{{localize "TERRAINHEIGHTTOOLS.MoveUp"}}"><i class="fas fa-arrow-up"></i></button>
+					<button type="button" data-action="moveTerrainTypeDown" title="{{localize "TERRAINHEIGHTTOOLS.MoveDown"}}"><i class="fas fa-arrow-down"></i></button>
+					<button type="button" data-action="duplicateTerrainType" title="{{localize "Duplicate"}}"><i class="fas fa-copy"></i></button>
+					<button type="button" data-action="deleteTerrainType" title="{{localize "Delete"}}"><i class="fas fa-trash"></i></button>
+				</li>
+			{{/each}}
+		</ul>
 
-	<ul class="terrain-type-list">
-		{{#each object as |terrainType idx|}}
-			<li class="terrain-type" data-terrain-type-id="{{terrainType.id}}">
-				<input type="hidden" name="{{idx}}.id" value="{{terrainType.id}}">
+		<div class="terrain-type-list-vertical-separator"></div>
 
-				<div class="terrain-type-header flexrow">
-					<button type="button" data-action="toggle-expand">
-						<i class="fas fa-chevron-{{#if (lookup ../expandedTypes terrainType.id)}}up{{else}}down{{/if}}"></i>
-					</button>
+		<!-- Terrain type form -->
+		<div class="terrain-type-edit-pane">
+			{{#each terrainTypes as |terrainType idx|}}
+				<div class="standard-form" data-terrain-type-id="{{terrainType.id}}" {{#unless (eq terrainType.id ../selectedTerrainTypeId)}}style="display: none;"{{/unless}}>
+					<input type="hidden" name="{{idx}}.id" value="{{terrainType.id}}">
 
-					<input type="text" name="{{idx}}.name" value="{{terrainType.name}}" placeholder="{{localize "Name"}}">
-
-					<button type="button" data-action="move-up" title="{{localize "TERRAINHEIGHTTOOLS.MoveUp"}}"><i class="fas fa-arrow-up"></i></button>
-					<button type="button" data-action="move-down" title="{{localize "TERRAINHEIGHTTOOLS.MoveDown"}}"><i class="fas fa-arrow-down"></i></button>
-					<button type="button" data-action="duplicate" title="{{localize "Duplicate"}}"><i class="fas fa-copy"></i></button>
-					<button type="button" data-action="delete" title="{{localize "Delete"}}"><i class="fas fa-trash"></i></button>
-				</div>
-
-				<div class="terrain-type-content {{#unless (lookup ../expandedTypes terrainType.id)}}collapsed{{/unless}}">
-					<div class="terrain-type-content-full-width">
-						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.IsZone.Hint"}}">
-							<input id="{{idx}}_isZone" type="checkbox" name="{{idx}}.isZone" {{checked (not terrainType.usesHeight)}}>
-							<label for="{{idx}}_isZone">{{localize "TERRAINHEIGHTTOOLS.IsZone.Name"}}</label>
-						</div>
-						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Hint"}}">
-							<input id="{{idx}}_isAlwaysVisible" type="checkbox" name="{{idx}}.isAlwaysVisible" {{checked terrainType.isAlwaysVisible}}>
-							<label for="{{idx}}_isAlwaysVisible">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Name"}}</label>
-						</div>
-						<div data-tooltip="{{localize "TERRAINHEIGHTTOOLS.IsSolid.Hint"}}">
-							<input id="{{idx}}_isSolid" type="checkbox" name="{{idx}}.isSolid" {{checked terrainType.isSolid}}>
-							<label for="{{idx}}_isSolid">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Name"}}</label>
+					<div class="form-group">
+						<label>{{localize "Name"}}</label>
+						<div class="form-fields">
+							<input type="text" name="{{idx}}.name" value="{{terrainType.name}}" placeholder="{{localize "Name"}}">
 						</div>
 					</div>
 
-					<div>
-						<div class="form-group-stacked">
+					<nav class="sheet-tabs tabs">
+						<a class="{{#if (eq ../activeTab 'lines')}}active{{/if}}" data-action="tab" data-group="main" data-tab="lines">
+							<i class="fas fa-paint-brush"></i>
+							<label>{{localize "DRAWING.TabLines"}}</label>
+						</a>
+						<a class="{{#if (eq ../activeTab 'fill')}}active{{/if}}" data-action="tab" data-group="main" data-tab="fill">
+							<i class="fas fa-fill-drip"></i>
+							<label>{{localize "DRAWING.TabFill"}}</label>
+						</a>
+						<a class="{{#if (eq ../activeTab 'label')}}active{{/if}}" data-action="tab" data-group="main" data-tab="label">
+							<i class="fas fa-font"></i>
+							<label>{{localize "DRAWING.TabText"}}</label>
+						</a>
+						<a class="{{#if (eq ../activeTab 'other')}}active{{/if}}" data-action="tab" data-group="main" data-tab="other">
+							<i class="fas fa-cogs"></i>
+							<label>{{localize "TERRAINHEIGHTTOOLS.Other"}}</label>
+						</a>
+					</nav>
+
+					<div class="tab {{#if (eq ../activeTab 'lines')}}active{{/if}}" data-group="main" data-tab="lines">
+						<div class="form-group">
 							<label>{{localize "TERRAINHEIGHTTOOLS.LineType"}}</label>
-							<select name="{{idx}}.lineType" data-dtype="Number">
-								{{selectOptions ../lineTypes selected=terrainType.lineType localize=true}}
-							</select>
+							<div class="form-fields">
+								<select name="{{idx}}.lineType" data-dtype="Number">
+									{{selectOptions ../lineTypes selected=terrainType.lineType localize=true}}
+								</select>
+							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group {{#if (eq terrainType.lineType 0)}}hidden{{/if}}">
 							<label>{{localize "DRAWING.LineWidth"}} <span class="hint">({{localize "Pixels"}})</span></label>
-							<input type="number" name="{{idx}}.lineWidth" value="{{terrainType.lineWidth}}" min="0" step="1">
-						</div>
-
-						<div class="form-group-stacked">
-							<label>{{localize "DRAWING.StrokeColor"}}</label>
-							<color-picker name="{{idx}}.lineColor" value="{{terrainType.lineColor}}" />
-						</div>
-
-						<div class="form-group-stacked">
-							<label>{{localize "DRAWING.LineOpacity"}}</label>
-							<div class="form-group">
-								{{rangePicker name=(concat idx ".lineOpacity") value=terrainType.lineOpacity min="0" max="1" step="0.05"}}
+							<div class="form-fields">
+								<input type="number" name="{{idx}}.lineWidth" value="{{terrainType.lineWidth}}" min="0" step="1">
 							</div>
 						</div>
 
-						<div class="flexrow">
-							<div class="form-group-stacked">
-								<label>{{localize "TERRAINHEIGHTTOOLS.LineDashSize"}}</label>
+						<div class="form-group {{#unless (eq terrainType.lineType 2)}}hidden{{/unless}}">
+							<label>{{localize "TERRAINHEIGHTTOOLS.LineDashSize"}} / {{localize "TERRAINHEIGHTTOOLS.LineGapSize"}}</label>
+							<div class="form-fields">
 								<input type="number" name="{{idx}}.lineDashSize" value="{{terrainType.lineDashSize}}" min="1" step="1">
-							</div>
-							<div class="form-group-stacked" style="margin-left: 5px;">
-								<label>{{localize "TERRAINHEIGHTTOOLS.LineGapSize"}}</label>
 								<input type="number" name="{{idx}}.lineGapSize" value="{{terrainType.lineGapSize}}" min="1" step="1">
+							</div>
+						</div>
+
+						<div class="form-group {{#if (eq terrainType.lineType 0)}}hidden{{/if}}">
+							<label>{{localize "DRAWING.StrokeColor"}}</label>
+							<div class="form-fields">
+								<color-picker name="{{idx}}.lineColor" value="{{terrainType.lineColor}}" />
+							</div>
+						</div>
+
+						<div class="form-group {{#if (eq terrainType.lineType 0)}}hidden{{/if}}">
+							<label>{{localize "DRAWING.LineOpacity"}}</label>
+							<div class="form-fields">
+								{{rangePicker name=(concat idx ".lineOpacity") value=terrainType.lineOpacity min="0" max="1" step="0.05"}}
 							</div>
 						</div>
 
 						<hr/>
 
-						<div class="flexrow">
-							<div class="form-group-stacked">
-								<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeDistance"}} <span class="hint">(%)</span></label>
-								<div class="form-group">
-									{{rangePicker name=(concat idx ".lineFadeDistance") value=terrainType.lineFadeDistance min="0" max="0.5" step="0.05"}}
-								</div>
+						<div class="form-group">
+							<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeDistance"}} <span class="hint">(%)</span></label>
+							<div class="form-fields">
+								{{rangePicker name=(concat idx ".lineFadeDistance") value=terrainType.lineFadeDistance min="0" max="0.5" step="0.05"}}
 							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group {{#if (eq terrainType.lineFadeDistance 0)}}hidden{{/if}}">
 							<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeColor"}}</label>
-							<color-picker name="{{idx}}.lineFadeColor" value="{{terrainType.lineFadeColor}}" />
+							<div class="form-fields">
+								<color-picker name="{{idx}}.lineFadeColor" value="{{terrainType.lineFadeColor}}" />
+							</div>
 						</div>
 
-						<div class="flexrow">
-							<div class="form-group-stacked">
-								<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeOpacity"}}</label>
-								<div class="form-group">
-									{{rangePicker name=(concat idx ".lineFadeOpacity") value=terrainType.lineFadeOpacity min="0" max="1" step="0.05"}}
-								</div>
+						<div class="form-group {{#if (eq terrainType.lineFadeDistance 0)}}hidden{{/if}}">
+							<label>{{localize "TERRAINHEIGHTTOOLS.LineFadeOpacity"}}</label>
+							<div class="form-fields">
+								{{rangePicker name=(concat idx ".lineFadeOpacity") value=terrainType.lineFadeOpacity min="0" max="1" step="0.05"}}
 							</div>
 						</div>
 					</div>
 
-					<div class="vertical-separator"></div>
-
-					<div>
-						<div class="form-group-stacked">
+					<div class="tab {{#if (eq ../activeTab 'fill')}}active{{/if}}" data-group="main" data-tab="fill">
+						<div class="form-group">
 							<label>{{localize "DRAWING.FillTypes"}}</label>
-							<select name="{{idx}}.fillType" data-dtype="Number">
-								{{selectOptions ../fillTypes selected=terrainType.fillType localize=true}}
-							</select>
+							<div class="form-fields">
+								<select name="{{idx}}.fillType" data-dtype="Number">
+									{{selectOptions ../fillTypes selected=terrainType.fillType localize=true}}
+								</select>
+							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group {{#if (eq terrainType.fillType 0)}}hidden{{/if}}">
 							<label>{{localize "DRAWING.FillColor"}}</label>
-							<color-picker name="{{idx}}.fillColor" value="{{terrainType.fillColor}}" />
+							<div class="form-fields">
+								<color-picker name="{{idx}}.fillColor" value="{{terrainType.fillColor}}" />
+							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group {{#if (eq terrainType.fillType 0)}}hidden{{/if}}">
 							<label>{{localize "DRAWING.FillOpacity"}}</label>
-							<div class="form-group">
+							<div class="form-fields">
 								{{rangePicker name=(concat idx ".fillOpacity") value=terrainType.fillOpacity min="0" max="1" step="0.1"}}
 							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group {{#unless (eq terrainType.fillType 2)}}hidden{{/unless}}">
 							<label>{{localize "DRAWING.FillTexture"}}</label>
-							<div class="form-group">
+							<div class="form-fields">
 								<file-picker name="{{idx}}.fillTexture" type="image" value="{{terrainType.fillTexture}}"></file-picker>
 							</div>
 						</div>
 
-						<div class="form-group-stacked">
-							<label>{{localize "TERRAINHEIGHTTOOLS.TextureOffset"}}</label>
-							<div class="form-group flexrow">
+						<div class="form-group {{#unless (eq terrainType.fillType 2)}}hidden{{/unless}}">
+							<label>{{localize "TERRAINHEIGHTTOOLS.TextureOffset"}} <span class="hint">({{localize "Pixels"}})</span></label>
+							<div class="form-fields">
 								<input type="number" name="{{idx}}.fillTextureOffset.x" value="{{terrainType.fillTextureOffset.x}}" step="1" required placeholder="X">
-								<span class="flex0" style="margin-left: 3px">px</span>
-								<input type="number" name="{{idx}}.fillTextureOffset.y" value="{{terrainType.fillTextureOffset.y}}" step="1" required placeholder="Y" style="margin-left: 8px;">
-								<span class="flex0" style="margin-left: 3px">px</span>
+								<input type="number" name="{{idx}}.fillTextureOffset.y" value="{{terrainType.fillTextureOffset.y}}" step="1" required placeholder="Y">
 							</div>
 						</div>
 
-						<div class="form-group-stacked">
-							<label>{{localize "TERRAINHEIGHTTOOLS.TextureScale"}}</label>
-							<div class="form-group flexrow">
+						<div class="form-group {{#unless (eq terrainType.fillType 2)}}hidden{{/unless}}">
+							<label>{{localize "TERRAINHEIGHTTOOLS.TextureScale"}} <span class="hint">%</span></label>
+							<div class="form-fields">
 								<input type="number" name="{{idx}}.fillTextureScale.x" value="{{terrainType.fillTextureScale.x}}" step="1" required placeholder="X">
-								<span class="flex0" style="margin-left: 3px">%</span>
-								<input type="number" name="{{idx}}.fillTextureScale.y" value="{{terrainType.fillTextureScale.y}}" step="1" required placeholder="Y" style="margin-left: 8px;">
-								<span class="flex0" style="margin-left: 3px">%</span>
+								<input type="number" name="{{idx}}.fillTextureScale.y" value="{{terrainType.fillTextureScale.y}}" step="1" required placeholder="Y">
 							</div>
 						</div>
 					</div>
 
-					<div class="vertical-separator"></div>
-
-					<div>
-						<div class="form-group-stacked">
+					<div class="tab {{#if (eq ../activeTab 'label')}}active{{/if}}" data-group="main" data-tab="label">
+						<div class="form-group">
 							<label>{{localize "TERRAINHEIGHTTOOLS.LabelFormat.Name"}}</label>
-							<textarea class="autoresize has-focus-tooltip" name="{{idx}}.textFormat">{{terrainType.textFormat}}</textarea>
-							<div class="focus-tooltip label-placeholder-tooltip">{{{../labelPlaceholderHtml}}}</div>
+							<div class="form-fields">
+								<textarea class="autoresize" name="{{idx}}.textFormat">{{terrainType.textFormat}}</textarea>
+								<div class="form-field-hint-icon" data-tooltip="{{../labelPlaceholderHtml}}" data-tooltip-class="tht_terrainTypesConfig_label-placeholder-tooltip">
+									<i class="fas fa-question-circle"></i>
+								</div>
+							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group">
 							<label>{{localize "TERRAINHEIGHTTOOLS.ElevatedLabelFormat.Name"}}</label>
-							<label class="hint">{{localize "TERRAINHEIGHTTOOLS.ElevatedLabelFormat.Hint"}}</label>
-							<textarea class="autoresize has-focus-tooltip" name="{{idx}}.elevatedTextFormat">{{terrainType.elevatedTextFormat}}</textarea>
-							<div class="focus-tooltip label-placeholder-tooltip">{{{../labelPlaceholderHtml}}}</div>
+							<div class="form-fields">
+								<textarea class="autoresize" name="{{idx}}.elevatedTextFormat">{{terrainType.elevatedTextFormat}}</textarea>
+								<div class="form-field-hint-icon" data-tooltip="{{../labelPlaceholderHtml}}" data-tooltip-class="tht_terrainTypesConfig_label-placeholder-tooltip">
+									<i class="fas fa-question-circle"></i>
+								</div>
+							</div>
+							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.ElevatedLabelFormat.Hint"}}</p>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group">
 							<label>{{localize "DRAWING.FontFamily"}}</label>
-							<select name="{{idx}}.font">
-								{{selectOptions ../fonts selected=terrainType.font}}
-							</select>
+							<div class="form-fields">
+								<select name="{{idx}}.font">
+									{{selectOptions ../fonts selected=terrainType.font}}
+								</select>
+							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group">
 							<label>{{localize "DRAWING.FontSize"}}</label>
-							<input type="number" name="{{idx}}.textSize" value="{{terrainType.textSize}}" min="0" step="1">
+							<div class="form-fields">
+								<input type="number" name="{{idx}}.textSize" value="{{terrainType.textSize}}" min="0" step="1">
+							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group">
 							<label>{{localize "DRAWING.TextColor"}}</label>
-							<color-picker name="{{idx}}.textColor" value="{{terrainType.textColor}}" />
+							<div class="form-fields">
+								<color-picker name="{{idx}}.textColor" value="{{terrainType.textColor}}" />
+							</div>
 						</div>
 
-						<div class="form-group-stacked">
+						<div class="form-group">
 							<label>{{localize "DRAWING.TextOpacity"}}</label>
-							<div class="form-group">
+							<div class="form-fields">
 								{{rangePicker name=(concat idx ".textOpacity") value=terrainType.textOpacity min="0" max="1" step="0.1"}}
 							</div>
 						</div>
 
 						<div class="form-group">
-							<input type="checkbox" name="{{idx}}.textRotation" {{checked terrainType.textRotation}}>
-							<label>{{localize "TERRAINHEIGHTTOOLS.AllowTextRotation"}}</label>
+							<label>{{localize "TERRAINHEIGHTTOOLS.AllowTextRotation.Name"}}</label>
+							<div class="form-fields">
+								<input type="checkbox" name="{{idx}}.textRotation" {{checked terrainType.textRotation}}>
+							</div>
+							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.AllowTextRotation.Hint"}}</p>
+						</div>
+					</div>
+
+					<div class="tab {{#if (eq ../activeTab 'other')}}active{{/if}}" data-group="main" data-tab="other">
+						<div class="form-group">
+							<label for="{{idx}}_isZone">{{localize "TERRAINHEIGHTTOOLS.IsZone.Name"}}</label>
+							<div class="form-fields">
+								<input id="{{idx}}_isZone" type="checkbox" name="{{idx}}.isZone" {{checked (not terrainType.usesHeight)}}>
+							</div>
+							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.IsZone.Hint"}}</p>
+						</div>
+
+						<div class="form-group">
+							<label for="{{idx}}_isAlwaysVisible">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Name"}}</label>
+							<div class="form-fields">
+								<input id="{{idx}}_isAlwaysVisible" type="checkbox" name="{{idx}}.isAlwaysVisible" {{checked terrainType.isAlwaysVisible}}>
+							</div>
+							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Hint"}}</p>
+						</div>
+
+						<div class="form-group">
+							<label for="{{idx}}_isSolid">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Name"}}</label>
+							<div class="form-fields">
+								<input id="{{idx}}_isSolid" type="checkbox" name="{{idx}}.isSolid" {{checked terrainType.isSolid}}>
+							</div>
+							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Hint"}}</p>
 						</div>
 					</div>
 				</div>
-			</li>
-		{{/each}}
-	</ul>
-
-	<div class="flexrow">
-		<button type="button" data-action="terrain-type-add">
-			<i class="fas fa-plus"></i>
-			{{localize "TERRAINHEIGHTTOOLS.AddTerrainType"}}
-		</button>
-		<button type="button" data-action="terrain-types-import-preset">
-			<i class="fas fa-palette"></i>
-			{{localize "TERRAINHEIGHTTOOLS.ImportTerrainTypesPreset"}}
-		</button>
-		<button type="button" data-action="terrain-types-import">
-			<i class="fas fa-upload"></i>
-			{{localize "TERRAINHEIGHTTOOLS.ImportTerrainTypes"}}
-		</button>
-		<button type="button" data-action="terrain-types-export">
-			<i class="fas fa-download"></i>
-			{{localize "TERRAINHEIGHTTOOLS.ExportTerrainTypes"}}
-		</button>
-		<button type="submit">
-			<i class="fas fa-save"></i>
-			{{localize "Save Changes"}}
-		</button>
+			{{/each}}
+		</div>
 	</div>
-</form>
+</main>

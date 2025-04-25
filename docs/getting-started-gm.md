@@ -17,22 +17,23 @@ You just need to click on the "_Add Terrain Type_" button at the bottom, and the
 
 ![Terrain configuration window](./img/configure-terrain-types.webp)
 
-Here are some of the important options you need to know:
+Here are some of the important controls and configuration options you need to know:
 
-1. This is the name of the terrain. This is how it will appear to you in the list when you are painting terrain, and how it will appear to players in the [Terrain Viewer](../readme.md#terrain-viewer); But NOT how it will appear on the scene canvas.
-2. _Is zone?_ is whether or not this terrain should act as a zone. Zones do not use height, and by default don't get included in line of sight ruler calculations. You can use them for marking important areas of the map.
-3. _Always visible?_ determines if the terrain should always show, even when a player has turned off the terrain height map or has turned on [visibility radius](../readme.md#visibility-radius).
-4. _Is solid?_ is for the [automatic token elevation change](./settings-keybinds-reference.md#automatic-token-elevation-change) feature. Turning this checkbox off will make that feature ignore this terrain type. If the automatic elevation change feature is turned off, this checkbox will do nothing.
-5. This group of settings controls the border of the terrain shape that is drawn on the scene. If you are familiar with Foundry's drawing tools, this should be familar, except that THT also has dashed lines!
-6. This group of settings controls the fill of the terrain shape on the scene. Again, this section should be easy for anyone familiar with Foundry's drawing tools. There also some extra advanced options for tweaking how textures render - allowing you to translate or scale the texture.
-7. This group of settings controls the label that will be put on the terrain object on the scene.
-	- "_Label Format_" will specify what the label should actually be. You can use placeholders which will get replaced with metadata from the terrain. For example, if you set the label to be `%e% + H%h%`, then when this terrain type is painted with an elevation of 2 and a height of 3, the label would be `2 + H3`.
-		- `%h%` will be replaced with the height of the terrain (how big it is vertically)
-		- `%e%` will be replaced with the elevation of the terrain (how high above the ground it is)
-		- `%t%` will be replaced with the elevation of the top of the terrain (height + elevation)
-	- "_Label Format (Elevated)_" is the same as the label format, except that it is used only when the terrain is at a non-zero elevation. If this is blank, the normal label format will always be used. For example, you might create a type which has the label format `H%h%` and an elevated format of `%e%+H%h%` - meaning that the elevation would only show when the terrain is elevated.
-	- Enabling "_Allow Text Rotation_" will allow THT to rotate the label 90 degrees if it thinks that it can fit the label on the shape better that way.
-	- The rest of these options mirror those used for Foundry drawings.
+1. Shows you a list of all terrain types that have been created. Use the "_Add Terrain Type_" button at the bottom of the window to add more.
+2. Gives a few controls for the terrain type. From left to right:
+	1. Move up (this affects the order they will be shown in the palette)
+	2. Move down
+	3. Duplicate
+	4. Delete
+3. This is the name of the terrain. This is how it will appear to you in the list when you are painting terrain, and how it will appear to players in the [Terrain Viewer](../readme.md#terrain-viewer); But NOT how it will appear on the scene canvas.
+4. Use these tabs to switch between different configuration options.
+5. The controls in this area will change depending on the selected tab. This preview is showing the "_Lines_" settings.
+
+- On the "_Text_" tab, there is a "_Label Format_" setting. This is where you will specify what the label will be when the terrain is drawn to the scene. You can use placeholders which will get replaced with metadata from the terrain. For example, if you set the label to be `%e% + H%h%`, then when this terrain type is painted with an elevation of 2 and a height of 3, the label would be `2 + H3`.
+	- `%h%` will be replaced with the height of the terrain (how big it is vertically)
+	- `%e%` will be replaced with the elevation of the terrain (how high above the ground it is)
+	- `%t%` will be replaced with the elevation of the top of the terrain (height + elevation)
+- There is also a "_Elevated Label Format_" option, which is the same as above but is used instead when the terrain is at a non-zero elevation. If left blank, the normal label format will always be used. For example, you might create a type which has the label format `H%h%` and an elevated format of `%e%+H%h%` - meaning that the elevation would only show when the terrain is elevated.
 
 > [!TIP]
 > THT comes with a diagonal line texture for filling shapes. It can be found at `modules/terrain-height-tools/textures/hatching.png`.
