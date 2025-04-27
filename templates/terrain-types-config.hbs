@@ -221,25 +221,25 @@
 
 					<div class="tab {{#if (eq ../activeTab 'other')}}active{{/if}}" data-group="main" data-tab="other">
 						<div class="form-group">
-							<label for="{{idx}}_isZone">{{localize "TERRAINHEIGHTTOOLS.IsZone.Name"}}</label>
+							<label for="terrainType{{idx}}_isZone">{{localize "TERRAINHEIGHTTOOLS.IsZone.Name"}}</label>
 							<div class="form-fields">
-								<input id="{{idx}}_isZone" type="checkbox" name="{{idx}}.isZone" {{checked (not terrainType.usesHeight)}}>
+								<input id="terrainType{{idx}}_isZone" type="checkbox" name="{{idx}}.isZone" {{checked (not terrainType.usesHeight)}}>
 							</div>
 							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.IsZone.Hint"}}</p>
 						</div>
 
 						<div class="form-group">
-							<label for="{{idx}}_isAlwaysVisible">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Name"}}</label>
+							<label for="terrainType{{idx}}_isAlwaysVisible">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Name"}}</label>
 							<div class="form-fields">
-								<input id="{{idx}}_isAlwaysVisible" type="checkbox" name="{{idx}}.isAlwaysVisible" {{checked terrainType.isAlwaysVisible}}>
+								<input id="terrainType{{idx}}_isAlwaysVisible" type="checkbox" name="{{idx}}.isAlwaysVisible" {{checked terrainType.isAlwaysVisible}}>
 							</div>
 							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.IsAlwaysVisible.Hint"}}</p>
 						</div>
 
 						<div class="form-group">
-							<label for="{{idx}}_isSolid">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Name"}}</label>
+							<label for="terrainType{{idx}}_isSolid">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Name"}}</label>
 							<div class="form-fields">
-								<input id="{{idx}}_isSolid" type="checkbox" name="{{idx}}.isSolid" {{checked terrainType.isSolid}}>
+								<input id="terrainType{{idx}}_isSolid" type="checkbox" name="{{idx}}.isSolid" {{checked terrainType.isSolid}}>
 							</div>
 							<p class="hint">{{localize "TERRAINHEIGHTTOOLS.IsSolid.Hint"}}</p>
 						</div>

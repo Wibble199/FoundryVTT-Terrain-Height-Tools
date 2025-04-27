@@ -139,15 +139,6 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 		return terrainTypes;
 	}
 
-	/** @param {{ isFirstRender: boolean; }} options */
-	_onRender(_context, options) {
-		if (options.isFirstRender) {
-			new ContextMenu(this.element, ".terrain-type-list > li", [
-				{ name: "Delete", icon: "<i class='fas fa-trash'></i>", callback: (...args) => console.log("CM", ...args) }
-			]);
-		}
-	}
-
 	// --------------- //
 	// Action handlers //
 	// --------------- //

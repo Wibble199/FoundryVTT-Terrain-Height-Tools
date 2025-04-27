@@ -91,10 +91,10 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 		];
 
 		// On input change, update the relevant Signal
-		this.element.querySelector("[name='selectedHeight']").addEventListener("input", evt =>
-			paintingConfig$.height$.value = fromSceneUnits(this.#getInputValue(evt, 1)));
+		this.element.querySelector("[name='selectedHeight']").addEventListener("change", evt =>
+			paintingConfig$.height$.value = fromSceneUnits(this.#getInputValue(evt, 0.1)));
 
-		this.element.querySelector("[name='selectedElevation']").addEventListener("input", evt =>
+		this.element.querySelector("[name='selectedElevation']").addEventListener("change", evt =>
 			paintingConfig$.elevation$.value = fromSceneUnits(this.#getInputValue(evt)));
 
 		// On blur, set the value of the input to the Signal, so that if it was left as an invalid number it resets and shows the correct value again
