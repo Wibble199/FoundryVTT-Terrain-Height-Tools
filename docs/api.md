@@ -516,6 +516,9 @@ An array of objects with the following properties:
 |`lineWidth`|`number`|The width (in pixels) of the line.|
 |`lineDashSize`|`number`|For dashed lines, the size of the dash (in pixels).|
 |`lineGapSize`|`number`|For dashed lines, the size of gap between the dashes (in pixels).|
+|`lineFadeDistance`|`number`|The size of the line fade as a proportion of a grid cell. 0 disables line fade.|
+|`lineFadeColor`|`string`|The color of the line fade.|
+|`lineFadeOpacity`|`number`|The starting opacity of the line fade.|
 |`textFormat`|`string`|The template used for the label for the terrain.|
 |`elevatedTextFormat`|`string`|The template used for the label for the terrai when elevation is not 0.|
 |`textColor`|`string`|A hex string for the text color.|
