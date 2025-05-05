@@ -337,7 +337,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 		const defaultTerrainType = createDefaultTerrainType();
 		for (let i = 0; i < parsed.length; i++) {
 			if (typeof parsed[i] !== "object") {
-				ui.notifications.error(`Expected item at index ${i} to be an object, but found`, item);
+				ui.notifications.error(`Expected item at index ${i} to be an object, but found ${typeof parsed[i]}`);
 				return false;
 			}
 
@@ -355,8 +355,8 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 
 			// Check that property types match those declared in the defaultTerrainType
 			for (const [key, value] of Object.entries(defaultTerrainType)) {
-				if (typeof sanitisedTerrainType[key] !== typeof value) {
-					ui.notifications.error(`Expected property '${key}' of item at index ${i} to be of type ${typeof value}, but found`, sanitisedTerrainType[key]);
+				if (value !== null && typeof sanitisedTerrainType[key] !== typeof value) {
+					ui.notifications.error(`Expected property '${key}' of item at index ${i} to be of type ${typeof value}, but found ${typeof sanitisedTerrainType[key]}`);
 					return false;
 				}
 			}
