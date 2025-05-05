@@ -210,6 +210,47 @@
 							</div>
 						</div>
 
+						<hr/>
+
+						<div class="form-group">
+							<label>{{localize "TERRAINHEIGHTTOOLS.StrokeThickness"}} <span class="hint">({{localize "Pixels"}})</span></label>
+							<div class="form-fields">
+								<input type="number" name="{{idx}}.textStrokeThickness" value="{{terrainType.textStrokeThickness}}" min="0" step="1">
+							</div>
+						</div>
+
+						<div class="form-group">
+							<label>{{localize "DRAWING.StrokeColor"}}</label>
+							<div class="form-fields">
+								<color-picker name="{{idx}}.textStrokeColor" value="{{terrainType.textStrokeColor}}" placeholder="Automatic" />
+							</div>
+						</div>
+
+						<hr/>
+
+						<div class="form-group">
+							<label>{{localize "TERRAINHEIGHTTOOLS.ShadowAmount"}}</label>
+							<div class="form-fields">
+								<input type="number" name="{{idx}}.textShadowAmount" value="{{terrainType.textShadowAmount}}" min="0" step="1">
+							</div>
+						</div>
+
+						<div class="form-group">
+							<label>{{localize "TERRAINHEIGHTTOOLS.ShadowColor"}}</label>
+							<div class="form-fields">
+								<color-picker name="{{idx}}.textShadowColor" value="{{terrainType.textShadowColor}}" placeholder="Automatic" />
+							</div>
+						</div>
+
+						<div class="form-group">
+							<label>{{localize "TERRAINHEIGHTTOOLS.ShadowOpacity"}}</label>
+							<div class="form-fields">
+								{{rangePicker name=(concat idx ".textShadowOpacity") value=terrainType.textShadowOpacity min="0" max="1" step="0.1"}}
+							</div>
+						</div>
+
+						<hr/>
+
 						<div class="form-group">
 							<label>{{localize "TERRAINHEIGHTTOOLS.AllowTextRotation.Name"}}</label>
 							<div class="form-fields">

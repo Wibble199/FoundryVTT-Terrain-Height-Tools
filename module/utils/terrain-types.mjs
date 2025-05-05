@@ -30,6 +30,11 @@ import { alphaToHex } from "./misc-utils.mjs";
  * @property {number} textSize
  * @property {string} textColor
  * @property {number} textOpacity
+ * @property {number} textStrokeThickness
+ * @property {string} textStrokeColor
+ * @property {number} textShadowAmount
+ * @property {string} textShadowColor
+ * @property {number} textShadowOpacity
  * @property {number | null} defaultHeight
  * @property {number | null} defaultElevation
  */
@@ -68,6 +73,11 @@ export function createDefaultTerrainType(id = undefined) {
 		textSize: 48,
 		textColor: "#FFFFFF",
 		textOpacity: 1,
+		textStrokeThickness: 4,
+		textStrokeColor: "",
+		textShadowAmount: 2,
+		textShadowColor: "",
+		textShadowOpacity: 1,
 		defaultHeight: null,
 		defaultElevation: null
 	};

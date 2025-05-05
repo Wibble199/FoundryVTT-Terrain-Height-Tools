@@ -511,13 +511,25 @@ class TerrainShapeGraphics extends PIXI.Container {
 	#getTextStyle() {
 		const style = CONFIG.canvasTextStyle.clone();
 
+		const color = Color.from(this._terrainType.textColor ?? 0xFFFFFF);
+		const autoStrokeColor = color.hsv[2] > 0.6 ? 0x000000 : 0xFFFFFF;
+
 		style.fontFamily = this._terrainType.font ?? CONFIG.defaultFontFamily;
 		style.fontSize = this._terrainType.textSize;
 
-		const color = Color.from(this._terrainType.textColor ?? 0xFFFFFF);
 		style.fill = color;
-		style.strokeThickness = 4;
-		style.stroke = color.hsv[2] > 0.6 ? 0x000000 : 0xFFFFFF;
+
+		style.strokeThickness = this._terrainType.textStrokeThickness;
+		style.stroke = this._terrainType.textStrokeColor?.length
+			? Color.from(this._terrainType.textStrokeColor)
+			: autoStrokeColor;
+
+		style.dropShadow = this._terrainType.textShadowAmount > 0;
+		style.dropShadowBlur = this._terrainType.textShadowAmount;
+		style.dropShadowColor = this._terrainType.textShadowColor?.length
+			? Color.from(this._terrainType.textShadowColor)
+			: autoStrokeColor;
+		style.dropShadowAlpha = this._terrainType.textShadowOpacity;
 
 		return style;
 	}

@@ -524,6 +524,11 @@ An array of objects with the following properties:
 |`textColor`|`string`|A hex string for the text color.|
 |`textOpacity`|`number`|The opacity of the text. 0 = transparent, 1 = opaque.|
 |`textSize`|`number`|The size of the text (in pixels).|
+|`textStrokeThickness`|`number`|The width of the stroke applied to the text (in pixels).|
+|`textStrokeColor`|`string`|The color of the stroke applied to the text. If blank, it is automatically calculated based on the lightness of the text color.|
+|`textShadowAmount`|`number`|The blur distance of the drop shadow applied to the text. 0 disables it.|
+|`textShadowColor`|`string`|The color of the drop shadow applied to the text. If blank, it is automatically calculated based on the lightness of the text color.|
+|`textShadowOpacity`|`number`|The opacity of the drop shadow applied to the text.|
 |`textRotation`|`boolean`|Whether or not the text label can be rotated to fit better.|
 
 ## paintCells
