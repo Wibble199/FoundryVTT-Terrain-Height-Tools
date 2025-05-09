@@ -392,10 +392,18 @@ export class TerrainHeightLayer extends InteractionLayer {
 	 * @param {boolean} [options.toDrawing] Whether to convert the shape to drawings.
 	 * @param {boolean} [options.toRegion] Whether to convert the shape to a new scene region.
 	 * @param {boolean} [options.toWalls] Whether to convert the shape to walls.
+	 * @param {any} [options.wallConfig] The config to apply to the walls (such as movement restiction, etc.)
 	 * @param {boolean} [options.setWallHeightFlags] Whether to populate Wall Height module flags when converting to walls.
 	 * @param {boolean} [options.deleteAfter] Whether to delete the shape after the conversion.
 	 */
-	async _convertShape(shape, { toDrawing = false, toRegion = false, toWalls = false, setWallHeightFlags = true, deleteAfter = false } = {}) {
+	async _convertShape(shape, {
+		toDrawing = false,
+		toRegion = false,
+		toWalls = false,
+		wallConfig = {},
+		setWallHeightFlags = true,
+		deleteAfter = false
+	} = {}) {
 		const terrainData = getTerrainType(shape.terrainTypeId);
 		if (!terrainData) return;
 
@@ -485,18 +493,13 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 			await canvas.scene.createEmbeddedDocuments("Wall", [...shape.polygon.edges, ...shape.holes.flatMap(h => h.edges)]
 				.map(edge => ({
+					...wallConfig,
 					c: [
 						edge.p1.x,
 						edge.p1.y,
 						edge.p2.x,
 						edge.p2.y
 					],
-					dir: CONST.WALL_DIRECTIONS.BOTH,
-					door: CONST.WALL_DOOR_TYPES.NONE,
-					light: CONST.WALL_SENSE_TYPES.NORMAL,
-					move: CONST.WALL_SENSE_TYPES.NORMAL,
-					sight: CONST.WALL_SENSE_TYPES.NORMAL,
-					sound: CONST.WALL_SENSE_TYPES.NORMAL,
 					flags
 				})));
 		}

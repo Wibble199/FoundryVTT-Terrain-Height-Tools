@@ -179,7 +179,10 @@ export function fromObject(source) {
 		/** @param {Partial<T>} value */
 		set value(value) {
 			supressUpdates = true;
-			Object.entries(value).forEach(([key, value]) => signals[key].value = value);
+			Object.entries(value).forEach(([key, value]) => {
+				if (signals[key])
+					signals[key].value = value
+			});
 			supressUpdates = false;
 
 			cachedValue = getValue();
