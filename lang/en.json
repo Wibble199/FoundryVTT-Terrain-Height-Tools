@@ -33,6 +33,8 @@
 		"ShowTerrainHeightOnTokenLayer": "Show Terrain Height Map on Token Layer",
 		"ShowTerrainStackViewerOnTokenLayer.Name": "Show Terrain Viewer on Token Layer",
 		"ShowTerrainStackViewerOnTokenLayer.Hint": "If turned on, when hovering over terrain while on the token layer, you will see a display showing you what terrain is under your mouse. Alternatively, you can bind this to a key (see 'Configure Controls').",
+		"ShowZonesAboveNonZones.Name": "Draw zones above non-zones",
+		"ShowZonesAboveNonZones.Hint": "If true, zones will always be drawn on top of non-zones. If false, zones will be drawn below non-zones.",
 		"TerrainHeightLayerRenderAboveTiles.Name": "Terrain Height Map Below Tiles",
 		"TerrainHeightLayerRenderAboveTiles.Hint": "Whether or not the terrain height map will be drawn below tiles with an elevation of 0 on the scene. Note that the height map will ALWAYS be rendered below tiles with an elevation greater than zero. This setting can be also be configured per-scene.",
 		"TerrainHeightLayerSmartLabelPlacement.Name": "Smart Label Placement",

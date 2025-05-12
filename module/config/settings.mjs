@@ -153,6 +153,16 @@ export function registerSettings() {
 		default: false
 	});
 
+	game.settings.register(moduleName, settings.showZonesAboveNonZones, {
+		name: "SETTINGS.ShowZonesAboveNonZones.Name",
+		hint: "SETTINGS.ShowZonesAboveNonZones.Hint",
+		scope: "world",
+		type: Boolean,
+		config: true,
+		default: false,
+		onChange: () => TerrainHeightLayer.current?._updateGraphics()
+	});
+
 	game.settings.register(moduleName, settings.useFractionsForLabels, {
 		name: "SETTINGS.UseFractionsForLabels.Name",
 		hint: "SETTINGS.UseFractionsForLabels.Hint",

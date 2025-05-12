@@ -7,7 +7,7 @@ import { debug } from "../utils/log.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath, drawInnerFade } from "../utils/pixi-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
-import { getInvisibleSceneTerrainTypes, getTerrainTypeMap } from '../utils/terrain-types.mjs';
+import { getInvisibleSceneTerrainTypes, getTerrainTypes } from '../utils/terrain-types.mjs';
 import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
 
 /**
@@ -96,11 +96,12 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// Note that we don't clear before loading the textures as multiple calls to update may then clear, wait and
 		// draw at the same time, resulting in twice as many things being rendered as there should be.
 
-		const terrainTypes = getTerrainTypeMap();
+		const terrainTypesArray = getTerrainTypes();
+		const terrainTypesMap = new Map(terrainTypesArray.map(t => [t.id, t]));
 
 		// Load textures
 		/** @type {Map<string, { texture: PIXI.Texture; matrix: PIXI.Matrix }>} */
-		const textures = new Map(await Promise.all([...terrainTypes.values()]
+		const textures = new Map(await Promise.all(terrainTypesArray
 			.filter(type => type.fillTexture?.length)
 			.map(async type => {
 				const texture = await loadTexture(type.fillTexture);
@@ -112,15 +113,20 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 		this._clear();
 
+		const zoneZIndex = game.settings.get(moduleName, settings.showZonesAboveNonZones) ? 9999999 : -1;
+
 		for (const shape of heightMap.shapes) {
-			const terrainType = terrainTypes.get(shape.terrainTypeId);
+			const terrainType = terrainTypesMap.get(shape.terrainTypeId);
 			if (!terrainType) continue;
 
 			const shapeGraphics = new TerrainShapeGraphics(shape, terrainType, textures.get(terrainType.id));
 
 			// Sort terrains that use a height in elevation order. For terrains that don't use a height, always sort
-			// them under terrain that does have a height.
-			shapeGraphics.zIndex = terrainType.usesHeight ? shape.elevation : -1;
+			// them above/below terrain that does have a height depending on world setting.
+			// Also add a small value based on the position the terrain type is in the palette to resolve zone ties in
+			// a consistent manner.
+			const tieBreaker = (terrainTypesArray.length - terrainTypesArray.indexOf(terrainType)) / 100000;
+			shapeGraphics.zIndex = (terrainType.usesHeight ? shape.elevation : zoneZIndex) + tieBreaker;
 
 			this.#shapes.push(shapeGraphics);
 			this.addChild(shapeGraphics);

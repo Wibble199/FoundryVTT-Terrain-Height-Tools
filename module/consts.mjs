@@ -26,6 +26,7 @@ export const settings = /** @type {const} */ ({
 	otherUserLineOfSightRulerOpacity: "otherUserLineOfSightRulerOpacity",
 	showTerrainHeightOnTokenLayer: "showTerrainHeightOnTokenLayer",
 	showTerrainStackViewerOnTokenLayer: "showTerrainStackViewerOnTokenLayer",
+	showZonesAboveNonZones: "showZonesAboveNonZones",
 	smartLabelPlacement: "smartLabelPlacement",
 	terrainHeightLayerVisibilityRadius: "terrainHeightLayerVisibilityRadius",
 	terrainLayerAboveTilesDefault: "terrainLayerAboveTilesDefault",
