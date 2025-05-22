@@ -48,9 +48,11 @@ export class ShapeConversionConifg extends withSubscriptions(HandlebarsApplicati
 				this.element.querySelector("[name='toWalls']").checked = v.toWalls;
 				this.element.querySelector("[name='deleteAfter']").checked = v.deleteAfter;
 
-				const setWallHeightFlags = this.element.querySelector("[name='setWallHeightFlags']")
-				setWallHeightFlags.checked = v.setWallHeightFlags;
-				setWallHeightFlags.disabled = !v.toWalls;
+				const setWallHeightFlags = this.element.querySelector("[name='setWallHeightFlags']");
+				if (setWallHeightFlags) {
+					setWallHeightFlags.checked = v.setWallHeightFlags;
+					setWallHeightFlags.disabled = !v.toWalls;
+				}
 			}, true)
 		];
 
