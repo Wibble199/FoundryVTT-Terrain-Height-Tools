@@ -209,7 +209,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// - The radius is 0, i.e. no mask
 		// - If there are no shapes; if there are no shapes to apply the mask to, it will appear as an actual white
 		//   circle on the canvas.
-		if (radius <= 0 || this.#shapes.length === 0) return;
+		if (radius <= 0 || !this.#shapes.some(s => s._canHaveMask)) return;
 
 		// Create a radial gradient texture
 		radius *= canvas.grid.size;
@@ -296,6 +296,10 @@ class TerrainShapeGraphics extends PIXI.Container {
 		this.#drawGraphics();
 
 		this.#label = this.addChild(this.#createLabel());
+	}
+
+	get _canHaveMask() {
+		return !this._terrainType.isAlwaysVisible;
 	}
 
 	/**
