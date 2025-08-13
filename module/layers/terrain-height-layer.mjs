@@ -3,6 +3,7 @@ import { flags, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { Signal } from "../utils/signal.mjs";
+import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
@@ -488,7 +489,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		if (toWalls) {
 			const flags = setWallHeightFlags && game.modules.get(wallHeightModuleName)?.active
-				? { "wall-height": { top: shape.top, bottom: shape.bottom } }
+				? { "wall-height": { top: toSceneUnits(shape.top), bottom: toSceneUnits(shape.bottom) } }
 				: {};
 
 			await canvas.scene.createEmbeddedDocuments("Wall", [...shape.polygon.edges, ...shape.holes.flatMap(h => h.edges)]
