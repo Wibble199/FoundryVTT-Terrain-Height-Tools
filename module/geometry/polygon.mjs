@@ -93,7 +93,7 @@ export class Polygon {
 
 		const numberOfIntersections = this.edges
 			.map(e => e.intersectsYAt(testPoint.y))
-			.filter(x => !!x && x < testPoint.x)
+			.filter(x => typeof x === "number" && x < testPoint.x)
 			.length;
 
 		return numberOfIntersections % 2 === 1;
