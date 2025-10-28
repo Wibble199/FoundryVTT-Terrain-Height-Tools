@@ -1,4 +1,4 @@
-import { moduleName } from "../consts.mjs";
+import { moduleName, tools } from "../consts.mjs";
 import { paintingConfig$ } from "../stores/drawing.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { getCssColorsFor, getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
@@ -34,6 +34,10 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 		}
 	};
 
+	get #showPaintModeSelect() {
+		return game.activeTool !== tools.fill;
+	}
+
 	/** @override */
 	async _renderFrame(options) {
 		const frame = await super._renderFrame(options);
@@ -59,7 +63,8 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 
 				// Hex colors including opacity for preview boxes:
 				...getCssColorsFor(t)
-			}))
+			})),
+			showPaintModeSelect: this.#showPaintModeSelect
 		};
 	}
 
@@ -85,10 +90,10 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 			paintingConfig$.elevation$.subscribe(elevation =>
 				this.element.querySelector("[name='selectedElevation']").value = toSceneUnits(elevation), true),
 
-			// Update mode select
-			paintingConfig$.mode$.subscribe(mode =>
+			// Update mode select (except for fill tool)
+			this.#showPaintModeSelect && paintingConfig$.mode$.subscribe(mode =>
 				this.element.querySelector(`[name='mode'][value='${mode}']`).checked = true, true)
-		];
+		].filter(Boolean);
 
 		// On input change, update the relevant Signal
 		this.element.querySelector("[name='selectedHeight']").addEventListener("change", evt =>

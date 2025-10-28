@@ -2,14 +2,23 @@
 import { fromObject } from "../utils/signal.mjs";
 
 /**
+ * @typedef {Object} PaintingConfigObj
+ * @property {string | undefined} terrainTypeId
+ * @property {number} height
+ * @property {number} elevation
+ * @property {import("../consts.mjs").terrainPaintMode} mode
+ * @property {import("../consts.mjs").terrainFillMode} floodMode
+ */
+/**
  * Config state for the paint tool.
- * @type {DeepSignal<{ terrainTypeId: string | undefined; height: number; elevation: number; mode: import("../consts.mjs").terrainPaintMode; }>}
+ * @type {DeepSignal<PaintingConfigObj>}
  */
 export const paintingConfig$ = fromObject({
 	terrainTypeId: undefined,
 	height: 1,
 	elevation: 0,
-	mode: "totalReplace"
+	mode: "totalReplace",
+	floodMode: "applicableBoundary"
 });
 
 /**

@@ -1,3 +1,4 @@
+/** @import { terrainPaintMode as TerrainPaintMode, terrainFillMode as TerrainFillMode } from "../consts.mjs" */
 /** @import { LineOfSightIntersectionRegion } from "./height-map-shape.mjs" */
 /** @import { HeightMapDataV1, HeightMapDataV1Terrain } from "../utils/height-map-migrations.mjs" */
 import { flags, moduleName } from "../consts.mjs";
@@ -85,7 +86,7 @@ export class HeightMap {
 	 * @param {number} height The height of the terrain to paint.
 	 * @param {number} elevation The elevation of the terrain to paint.
 	 * @param {Object} [options]
-	 * @param {import("../consts.mjs").terrainPaintMode} [options.mode] How to handle existing terrain:
+	 * @param {TerrainPaintMode} [options.mode] How to handle existing terrain:
 	 * - `"totalReplace"` - Completely overwrites all existing terrain data in the cells with the new data.
 	 * - `"additiveMerge"` - Merges the new terrain data with the existing data, without removing any overlapping terrain.
 	 * - `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.
@@ -165,6 +166,78 @@ export class HeightMap {
 		}
 
 		return history.length > 0;
+	}
+
+	/**
+	 * Attempts to paint multiple connected similar cells with the given terrain.
+	 * @param {[number, number]} originCell The cell to begin the fill operation from.
+	 * @param {string} terrainTypeId The ID of the terrain type to paint.
+	 * @param {number} height The height of the terrain to paint.
+	 * @param {number} elevation The elevation of the terrain to paint.
+	 * @param {Object} [options]
+	 * @param {TerrainFillMode} [options.mode] How to handle connected cells:
+	 * - `"applicableBoundary"` - Only fills cells that are have identical terrain data within the height range to be painted.
+	 * - `"strictBoundary"` - Only fills cells that contain identical terrain data (looks at the entire cell).
+	 */
+	async fillCells(originCell, terrainTypeId, height = 1, elevation = 0, { mode = "applicableBoundary" } = {}) {
+		const terrainTypeMap = getTerrainTypeMap();
+		const terrainType = terrainTypeMap.get(terrainTypeId);
+		if (!terrainType)
+			throw new Error(`Cannot paint cells with unknown terrain type '${terrainTypeId}'.`);
+		if (terrainType.usesHeight && (typeof height !== "number" || height <= 0))
+			throw new Error("`height` must be a positive, non-zero number.");
+		if (terrainType.usesHeight && (typeof elevation !== "number" || elevation < 0))
+			throw new Error("`elevation` must be a positive number or zero.");
+
+		/** @type {Set<string>} */
+		const visitedCells = new Set();
+		const toVisitQueue = [originCell];
+		const initialTerrainData = this.get(...originCell).map(t => ({ ...t }));
+
+		/** @type {this["_history"][number]} */
+		const history = {};
+
+		while (toVisitQueue.length > 0) {
+			const [x, y] = toVisitQueue.shift();
+
+			// Don't re-visit already visited cells
+			const cellKey = encodeCellKey(x, y);
+			if (visitedCells.has(cellKey)) continue;
+			visitedCells.add(cellKey);
+
+			const terrainData = this.data[cellKey] ?? [];
+
+			switch (mode) {
+				case "applicableBoundary":
+				case "strictBoundary": {
+					// In applicableBoundary we look for a match in the range of the paint - except for zones which behave as strict
+					// In strictBoundary mode we look for an exact match between terrains
+					const isTerrainEqual = mode === "applicableBoundary" && terrainType.usesHeight
+						? HeightMap.#terrainEqualInRange(initialTerrainData, terrainData, elevation, elevation + height)
+						: HeightMap.#terrainEqual(initialTerrainData, terrainData);
+					if (!isTerrainEqual) continue;
+
+					history[cellKey] = terrainData.map(t => ({ ...t })); // create an unmodified clone for history
+
+					if (terrainType.usesHeight)
+						HeightMap._eraseTerrainDataBetween(terrainData, elevation, elevation + height);
+					HeightMap._insertTerrainDataAndMerge(terrainData, terrainTypeId, elevation, height);
+					this.data[cellKey] = terrainData;
+
+					toVisitQueue.push(...this.#getNeighbouringCells(x, y));
+					break;
+				}
+
+				// TODO: implement "flood" - which would behave similar to a liquid that can 'flow' through gaps?
+
+				default:
+					throw new Error(`Unknown fill mode "${mode}"`);
+			}
+		}
+
+		this.#pushHistory(history);
+		await this.#saveChanges();
+		this._recalculateShapes();
 	}
 
 	/**
@@ -680,6 +753,100 @@ export class HeightMap {
 
 		await this.scene.setFlag(moduleName, flags.heightData, { v: DATA_VERSION, data: cleanedData });
 	}
+
+	/**
+	 * Determines if two terrains are equal.
+	 * @param {HeightMapDataV1Terrain[]} a
+	 * @param {HeightMapDataV1Terrain[]} b
+	 */
+	static #terrainEqual(a, b) {
+		if (a.length !== b.length)
+			return false;
+
+		b = [...b]; // clone B so we can remove items from it without effecting the original
+
+		outer: for (const t1 of a) {
+			for (let i = 0; i < b.length; i++) {
+				const t2 = b[i];
+
+				if (
+					t1.terrainTypeId === t2.terrainTypeId &&
+					t1.height === t2.height &&
+					t1.elevation === t2.elevation
+				) {
+					b.splice(i, 1);
+					continue outer;
+				}
+			}
+
+			return false;
+		}
+
+		return b.length === 0;
+	}
+
+	/**
+	 * Determines if two terrains are equal within the given height range.
+	 * @param {HeightMapDataV1Terrain[]} a
+	 * @param {HeightMapDataV1Terrain[]} b
+	 * @param {number} bottom
+	 * @param {number} top
+	 */
+	static #terrainEqualInRange(a, b, bottom, top) {
+		return HeightMap.#terrainEqual(
+			HeightMap.#terrainSlice(a, bottom, top),
+			HeightMap.#terrainSlice(b, bottom, top));
+	}
+
+	/**
+	 * Takes terrain data, and returns just the slice of that exists within the given range.
+	 * @param {HeightMapDataV1Terrain[]} terrain
+	 * @param {number} bottom
+	 * @param {number} top
+	 * @returns {HeightMapDataV1Terrain[]}
+	 */
+	static #terrainSlice(terrain, bottom, top) {
+		return terrain
+			.filter(r => r.elevation < top && r.elevation + r.height > bottom)
+			.map(r => ({
+				...r,
+				elevation: Math.max(r.elevation, bottom),
+				height: Math.min(r.height, top - r.elevation)
+			}));
+	}
+
+	/**
+	 * Returns the cells that neighbour the given cell.
+	 * @param {number} x
+	 * @param {number} y
+	 */
+	#getNeighbouringCells(x, y) {
+		/** @type {{ i: number, j: number }[]} */
+		const neighbours = canvas.grid.isHexagonal
+			// For hex grids use the provided getAdjacentOffsets method.
+			? canvas.grid.getAdjacentOffsets({ i: x, j: y })
+
+			// For square grids, this method returns all 8 cells, but we only want the 4 orthogonal cells.
+			: [
+				{ i: x, j: y - 1 },
+				{ i: x - 1, j: y },
+				{ i: x + 1, j: y },
+				{ i: x, j: y + 1 }
+			];
+
+		// Filter out cells that fall outside the canvas
+		const { width: maxX, height: maxY } = canvas.dimensions;
+		const { sizeX, sizeY } = canvas.grid;
+		return neighbours
+			.filter(c => {
+				const { x, y } = canvas.grid.getTopLeftPoint(c);
+				return x + sizeX > 0 // left
+					&& x < maxX // right
+					&& y + sizeY > 0 // top
+					&& y < maxY; // bottom
+			})
+			.map(c => [c.i, c.j]);
+	}
 }
 
 /**
@@ -694,6 +861,7 @@ export function encodeCellKey(row, col) {
 /**
  * Converts a cell string key used for a map/set ("row.col") back into coordinate pairs.
  * @param {string} key
+ * @returns {[number, number]}
  */
 export function decodeCellKey(key) {
 	const [row, col] = key.split("|");

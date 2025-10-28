@@ -2,8 +2,8 @@ import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-d
 import { flags, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
-import { Signal } from "../utils/signal.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
+import { Signal } from "../utils/signal.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
@@ -245,6 +245,15 @@ export class TerrainHeightLayer extends InteractionLayer {
 					this._pendingChanges.push(cell);
 					this._highlightGraphics.highlight(...cell);
 				}
+				break;
+			}
+
+			case tools.fill: {
+				this._pendingTool = undefined;
+
+				const { terrainTypeId, height, elevation, floodMode } = paintingConfig$.value;
+				await this._heightMap.fillCells(cell, terrainTypeId, height, elevation, { mode: floodMode });
+				await this._updateGraphics();
 				break;
 			}
 

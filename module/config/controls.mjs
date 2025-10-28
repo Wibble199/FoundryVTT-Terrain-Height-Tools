@@ -86,6 +86,11 @@ export function registerSceneControls(controls) {
 				icon: "fas fa-paintbrush"
 			},
 			{
+				name: tools.fill,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsFill"),
+				icon: "fas fa-fill-drip"
+			},
+			{
 				name: tools.erase,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErase"),
 				icon: "fas fa-eraser"
@@ -184,11 +189,11 @@ export function renderToolSpecificApplications(controls) {
  */
 function renderToolSpecificApplication(condition, application, factory) {
 	if (!condition && application?.rendered) {
-		// If we shouldn't show the palette, close it if it's already open
+		// If we shouldn't show the application, close it if it's already open
 		application?.close();
 
 	} else if (condition && !application) {
-		// If we should show the palette, but haven't constructed one yet, do so now
+		// If we should show the application, but haven't constructed one yet, do so now
 		application = factory();
 		application.render(true);
 
@@ -201,8 +206,8 @@ function renderToolSpecificApplication(condition, application, factory) {
 			});
 		});
 
-	} else if (condition && !application.rendered) {
-		// If we should show the palette, and it's constructed but not shown, show it
+	} else if (condition) {
+		// If we should show the application, and it's constructed (but maybe not shown), show it/re-render it
 		application.render(true);
 	}
 }

@@ -9,9 +9,10 @@ export const wallHeightModuleName = "wall-height";
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
 	paint: "paint",
-	pipette: "pipette",
+	fill: "fill",
 	erase: "erase",
 	eraseShape: "eraseShape",
+	pipette: "pipette",
 	lineOfSight: "terrainHeightToolsLineOfSight",
 	tokenLineOfSight: "terrainHeightToolsTokenLineOfSight",
 	convert: "convert",
@@ -71,6 +72,12 @@ export const terrainPaintMode = /** @type {const} */ ({
 	additiveMerge: "TERRAINHEIGHTTOOLS.PaintMode.AdditiveMerge.Name",
 	destructiveMerge: "TERRAINHEIGHTTOOLS.PaintMode.DestructiveMerge.Name",
 	totalReplace: "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Name",
+});
+
+/** @enum {keyof typeof terrainFillMode} */
+export const terrainFillMode = /** @type {const} */ ({
+	applicableBoundary: "TERRAINHEIGHTTOOLS.FillMode.ApplicableBoundary.Name",
+	strictBoundary: "TERRAINHEIGHTTOOLS.FillMode.StrictBoundary.Name"
 });
 
 /** @enum {keyof typeof tokenRelativeHeights} */
