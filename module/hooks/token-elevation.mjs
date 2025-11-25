@@ -18,9 +18,8 @@ export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
 	const token = tokenDoc.object;
 	if (!token) return;
 
-	// If the token position or size hasn't changed, do nothing
-	// If the elevation has been manually changed, do nothing (i.e. let that change take priority)
-	if (["x", "y", "width", "height"].every(p => !(p in delta)) || "elevation" in delta) return;
+	// If the token has not moved or changed size, then there will be no elevation change due to THT
+	if (["x", "y", "width", "height"].every(prop => !(prop in delta))) return;
 
 	// Get highest terrain before move
 	const terrainHeight1 = getHighestTerrainUnderToken(token);
@@ -33,8 +32,10 @@ export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
 
 	// If the heights before and after are different, work out the difference and then apply this to the token's elev
 	if (terrainHeight1 !== terrainHeight2) {
+		// We prefer using the delta elevation over the document's elevation. E.G. if the token's elevation has changed,
+		// then the user might be using something like elevation ruler so we (try to) keep compatibility with that.
 		const heightDelta = terrainHeight2 - terrainHeight1;
-		delta.elevation = Math.max(tokenDoc.elevation + toSceneUnits(heightDelta), 0);
+		delta.elevation = (delta.elevation ?? tokenDoc.elevation) + toSceneUnits(heightDelta);
 	}
 }
 
