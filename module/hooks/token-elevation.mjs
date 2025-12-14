@@ -14,27 +14,21 @@ export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
 	// If the token was not updated by the current user, or the setting is disabled, do nothing
 	if (userId !== game.userId || !game.settings.get(moduleName, settings.tokenElevationChange)) return;
 
-	/** @type {Token | null} */
-	const token = tokenDoc.object;
-	if (!token) return;
-
 	// If the token has not moved or changed size, then there will be no elevation change due to THT
 	if (["x", "y", "width", "height"].every(prop => !(prop in delta))) return;
 
-	// Get highest terrain before move
-	const terrainHeight1 = getHighestTerrainUnderToken(token);
+	const terrainHeightBeforeMove = getHighestTerrainUnderToken(tokenDoc);
 
-	// Get highest terrain after move
-	const terrainHeight2 = getHighestTerrainUnderToken(token, {
+	const terrainHeightAfterMove = getHighestTerrainUnderToken(tokenDoc, {
 		x: delta.x ?? tokenDoc.x,
 		y: delta.y ?? tokenDoc.y,
 	});
 
 	// If the heights before and after are different, work out the difference and then apply this to the token's elev
-	if (terrainHeight1 !== terrainHeight2) {
+	if (terrainHeightBeforeMove !== terrainHeightAfterMove) {
 		// We prefer using the delta elevation over the document's elevation. E.G. if the token's elevation has changed,
 		// then the user might be using something like elevation ruler so we (try to) keep compatibility with that.
-		const heightDelta = terrainHeight2 - terrainHeight1;
+		const heightDelta = terrainHeightAfterMove - terrainHeightBeforeMove;
 		delta.elevation = (delta.elevation ?? tokenDoc.elevation) + toSceneUnits(heightDelta);
 	}
 }
@@ -49,22 +43,22 @@ export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) 
 	// If the token was not created by the current user, or the setting is disabled, do nothing
 	if (userId !== game.userId || !game.settings.get(moduleName, settings.tokenElevationChange)) return;
 
-	const terrainHeight = getHighestTerrainUnderToken(tokenDoc.object);
+	const terrainHeight = getHighestTerrainUnderToken(tokenDoc);
 
 	tokenDoc.updateSource({ elevation: terrainHeight });
 }
 
 /**
  * Finds the highest terrain point under the given token position. This accounts for terrain height and elevation.
- * @param {Token} token
+ * @param {TokenDocument} token
  * @param {{ x: number; y: number; }} [position]
  */
-function getHighestTerrainUnderToken(token, position) {
+function getHighestTerrainUnderToken(tokenDocument, position) {
 	const hm = TerrainHeightLayer.current?._heightMap;
 
 	// If a position has been provided, use that position. Otherwise, use the token's position.
-	const { x, y } = position ?? token;
-	const { width, height, hexagonalShape } = token.document;
+	const { x, y } = position ?? tokenDocument;
+	const { width, height, hexagonalShape } = tokenDocument;
 	const { type: gridType, size: gridSize } = canvas.grid;
 
 	let highest = 0;
