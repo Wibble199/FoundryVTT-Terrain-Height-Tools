@@ -243,7 +243,7 @@ const getRectangleHexTokenSpaces = cacheReturn(
 	function(primaryAxisSize, secondaryAxisSize, isColumnar, isVariant2) {
 		// If the size in the primary direction is 1, the size in the secondary direction must be no more than one.
 		// For primary size >= 2, any size secondary is acceptable.
-		if (primaryAxisSize === 1 && secondaryAxisOffset > 1) {
+		if (primaryAxisSize === 1 && secondaryAxisSize > 1) {
 			return [];
 		}
 
