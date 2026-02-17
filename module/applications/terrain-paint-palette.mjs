@@ -35,7 +35,7 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 	};
 
 	get #showPaintModeSelect() {
-		return game.activeTool !== tools.fill;
+		return ui.controls.activeTool !== tools.fill;
 	}
 
 	/** @override */
@@ -45,13 +45,22 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 		// Remove close button
 		this.window.close.remove();
 
-		// Add configure terrain types button
-		const configureButton = document.createElement("button");
-		configureButton.classList.add("header-control", "fas", "fa-cog");
-		configureButton.dataset.action = "configureTerrainTypes";
-		this.window.header.append(configureButton);
-
 		return frame;
+	}
+
+	/** @override */
+	_getHeaderControls() {
+		const controls = super._getHeaderControls();
+
+		// Add configure terrain types button
+		// Note: label is automatically localized by ApplicationV2 framework
+		controls.unshift({
+			action: "configureTerrainTypes",
+			icon: "fas fa-cog",
+			label: "TERRAINHEIGHTTOOLS.ConfigureTerrainTypes"
+		});
+
+		return controls;
 	}
 
 	/** @override */

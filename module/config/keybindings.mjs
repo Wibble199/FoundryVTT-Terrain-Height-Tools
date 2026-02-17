@@ -1,5 +1,6 @@
 import { keybindings, moduleName, settings } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
+import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
 import { sceneControls } from "./controls.mjs";
 
 export function registerKeybindings() {
@@ -39,6 +40,19 @@ export function registerKeybindings() {
 				sceneControls.terrainHeightToolsLayerToggleControlButton.active = isActive;
 				ui.controls.render();
 			}
+		}
+	});
+
+	game.keybindings.register(moduleName, keybindings.undoTerrainHeight, {
+		name: "KEYBINDINGS.UndoTerrainHeight",
+		editable: [{ key: "KeyZ", modifiers: ["Control"] }],
+		onDown: () => {
+			const layer = canvas.ready && canvas.activeLayer;
+			if (layer instanceof TerrainHeightLayer && layer.canUndo) {
+				layer.undo();
+				return true;
+			}
+			return false;
 		}
 	});
 }

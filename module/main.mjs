@@ -12,7 +12,7 @@ import { log } from "./utils/log.mjs";
 Hooks.once("init", init);
 Hooks.once("ready", ready);
 Hooks.on("getSceneControlButtons", registerSceneControls);
-Hooks.on("renderSceneControls", renderToolSpecificApplications);
+Hooks.on("activateSceneControls", renderToolSpecificApplications);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 Hooks.on("preCreateToken", handleTokenPreCreation);
 Hooks.on("preUpdateToken", handleTokenElevationChange);
@@ -66,17 +66,6 @@ function ready() {
 }
 
 function initLibWrapper() {
-	// Patch to allow the Undo keybinding to work for the Terrain Height Layer
-	libWrapper.register(moduleName, "ClientKeybindings._onUndo", function(wrapped, ...args) {
-		const layer = canvas.ready && canvas.activeLayer;
-		if (layer instanceof TerrainHeightLayer && layer.canUndo) {
-			layer.undo();
-			return true;
-		}
-
-		return wrapped(...args);
-	}, libWrapper.MIXED);
-
 	// Patch to allow clicking on a token to select it for the token line of sight
 	// Since players are not allowed to click on tokens they do not own (in which case `_onClickLeft` does not even get
 	// called) we also need to override the `can` method to allow players to click tokens they don't own when using the

@@ -242,7 +242,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	}
 
 	#updateCursorMaskPosition = event => {
-		const pos = this.toLocal(event.data.global);
+		const pos = this.toLocal(event.global);
 		this.cursorRadiusMask.position.set(pos.x, pos.y);
 	}
 

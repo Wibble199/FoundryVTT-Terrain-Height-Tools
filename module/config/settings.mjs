@@ -186,8 +186,9 @@ export function registerSettings() {
 
 /**
  * When scene config is rendered, add a setting for the scene-level tile render order option.
+ * In V13, the html parameter is a plain DOM element (not jQuery).
  * @param {SceneConfig} sceneConfig
- * @param {jQuery} html
+ * @param {HTMLElement} html
  */
 export function addAboveTilesToSceneConfig(sceneConfig, html) {
 	// Note that during the v11 -> v12 migration, I made the mistake of getting this value backwards, so when this
@@ -198,7 +199,10 @@ export function addAboveTilesToSceneConfig(sceneConfig, html) {
 	/** @type {boolean | null | undefined} */
 	const currentValue = sceneConfig.object.getFlag(moduleName, flags.terrainLayerAboveTiles);
 
-	html.find(".tab[data-tab='grid']").append(`
+	const gridTab = html.querySelector(".tab[data-tab='grid']");
+	if (!gridTab) return;
+
+	const fragment = document.createRange().createContextualFragment(`
 		<hr/>
 		<div class="form-group">
 			<label>${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTiles")}</label>
@@ -215,4 +219,6 @@ export function addAboveTilesToSceneConfig(sceneConfig, html) {
 			</select>
 		</div>
 	`);
+
+	gridTab.appendChild(fragment);
 }

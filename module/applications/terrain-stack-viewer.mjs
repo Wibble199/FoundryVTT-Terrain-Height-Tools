@@ -34,7 +34,7 @@ export class TerrainStackViewer extends HandlebarsApplicationMixin(ApplicationV2
 				//   show the toolbox on the token layer turned on.
 				this.#visible = keybindPressed ||
 					activeControl === moduleName ||
-					(terrain.length > 0 && activeControl === "token" && game.settings.get(moduleName, settings.showTerrainStackViewerOnTokenLayer));
+					(terrain.length > 0 && activeControl === "tokens" && game.settings.get(moduleName, settings.showTerrainStackViewerOnTokenLayer));
 
 				this.#updateVisibility();
 

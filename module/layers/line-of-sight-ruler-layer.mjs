@@ -91,7 +91,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// Only enable events when the ruler layer is active, otherwise it interferes with other standard layers
 		join((activeControl, activeTool) => {
-			this.eventMode = activeControl === "token" && activeTool === tools.lineOfSight ? "static" : "none";
+			this.eventMode = activeControl === "tokens" && activeTool === tools.lineOfSight ? "static" : "none";
 		}, sceneControls.activeControl$, sceneControls.activeTool$);
 
 		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
@@ -108,7 +108,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	get isToolSelected() {
-		return game.activeTool === tools.lineOfSight;
+		return ui.controls.activeTool === tools.lineOfSight;
 	}
 
 	get #isDraggingRuler() {
@@ -332,7 +332,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/** @returns {[number, number]} */
 	#getDragPosition(event) {
 		/** @type {{ x: number; y: number }} */
-		const { x, y } = this.toLocal(event.data.global);
+		const { x, y } = this.toLocal(event.global);
 
 		// Holding shift disabling snapping
 		const snap = !game.keyboard.isModifierActive(KeyboardManager.MODIFIER_KEYS.SHIFT);

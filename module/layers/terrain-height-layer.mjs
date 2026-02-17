@@ -48,6 +48,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	constructor() {
 		super();
+		this.eventMode = "static";
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
 	}
 
@@ -81,6 +82,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @override */
 	async _draw(options) {
 		super._draw(options);
+
+		this.hitArea = canvas.dimensions.rect;
 
 		if (this._graphics) {
 			await this._updateGraphics();
@@ -172,20 +175,20 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// -------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
-		this[action]("mousedown", this.#onMouseDown);
-		this[action]("mousemove", this.#onMouseMove);
-		this[action]("mouseup", this.#onMouseUp);
+		this[action]("pointerdown", this.#onMouseDown);
+		this[action]("pointermove", this.#onMouseMove);
+		this[action]("pointerup", this.#onMouseUp);
 	}
 
 	#onMouseDown = async event => {
 		if (event.button !== 0) return;
-		const { x, y } = this.toLocal(event.data.global);
+		const { x, y } = this.toLocal(this.#getEventGlobalPosition(event));
 		await this.#beginTool(x, y);
 	};
 
 	#onMouseMove = async event => {
 		if (!this._pendingTool) return;
-		const { x, y } = this.toLocal(event.data.global);
+		const { x, y } = this.toLocal(this.#getEventGlobalPosition(event));
 		await this.#useTool(x, y);
 	};
 
@@ -196,10 +199,14 @@ export class TerrainHeightLayer extends InteractionLayer {
 	};
 
 	#onGlobalMouseMove = event => {
-		const { x, y } = this.toLocal(event.data.global);
+		const { x, y } = this.toLocal(this.#getEventGlobalPosition(event));
 		const { i: row, j: col } = canvas.grid.getOffset({ x, y });
 		this._hoveredCell$.value = { row, col };
 	};
+
+	#getEventGlobalPosition(event) {
+		return event.data?.global ?? event.global;
+	}
 
 	/**
 	 * Handles initial tool usage.
@@ -211,7 +218,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		// If a tool is already in use, ignore
 		if (this._pendingTool !== undefined) return;
 
-		this._pendingTool = tool ?? game.activeTool;
+		this._pendingTool = tool ?? game.activeTool ?? ui.controls.activeTool;
 
 		// Set highlight colours depending on the tool
 		switch (this._pendingTool) {
@@ -273,9 +280,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 					elevation: Math.max(shape.elevation, 0)
 				};
 
-				// Select the paintbrush tool. This feels like a horrible dirty way of doing this, but there doesn't
-				// seem to be any API exposed by Foundry to set the tool without pretending to click the button.
-				document.querySelector(`#tools-panel-${moduleName} [data-tool="${tools.paint}"]`)?.click();
+				// Select the paintbrush tool using the V13 SceneControls API.
+				ui.controls.activate(moduleName, tools.paint);
 
 				break;
 			}

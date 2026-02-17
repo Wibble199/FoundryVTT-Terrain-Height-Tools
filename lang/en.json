@@ -17,7 +17,8 @@
 		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Elevation",
 		"IncreaseLosRulerHeight": "Increase Line of Sight Ruler Elevation",
 		"ShowTerrainStackViewer": "Show Terrain Viewer",
-		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer"
+		"ToggleTerrainHeightMapOnTokenLayer": "Toggle Terrain Height Map on Token Layer",
+		"UndoTerrainHeight": "Undo Terrain Height Change"
 	},
 	"SETTINGS": {
 		"DefaultTokenLosHeight.Name": "Default Token LoS Height",
@@ -61,6 +62,10 @@
 	},
 	"TERRAINHEIGHTTOOLS": {
 		"AddTerrainType": "Add Terrain Type",
+		"ConfigureTerrainTypes": "Configure Terrain Types",
+		"TabLines": "Lines",
+		"TabFill": "Fill",
+		"TabText": "Text",
 		"AllowTextRotation.Name": "Allow Text Rotation",
 		"AllowTextRotation.Hint": "If turned on, the label may get rotated by 90 degrees if THT thinks that the label will fit better that way.",
 		"Bottom": "Bottom",

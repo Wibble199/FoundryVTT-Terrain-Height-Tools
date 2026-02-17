@@ -69,31 +69,38 @@ export class ShapeConversionConifg extends withSubscriptions(HandlebarsApplicati
 
 /**
  * Custom wall config window that updates the conversion config instead of a WallDocument.
+ * Converted from FormApplication to ApplicationV2 for V13 compatibility.
  */
-class WallConversionConfig extends FormApplication {
+class WallConversionConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
 	#audioPreviewState = 0;
 
-	constructor(options = {}) {
-		super(undefined, options);
-	}
-
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			id: "tht_wallConversionConfig",
-			title: game.i18n.localize("DOCUMENT.Wall"),
-			classes: ["sheet", "wall-config"],
-			template: "templates/scene/wall-config.html",
+	static DEFAULT_OPTIONS = {
+		id: "tht_wallConversionConfig",
+		tag: "form",
+		classes: ["sheet", "wall-config"],
+		window: {
+			title: "DOCUMENT.Wall",
+		},
+		position: {
 			width: 400,
 			height: "auto"
-		});
-	}
+		},
+		form: {
+			handler: WallConversionConfig.#onFormSubmit,
+			closeOnSubmit: true
+		}
+	};
+
+	static PARTS = {
+		main: {
+			template: "templates/scene/wall-config.html"
+		}
+	};
 
 	/** @override */
-	getData(options = {}) {
-		// This needs to match the data that is provided to the base system's wall config dialog.
-
-		const context = super.getData(options);
+	async _prepareContext() {
+		const context = {};
 
 		// Populate from the THT config
 		context.source = {
@@ -138,35 +145,43 @@ class WallConversionConfig extends FormApplication {
 		return context;
 	}
 
-	/** @override */
-	_updateObject(_event, formData) {
-		const newWallConfig = foundry.utils.expandObject(formData);
+	/**
+	 * @this {WallConversionConfig}
+	 */
+	static #onFormSubmit(_event, _form, formData) {
+		const newWallConfig = foundry.utils.expandObject(formData.object);
 		delete newWallConfig.flags;
 		convertConfig$.wallConfig$.value = newWallConfig;
 	}
 
-	activateListeners(html) {
-		html.find(".audio-preview").click(this.#onAudioPreview.bind(this));
+	/** @override */
+	_onRender() {
+		const form = this.element;
+
+		// Audio preview
+		form.querySelector(".audio-preview")?.addEventListener("click", this.#onAudioPreview.bind(this));
+
+		// Enable/disable door options based on current value
 		this.#enableDoorOptions(convertConfig$.wallConfig$.door$.value > CONST.WALL_DOOR_TYPES.NONE);
 		this.#toggleThresholdInputVisibility();
-		return super.activateListeners(html);
-	}
 
-	// Copied from WallConfig //
-
-	async _onChangeInput(event) {
-		if (event.currentTarget.name === "door") {
-			this.#enableDoorOptions(Number(event.currentTarget.value) > CONST.WALL_DOOR_TYPES.NONE);
-		} else if (event.currentTarget.name === "doorSound") {
-			this.#audioPreviewState = 0;
-		} else if (["light", "sight", "sound"].includes(event.currentTarget.name)) {
-			this.#toggleThresholdInputVisibility();
-		}
-		return super._onChangeInput(event);
+		// Listen for input changes using event delegation on the form
+		form.addEventListener("change", event => {
+			const name = event.target.name;
+			if (name === "door") {
+				this.#enableDoorOptions(Number(event.target.value) > CONST.WALL_DOOR_TYPES.NONE);
+			} else if (name === "doorSound") {
+				this.#audioPreviewState = 0;
+			} else if (["light", "sight", "sound"].includes(name)) {
+				this.#toggleThresholdInputVisibility();
+			}
+		});
 	}
 
 	#onAudioPreview() {
-		const doorSoundName = this.form.doorSound.value;
+		const form = this.element;
+		const doorSoundEl = form.querySelector("[name='doorSound']");
+		const doorSoundName = doorSoundEl?.value;
 		const doorSound = CONFIG.Wall.doorSounds[doorSoundName];
 		if (!doorSound) return;
 		const interactions = CONST.WALL_DOOR_INTERACTIONS;
@@ -179,19 +194,21 @@ class WallConversionConfig extends FormApplication {
 	}
 
 	#enableDoorOptions(isDoor) {
-		const doorOptions = this.form.querySelector(".door-options");
+		const doorOptions = this.element.querySelector(".door-options");
+		if (!doorOptions) return;
 		doorOptions.disabled = !isDoor;
 		doorOptions.classList.toggle("hidden", !isDoor);
 		this.setPosition({ height: "auto" });
 	}
 
 	#toggleThresholdInputVisibility() {
-		const form = this.form;
+		const form = this.element;
 		const showTypes = [CONST.WALL_SENSE_TYPES.PROXIMITY, CONST.WALL_SENSE_TYPES.DISTANCE];
 		for (const sense of ["light", "sight", "sound"]) {
-			const select = form[sense];
+			const select = form.querySelector(`[name='${sense}']`);
+			if (!select) continue;
 			const input = select.parentElement.querySelector(".proximity");
-			input.classList.toggle("hidden", !showTypes.includes(Number(select.value)));
+			if (input) input.classList.toggle("hidden", !showTypes.includes(Number(select.value)));
 		}
 	}
 }

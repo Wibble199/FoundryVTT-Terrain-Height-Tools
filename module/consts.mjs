@@ -44,7 +44,8 @@ export const keybindings = /** @type {const} */ ({
 	decreaseLosRulerHeight: "decreaseLosRulerHeight",
 	increaseLosRulerHeight: "increaseLosRulerHeight",
 	showTerrainStack: "showTerrainStack",
-	toggleTerrainHeightMapOnTokenLayer: "toggleTerrainHeightMapOnTokenLayer"
+	toggleTerrainHeightMapOnTokenLayer: "toggleTerrainHeightMapOnTokenLayer",
+	undoTerrainHeight: "undoTerrainHeight"
 });
 
 /** @enum {keyof typeof flags} */
