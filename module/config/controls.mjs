@@ -6,7 +6,7 @@ import { TerrainVisibilityConfig } from "../applications/terrain-visibility-conf
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settings, tools } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
-import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
+import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
 import { Signal } from "../utils/signal.mjs";
 
 export const sceneControls = {
@@ -126,7 +126,7 @@ export function registerSceneControls(controls) {
 						rejectClose: false
 					});
 
-					if (shouldDelete) TerrainHeightLayer.current?.clear();
+					if (shouldDelete) TerrainHeightEditorLayer.current?.clear();
 				},
 				button: true
 			}

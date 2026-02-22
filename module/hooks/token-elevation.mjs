@@ -1,5 +1,5 @@
 import { moduleName, settings } from "../consts.mjs";
-import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
+import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
 import { getSpacesUnderToken, toSceneUnits } from "../utils/grid-utils.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 
@@ -54,7 +54,7 @@ export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) 
  * @param {{ x: number; y: number; }} [position]
  */
 function getHighestTerrainUnderToken(tokenDocument, position) {
-	const hm = TerrainHeightLayer.current?._heightMap;
+	const hm = TerrainHeightEditorLayer.current?._heightMap;
 
 	// If a position has been provided, use that position. Otherwise, use the token's position.
 	const { x, y } = position ?? tokenDocument;

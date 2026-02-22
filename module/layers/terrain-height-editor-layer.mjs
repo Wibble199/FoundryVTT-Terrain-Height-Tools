@@ -1,7 +1,8 @@
 import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-dialog.mjs";
-import { flags, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
+import { flags, heightMapProviderId, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
+import { registerTerrainProvider, unregisterTerrainProvider } from "../stores/terrain-manager.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { Signal } from "../utils/signal.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
@@ -12,7 +13,7 @@ import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
  * Layer for handling interaction with the terrain height data.
  * E.G. shows overlay previews and handles click events for painting/clearing.
  */
-export class TerrainHeightLayer extends InteractionLayer {
+export class TerrainHeightEditorLayer extends InteractionLayer {
 
 	/** @type {HeightMap | undefined} */
 	_heightMap;
@@ -51,7 +52,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
 	}
 
-	/** @return {TerrainHeightLayer | undefined} */
+	/** @return {TerrainHeightEditorLayer | undefined} */
 	static get current() {
 		return canvas.terrainHeightLayer;
 	}
@@ -64,7 +65,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 		});
 	}
 
-	get paintingConfig() {
+	get #paintingConfig() {
 		const { terrainTypeId, height, elevation, mode } = paintingConfig$.value;
 		const usesHeight = getTerrainType(terrainTypeId)?.usesHeight ?? false;
 		return {
@@ -98,8 +99,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 			canvas.interface.addChild(this._highlightGraphics);
 
 			this._heightMap = new HeightMap(canvas.scene);
-
-			await this._graphics.update(this._heightMap);
+			registerTerrainProvider(heightMapProviderId, this._heightMap);
 
 			this.#subscriptions.push(this._hoveredCell$.subscribe(({ row, col }) =>
 				globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col)));
@@ -139,6 +139,9 @@ export class TerrainHeightLayer extends InteractionLayer {
 		this._highlightGraphics?.parent.removeChild(this._highlightGraphics);
 		this._highlightGraphics = undefined;
 
+		unregisterTerrainProvider(heightMapProviderId);
+		this._heightMap = undefined;
+
 		this.#subscriptions.forEach(unsubscribe => unsubscribe());
 		this.#subscriptions = [];
 	}
@@ -153,7 +156,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 			await this._graphics?._updateShapesVisibility();
 		} else {
 			this._heightMap.reload();
-			await this._updateGraphics();
 		}
 	}
 
@@ -161,10 +163,11 @@ export class TerrainHeightLayer extends InteractionLayer {
 	// Data //
 	// ---- //
 	async _updateGraphics() {
+		// TODO: terrain stack viewer
 		const { row, col } = this._hoveredCell$.value
 		globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col);
 
-		await this._graphics?.update(this._heightMap);
+		//await this._graphics?.update(this._heightMap);
 	}
 
 	// -------------------- //
@@ -251,9 +254,8 @@ export class TerrainHeightLayer extends InteractionLayer {
 			case tools.fill: {
 				this._pendingTool = undefined;
 
-				const { terrainTypeId, height, elevation, floodMode } = paintingConfig$.value;
+				const { terrainTypeId, height, elevation, floodMode } = this.#paintingConfig;
 				await this._heightMap.fillCells(cell, terrainTypeId, height, elevation, { mode: floodMode });
-				await this._updateGraphics();
 				break;
 			}
 
@@ -297,10 +299,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 					submitLabel: "TERRAINHEIGHTTOOLS.EraseSelectedShape",
 					submitIcon: "fas fa-eraser"
 				});
-				if (!shape) return;
 
-				if (await this._heightMap.eraseShape(shape))
-					await this._updateGraphics();
+				if (shape)
+					await this._heightMap.eraseShape(shape);
+
 				break;
 			}
 
@@ -341,15 +343,14 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 		switch (pendingTool) {
 			case tools.paint:
-				const { selectedTerrainId, selectedHeight, selectedElevation, mode } = this.paintingConfig;
-				if (selectedTerrainId && await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { mode }))
-					await this._updateGraphics();
+				const { selectedTerrainId, selectedHeight, selectedElevation, mode } = this.#paintingConfig;
+				if (selectedTerrainId)
+					await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { mode });
 				break;
 
 			case tools.erase:
 				const { excludedTerrainTypeIds: excludingTerrainTypeIds, bottom, top } = eraseConfig$.value;
-				if (await this._heightMap.eraseCells(pendingChanges, { excludingTerrainTypeIds, bottom, top }))
-					await this._updateGraphics();
+				await this._heightMap.eraseCells(pendingChanges, { excludingTerrainTypeIds, bottom, top });
 				break;
 		}
 
@@ -357,8 +358,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	}
 
 	async clear() {
-		if (await this._heightMap.clear())
-			await this._updateGraphics(this._heightMap);
+		await this._heightMap.clear();
 	}
 
 	get canUndo() {
@@ -514,9 +514,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 				})));
 		}
 
-		if (deleteAfter) {
+		if (deleteAfter)
 			await this._heightMap.eraseShape(shape);
-			await this._updateGraphics();
-		}
 	}
 }

@@ -8,7 +8,7 @@ import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { fromHook, join } from "../utils/signal.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "../utils/token-utils.mjs";
-import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
+import { TerrainHeightEditorLayer } from "./terrain-height-editor-layer.mjs";
 
 /**
  * @typedef {Object} Point3D
@@ -574,7 +574,7 @@ class LineOfSightRuler extends PIXI.Container {
 	}
 
 	_recalculateLos() {
-		const hm = TerrainHeightLayer.current?._heightMap;
+		const hm = TerrainHeightEditorLayer.current?._heightMap;
 		const intersectionRegions = hm.calculateLineOfSight(this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
 		this.#intersectionRegions = HeightMap.flattenLineOfSightIntersectionRegions(intersectionRegions);
 	}

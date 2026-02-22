@@ -1,6 +1,8 @@
+/** @import { HeightMapShape } from "../geometry/height-map-shape.mjs"; */
 import { sceneControls } from "../config/controls.mjs";
 import { flags, lineTypes, moduleName, settings, tools } from "../consts.mjs";
-import { HeightMap, LineSegment, Point, Polygon } from "../geometry/index.mjs";
+import { LineSegment, Point, Polygon } from "../geometry/index.mjs";
+import { currentTerrain$ } from "../stores/terrain-manager.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { debug } from "../utils/log.mjs";
@@ -8,7 +10,7 @@ import { prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath, drawInnerFade } from "../utils/pixi-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
 import { getInvisibleSceneTerrainTypes, getTerrainTypes } from '../utils/terrain-types.mjs';
-import { TerrainHeightLayer } from "./terrain-height-layer.mjs";
+import { TerrainHeightEditorLayer } from "./terrain-height-editor-layer.mjs";
 
 /**
  * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.
@@ -56,7 +58,8 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 		this.#subsciptions = [
 			join(() => this.#updateShapeMasks(), this.isLayerActive$, this.isHighlightingObjects$, this.maskRadius$),
-			join(() => this._updateShapesVisibility(), this.isLayerActive$, this.showOnTokenLayer$, sceneControls.activeTool$)
+			join(() => this._updateShapesVisibility(), this.isLayerActive$, this.showOnTokenLayer$, sceneControls.activeTool$),
+			currentTerrain$.subscribe(v => this.#updateShapes(v)),
 		];
 	}
 
@@ -82,11 +85,11 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 	/**
 	 * Redraws the graphics layer using the supplied height map data.
-	 * @param {HeightMap} heightMap
+	 * @param {{ providerId: string; shapes: HeightMapShape[]; }[]} terrainData
 	 */
-	async update(heightMap) {
+	async #updateShapes(terrainData) {
 		// If there are no shapes on the map, just clear it and return
-		if (heightMap.shapes.length === 0) {
+		if (terrainData.every(d => d.shapes.length === 0)) {
 			this._clear();
 			this.#updateShapeMasks();
 			return;
@@ -115,21 +118,25 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 		const zoneZIndex = game.settings.get(moduleName, settings.showZonesAboveNonZones) ? 9999999 : -1;
 
-		for (const shape of heightMap.shapes) {
-			const terrainType = terrainTypesMap.get(shape.terrainTypeId);
-			if (!terrainType) continue;
+		for (const { shapes } of terrainData) {
+			for (const shape of shapes) {
+				const terrainType = terrainTypesMap.get(shape.terrainTypeId);
+				if (!terrainType) continue;
 
-			const shapeGraphics = new TerrainShapeGraphics(shape, terrainType, textures.get(terrainType.id));
+				if (!shape.visible) continue;
 
-			// Sort terrains that use a height in elevation order. For terrains that don't use a height, always sort
-			// them above/below terrain that does have a height depending on world setting.
-			// Also add a small value based on the position the terrain type is in the palette to resolve zone ties in
-			// a consistent manner.
-			const tieBreaker = (terrainTypesArray.length - terrainTypesArray.indexOf(terrainType)) / 100000;
-			shapeGraphics.zIndex = (terrainType.usesHeight ? shape.elevation : zoneZIndex) + tieBreaker;
+				const shapeGraphics = new TerrainShapeGraphics(shape, terrainType, textures.get(terrainType.id));
 
-			this.#shapes.push(shapeGraphics);
-			this.addChild(shapeGraphics);
+				// Sort terrains that use a height in elevation order. For terrains that don't use a height, always sort
+				// them above/below terrain that does have a height depending on world setting.
+				// Also add a small value based on the position the terrain type is in the palette to resolve zone ties in
+				// a consistent manner.
+				const tieBreaker = (terrainTypesArray.length - terrainTypesArray.indexOf(terrainType)) / 100000;
+				shapeGraphics.zIndex = (terrainType.usesHeight ? shape.elevation : zoneZIndex) + tieBreaker;
+
+				this.#shapes.push(shapeGraphics);
+				this.addChild(shapeGraphics);
+			}
 		}
 
 		this.#updateShapeMasks();
@@ -151,7 +158,6 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	/**
 	 * @param {{ height: number; elevation: number; }} shape
 	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainStyle
-	 * @returns
 	 */
 	static _getLabelText(shape, terrainStyle) {
 		// If the shape has elevation, and the user has provided a different format for elevated terrain, use that.
@@ -174,9 +180,11 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	async _updateShapesVisibility({ animate = true } = {}) {
 		const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
 
+		// All shapes should always be visible if the THT layer is active (EXCEPT when on the visibility tool)
+		const showAllShapes = (this.isLayerActive$.value && sceneControls.activeTool$.value !== tools.terrainVisibility);
+
 		await Promise.all(this.#shapes.map(s => s._setVisible(
-			// All shapes should always be visible if the THT layer is active (EXCEPT when on the visibility tool)
-			(this.isLayerActive$.value && sceneControls.activeTool$.value !== tools.terrainVisibility) ||
+			showAllShapes ||
 
 			// Shapes should be visible if THT is turned on for other layer or the terrain type is always visible AND
 			// that terrain type is not hidden on this scene
@@ -203,7 +211,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		// Remove previous mask
 		this.#shapes.forEach(shape => shape._setMask(null));
 		if (this.cursorRadiusMask) this.removeChild(this.cursorRadiusMask);
-		TerrainHeightLayer.current?._eventListenerObj?.off("globalmousemove", this.#updateCursorMaskPosition);
+		TerrainHeightEditorLayer.current?._eventListenerObj?.off("globalmousemove", this.#updateCursorMaskPosition);
 
 		// Stop here if not applying a new mask. We are not applying a mask if:
 		// - The radius is 0, i.e. no mask
@@ -238,7 +246,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 		// Set mask
 		this.#shapes.forEach(shape => shape._setMask(this.cursorRadiusMask));
-		TerrainHeightLayer.current?._eventListenerObj.on("globalmousemove", this.#updateCursorMaskPosition);
+		TerrainHeightEditorLayer.current?._eventListenerObj.on("globalmousemove", this.#updateCursorMaskPosition);
 	}
 
 	#updateCursorMaskPosition = event => {
@@ -260,7 +268,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 	/** @type {string} */
 	#graphicId;
 
-	/** @type {import("../geometry/height-map-shape.mjs").HeightMapShape} */
+	/** @type {HeightMapShape} */
 	#shape;
 
  	/** @type {import("../utils/terrain-types.mjs").TerrainType} */
@@ -279,7 +287,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 	#textureMatrix;
 
 	/**
-	 * @param {import("../geometry/height-map-shape.mjs").HeightMapShape} shape
+	 * @param {HeightMapShape} shape
 	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainType
 	 * @param {{ texture: PIXI.Texture; matrix: PIXI.Matrix; } | undefined} texture
 	*/
@@ -295,7 +303,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 		this.#graphics = this.addChild(new PIXI.Graphics());
 		this.#drawGraphics();
 
-		this.#label = this.addChild(this.#createLabel());
+		this.#label =  this.addChild(this.#createLabel());
 	}
 
 	get _canHaveMask() {
@@ -323,7 +331,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 
 	_setMask(mask) {
 		// Only add a mask if this terrain type allows that
-		if (!this._terrainType.isAlwaysVisible)
+		if (!this._terrainType.isAlwaysVisible && this.#shape.visible)
 			this.mask = mask;
 	}
 

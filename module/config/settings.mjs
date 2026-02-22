@@ -1,6 +1,6 @@
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
 import { flags, moduleName, settings, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
-import { TerrainHeightLayer } from "../layers/terrain-height-layer.mjs";
+import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
 import { sceneControls } from "./controls.mjs";
 
 export function registerSettings() {
@@ -22,7 +22,7 @@ export function registerSettings() {
 		config: false,
 		onChange: () => {
 			sceneControls.terrainPaintPalette?.render(false);
-			TerrainHeightLayer.current?._updateGraphics();
+			TerrainHeightEditorLayer.current?._updateGraphics();
 			globalThis.terrainHeightTools.ui.terrainStackViewer?.render();
 		}
 	});
@@ -80,7 +80,7 @@ export function registerSettings() {
 		config: false,
 		default: true,
 		onChange: value => {
-			TerrainHeightLayer.current._graphics.showOnTokenLayer$.value = value;
+			TerrainHeightEditorLayer.current._graphics.showOnTokenLayer$.value = value;
 		}
 	});
 
@@ -112,7 +112,7 @@ export function registerSettings() {
 		config: true,
 		default: 0,
 		onChange: value => {
-			TerrainHeightLayer.current._graphics.maskRadius$.value = value;
+			TerrainHeightEditorLayer.current._graphics.maskRadius$.value = value;
 		}
 	});
 
@@ -160,7 +160,7 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: false,
-		onChange: () => TerrainHeightLayer.current?._updateGraphics()
+		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
 	});
 
 	game.settings.register(moduleName, settings.useFractionsForLabels, {
@@ -170,7 +170,7 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: true,
-		onChange: () => TerrainHeightLayer.current?._updateGraphics()
+		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
 	});
 
 	game.settings.register(moduleName, settings.smartLabelPlacement, {
@@ -180,7 +180,7 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: true,
-		onChange: () => TerrainHeightLayer.current?._updateGraphics()
+		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
 	});
 }
 

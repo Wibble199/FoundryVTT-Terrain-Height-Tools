@@ -1,6 +1,7 @@
 /** @import { terrainPaintMode as TerrainPaintMode, terrainFillMode as TerrainFillMode } from "../consts.mjs" */
 /** @import { LineOfSightIntersectionRegion } from "./height-map-shape.mjs" */
 /** @import { HeightMapDataV1, HeightMapDataV1Terrain } from "../utils/height-map-migrations.mjs" */
+/** @import { TerrainProvider, TerrainProviderCallback } from "../stores/terrain-manager.mjs" */
 import { flags, moduleName } from "../consts.mjs";
 import { distinctBy, groupBy } from '../utils/array-utils.mjs';
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
@@ -21,6 +22,10 @@ import { Polygon } from './polygon.mjs';
 
 const maxHistoryItems = 10;
 
+/**
+ * Manages height map data for a scene, providing read/update functionality.
+ * @implements {TerrainProvider}
+ */
 export class HeightMap {
 
 	/** @type {HeightMapDataV1["data"]} */
@@ -31,6 +36,9 @@ export class HeightMap {
 
 	/** @type {HeightMapShape[]} */
 	#shapes = [];
+
+	/** @type {Set<TerrainProviderCallback>} */
+	#onChangeCallbacks = new Set();
 
 	/** @param {Scene} */
 	constructor(scene) {
@@ -54,7 +62,7 @@ export class HeightMap {
 	reload() {
 		const flagData = this.scene.getFlag(moduleName, flags.heightData);
 		this.data = Object.fromEntries(migrateData(flagData).data ?? []);
-		this._recalculateShapes();
+		this.#recalculateShapes();
 	}
 
 	/**
@@ -74,6 +82,22 @@ export class HeightMap {
 	 */
 	getShapes(row, col) {
 		return this.#shapes.filter(s => s.containsCell(row, col));
+	}
+
+	/** @type {TerrainProvider["addChangeListener"]} */
+	addChangeListener(callback) {
+		this.#onChangeCallbacks.add(callback);
+		callback(this.#shapes);
+	}
+
+	/** @type {TerrainProvider["removeChangeListener"]} */
+	removeChangeListener(callback) {
+		this.#onChangeCallbacks.delete(callback);
+	}
+
+	#notifiySubscribers() {
+		for (const callback of this.#onChangeCallbacks)
+			callback(this.#shapes);
 	}
 
 	// -------------- //
@@ -162,7 +186,7 @@ export class HeightMap {
 		if (Object.keys(history).length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
-			this._recalculateShapes();
+			this.#recalculateShapes();
 		}
 
 		return history.length > 0;
@@ -237,7 +261,7 @@ export class HeightMap {
 
 		this.#pushHistory(history);
 		await this.#saveChanges();
-		this._recalculateShapes();
+		this.#recalculateShapes();
 	}
 
 	/**
@@ -289,7 +313,7 @@ export class HeightMap {
 		if (Object.keys(history).length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
-			this._recalculateShapes();
+			this.#recalculateShapes();
 		}
 
 		return history.length > 0;
@@ -313,6 +337,7 @@ export class HeightMap {
 		this.data = {};
 		await this.#saveChanges();
 		this.#shapes = [];
+		this.#notifiySubscribers();
 		return true;
 	}
 
@@ -431,11 +456,14 @@ export class HeightMap {
 	// -------- //
 	// Geometry //
 	// -------- //
-	_recalculateShapes() {
+	#recalculateShapes() {
 		this.#shapes = [];
 
 		// Gridless scenes not supported
-		if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return;
+		if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) {
+			this.#notifiySubscribers();
+			return;
+		}
 
 		const t1 = performance.now();
 
@@ -458,6 +486,8 @@ export class HeightMap {
 
 		const t2 = performance.now();
 		debug(`Shape calculation took ${t2 - t1}ms`);
+
+		this.#notifiySubscribers();
 	}
 
 	/**

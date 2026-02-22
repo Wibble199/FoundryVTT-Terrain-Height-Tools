@@ -2,19 +2,23 @@
 // ! Changing these functions should always be done in a backwards-compatible way.
 
 import { defaultGroupName, moduleName, settings } from "./consts.mjs";
+import { HeightMapShape } from "./geometry/height-map-shape.mjs";
 import { HeightMap } from "./geometry/height-map.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
-import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
+import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
 import { getTerrainTypes } from "./utils/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
+export { registerTerrainProvider, unregisterTerrainProvider } from "./stores/terrain-manager.mjs";
 export { getTerrainTypes } from "./utils/terrain-types.mjs";
+
+export const classes = { HeightMapShape };
 
 /**
  * Attempts to find a terrain type with the given name or ID.
- * @param {Object} terrain The terrain to search for.
- * @param {string} terrain.id The ID of the terrain type to find. Either this or `name` must be provided.
- * @param {string} terrain.name The name of the terrain type to find. Either this or `id` must be provided.
+ * @param {Object} shapes The terrain to search for.
+ * @param {string} shapes.id The ID of the terrain type to find. Either this or `name` must be provided.
+ * @param {string} shapes.name The name of the terrain type to find. Either this or `id` must be provided.
  * @returns {import("./utils/terrain-types.mjs").TerrainType | undefined}
  */
 export function getTerrainType(terrain) {
@@ -32,28 +36,28 @@ export function getTerrainType(terrain) {
  * @returns {{ terrainTypeId: string; height: number; elevation: number; }[]}
  */
 export function getCell(x, y) {
-	return TerrainHeightLayer.current?._heightMap.get(y, x);
+	return TerrainHeightEditorLayer.current?._heightMap.get(y, x);
 }
 
 /**
- * Gets the terrain shape at the given grid coordinates.
+ * Gets the terrain shapes at the given grid coordinates.
  * @param {number} x
  * @param {number} y
  * @param {import("./geometry/height-map.mjs").HeightMapShape | undefined}
  */
 export function getShapes(x, y) {
-	return TerrainHeightLayer.current?._heightMap.getShapes(y, x);
+	return TerrainHeightEditorLayer.current?._heightMap.getShapes(y, x);
 }
 
 /**
  * Paints the target cells on the current scene with the provided terrain data.
  * @param {[number, number][]} cells The grid cells to paint as [X,Y] coordinate pairs. The cells do not have to be
  * connected.
- * @param {Object} terrain The terrain options to use when painting the cells.
- * @param {string} terrain.id The ID of the terrain type to use. Either this or `name` must be provided.
- * @param {string} terrain.name The name of the terrain type to use. Either this or `id` must be provided.
- * @param {number} terrain.height If the terrain type uses heights, the height to paint on these cells.
- * @param {number} terrain.elevation If the terrain type uses heights, the elevation (how high off the ground) to paint these cells.
+ * @param {Object} shapes The terrain options to use when painting the cells.
+ * @param {string} shapes.id The ID of the terrain type to use. Either this or `name` must be provided.
+ * @param {string} shapes.name The name of the terrain type to use. Either this or `id` must be provided.
+ * @param {number} shapes.height If the terrain type uses heights, the height to paint on these cells.
+ * @param {number} shapes.elevation If the terrain type uses heights, the elevation (how high off the ground) to paint these cells.
  * @param {Object} [options]
  * @param {import("./consts.mjs").terrainPaintMode} [options.mode]
  * @returns {Promise<boolean>}
@@ -70,7 +74,7 @@ export function paintCells(cells, terrain, { mode = "totalReplace" } = {}) {
 	if (terrainType.usesHeight && typeof terrain.height !== "number")
 		throw new Error(`Terrain "${terrainType.name}' requires a height, but one was not provided.`);
 
-	return TerrainHeightLayer.current?._heightMap.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
+	return TerrainHeightEditorLayer.current?._heightMap.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
 }
 
 /**
@@ -83,7 +87,7 @@ export function eraseCells(cells) {
 		throw new Error("Expected `cells` to be an array of arrays.");
 	if (cells.length === 0) return;
 
-	return TerrainHeightLayer.current?._heightMap.eraseCells(cells);
+	return TerrainHeightEditorLayer.current?._heightMap.eraseCells(cells);
 }
 
 /**
@@ -111,7 +115,7 @@ export function calculateLineOfSight(p1, p2, options = {}) {
  * @returns {{ shape: import('./geometry/height-map.mjs').HeightMapShape; regions: import('./geometry/height-map-shape.mjs').LineOfSightIntersectionRegion[]; }[]}
  */
 export function calculateLineOfSightByShape(p1, p2, options = {}) {
-	return TerrainHeightLayer.current?._heightMap.calculateLineOfSight(p1, p2, options);
+	return TerrainHeightEditorLayer.current?._heightMap.calculateLineOfSight(p1, p2, options);
 }
 
 /**

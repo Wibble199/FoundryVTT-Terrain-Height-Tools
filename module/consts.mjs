@@ -6,6 +6,8 @@ export const defaultGroupName = "default";
 
 export const wallHeightModuleName = "wall-height";
 
+export const heightMapProviderId = `${moduleName}.heightMap`;
+
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
 	paint: "paint",

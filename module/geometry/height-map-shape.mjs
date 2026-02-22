@@ -42,14 +42,17 @@ export class HeightMapShape {
 	 * @param {number} data.height
 	 * @param {number} data.elevation
 	 * @param {Iterable<string>} data.cells A Set of all cells that this HeightMapShape consists of, stored as 'row.col'
+	 * This is only required for the internal HeightMap implementation. External providers do not need to populate this.
+	 * @param {boolean} data.visible
 	 */
-	constructor({ terrainTypeId, polygon, holes = [], height, elevation = 0, cells }) {
+	constructor({ terrainTypeId, polygon, holes = [], height, elevation = 0, cells = [], visible = true }) {
 		this.terrainTypeId = terrainTypeId;
 		this.polygon = polygon instanceof Polygon ? polygon : new Polygon(polygon);
 		this.holes = holes.map(hole => hole instanceof Polygon ? hole : new Polygon(hole));
 		this.height = height;
 		this.elevation = elevation;
 		this.cells = new Set(cells);
+		this.visible = visible;
 	}
 
 	get top() {

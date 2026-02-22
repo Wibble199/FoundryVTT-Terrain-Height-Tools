@@ -6,7 +6,7 @@ import { addAboveTilesToSceneConfig, registerSettings } from './config/settings.
 import { moduleName, socketFuncs, socketName } from './consts.mjs';
 import { handleTokenElevationChange, handleTokenPreCreation } from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from './layers/line-of-sight-ruler-layer.mjs';
-import { TerrainHeightLayer } from "./layers/terrain-height-layer.mjs";
+import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
 import { log } from "./utils/log.mjs";
 
 Hooks.once("init", init);
@@ -36,7 +36,7 @@ function init() {
 
 	registerKeybindings();
 
-	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightLayer };
+	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightEditorLayer };
 	CONFIG.Canvas.layers.terrainHeightLosRulerLayer = { group: "interface", layerClass: LineOfSightRulerLayer };
 
 	if (game.modules.get("lib-wrapper")?.active) initLibWrapper();
@@ -69,7 +69,7 @@ function initLibWrapper() {
 	// Patch to allow the Undo keybinding to work for the Terrain Height Layer
 	libWrapper.register(moduleName, "ClientKeybindings._onUndo", function(wrapped, ...args) {
 		const layer = canvas.ready && canvas.activeLayer;
-		if (layer instanceof TerrainHeightLayer && layer.canUndo) {
+		if (layer instanceof TerrainHeightEditorLayer && layer.canUndo) {
 			layer.undo();
 			return true;
 		}
