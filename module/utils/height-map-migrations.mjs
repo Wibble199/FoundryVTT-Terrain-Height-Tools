@@ -4,6 +4,8 @@
  * @typedef {{ v: V, data: T }} Versioned
 */
 
+import { error } from "./log.mjs";
+
 /** @typedef {{ terrainTypeId: string; elevation: number; height: number; position: [number, number] }[]} HeightMapDataV0 */
 
 /**
@@ -63,7 +65,7 @@ export function migrateData(data, targetVersion = DATA_VERSION) {
 			data = migrations[v](data);
 		} catch (ex) {
 			ui.notifications.error(`[Terrain Height Tools] Error occured migrating data (v${v} -> v${v + 1}). Check console for details.`);
-			console.error(ex);
+			error(ex);
 			throw new Error(`Error occured migrating data: ${ex.message}`);
 		}
 	}

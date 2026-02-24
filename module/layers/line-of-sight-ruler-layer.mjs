@@ -1,14 +1,14 @@
 import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.mjs";
-import { HeightMap } from "../geometry/height-map.mjs";
+import { calculateLineOfSight, flattenLineOfSightIntersectionRegions } from "../geometry/line-of-sight.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
+import { currentTerrainFlat } from "../stores/terrain-manager.mjs";
 import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
 import { isPoint3d, prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { fromHook, join } from "../utils/signal.mjs";
 import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "../utils/token-utils.mjs";
-import { TerrainHeightEditorLayer } from "./terrain-height-editor-layer.mjs";
 
 /**
  * @typedef {Object} Point3D
@@ -511,7 +511,7 @@ class LineOfSightRuler extends PIXI.Container {
 
 	#includeNoHeightTerrain = false;
 
-	/** @type {ReturnType<typeof HeightMap.flattenLineOfSightIntersectionRegions>} */
+	/** @type {import("../geometry/line-of-sight.mjs").FlattenedLineOfSightIntersectionRegion[]} */
 	#intersectionRegions = [];
 
 	/** @type {PIXI.Graphics} */
@@ -574,9 +574,8 @@ class LineOfSightRuler extends PIXI.Container {
 	}
 
 	_recalculateLos() {
-		const hm = TerrainHeightEditorLayer.current?._heightMap;
-		const intersectionRegions = hm.calculateLineOfSight(this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
-		this.#intersectionRegions = HeightMap.flattenLineOfSightIntersectionRegions(intersectionRegions);
+		const intersectionRegions = calculateLineOfSight(currentTerrainFlat(), this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
+		this.#intersectionRegions = flattenLineOfSightIntersectionRegions(intersectionRegions);
 	}
 
 	_draw() {
@@ -614,10 +613,11 @@ class LineOfSightRuler extends PIXI.Container {
 				setTerrainColor(region.shapes[0].terrainTypeId);
 				this.#line.moveTo(region.start.x, region.start.y).lineTo(region.end.x, region.end.y);
 			} else {
+				const distinctTerrainTypeIds = [...new Set(region.shapes.map(s => s.terrainTypeId))];
 				const dashSize = 4;
-				const gapSize = dashSize * 2 * region.shapes.length - dashSize; // gap size needs to account for the other terrain's dots
-				for (let i = 0; i < region.shapes.length; i++) {
-					setTerrainColor(region.shapes[i].terrainTypeId);
+				const gapSize = dashSize * 2 * distinctTerrainTypeIds.length - dashSize; // gap size needs to account for the other terrain's dots
+				for (let i = 0; i < distinctTerrainTypeIds.length; i++) {
+					setTerrainColor(distinctTerrainTypeIds[i]);
 					drawDashedPath(this.#line, [region.start, region.end], { dashSize, gapSize, offset: dashSize * 2 * i });
 				}
 			}

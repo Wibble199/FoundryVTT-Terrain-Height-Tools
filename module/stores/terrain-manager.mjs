@@ -23,6 +23,10 @@ const terrainProviders = new Map();
 /** @type {Signal<{ providerId: string; shapes: HeightMapShape[]; }[]>} */
 export const currentTerrain$ = new Signal([]);
 
+export function currentTerrainFlat() {
+	return currentTerrain$.value.flatMap(t => t.shapes);
+}
+
 /**
  * Updates the currentTerrain$ signal with the current terrain data from the providers.
  * Throttled so that rapid updates don't cause rapid re-renders.

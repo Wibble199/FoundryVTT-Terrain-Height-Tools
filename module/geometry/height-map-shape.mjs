@@ -78,41 +78,41 @@ export class HeightMapShape {
 	 * @param {boolean} usesHeight Whether or not the terrain type assigned to the shape utilises height or not.
 	 * skim regions.
 	 */
-	getIntersections(p1, p2, usesHeight) {
+	getIntersections({ x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }, usesHeight) {
 		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
 		// the line of sight ray would never cross at the required height for an intersection.
 		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
 		const shapeTop = usesHeight ? this.elevation + this.height : Infinity;
 		const shapeBottom = usesHeight ? this.elevation : -Infinity;
-		if (usesHeight && p1.h > shapeTop && p2.h > shapeTop) return [];
-		if (usesHeight && p1.h < shapeBottom && p2.h < shapeBottom) return [];
-
-		// If the test ray extends above the height of the shape, instead stop it at that height
-		const clampPoint = (/** @type {0|1} */ t) => {
-			const inverseLerpLosHeight = (/** @type {number} */ h) => (h - p1.h) / (p2.h - p1.h);
-			const p = [p1, p2][t];
-
-			if (p.h > this.top)
-				return {
-					...LineSegment.lerp(p1.x, p1.y, p2.x, p2.y, inverseLerpLosHeight(this.top)),
-					h: this.top,
-					t: inverseLerpLosHeight(this.top)
-				};
-
-			if (p.h < this.bottom)
-				return {
-					...LineSegment.lerp(p1.x, p1.y, p2.x, p2.y, inverseLerpLosHeight(this.bottom)),
-					h: this.bottom,
-					t: inverseLerpLosHeight(this.bottom)
-				};
-
-			return { ...p, t };
-		};
-
-		const { x: x1, y: y1, h: h1, t: t1 = 0 } = usesHeight ? clampPoint(0) : p1;
-		const { x: x2, y: y2, h: h2, t: t2 = 1 } = usesHeight ? clampPoint(1) : p2;
+		if (usesHeight && h1 > shapeTop && h2 > shapeTop) return [];
+		if (usesHeight && h1 < shapeBottom && h2 < shapeBottom) return [];
 
 		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
+		const inverseLerpLosHeight = (/** @type {number} */ h) => (h - h1) / (h2 - h1);
+
+		// If the test ray extends above the height of the shape, instead stop it at that height
+		let t1 = 0;
+		if (usesHeight && h1 > shapeTop) {
+			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeTop)));
+			h1 = shapeTop;
+		} else if (usesHeight && h1 < shapeBottom) {
+			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeBottom)));
+			h1 = shapeBottom;
+		}
+
+		let t2 = 1;
+		if (usesHeight && h2 > shapeTop) {
+			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeTop)));
+			h2 = shapeTop;
+		} else if (usesHeight && h2 < shapeBottom) {
+			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeBottom)));
+			h2 = shapeBottom;
+		}
+
+		// If, after vertically clamping the line to within the same, we get a zero length line, then there are no
+		// intersections.
+		if (Math.abs(t1 - t2) < Number.EPSILON) return [];
+
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
 		const inverseTestRay = testRay.inverse();
 
@@ -221,16 +221,27 @@ export class HeightMapShape {
 					break;
 
 				default:
-					// Rare case when the ruler starts at an intersection of 4 edges. Should only be able to happen on
-					// square grids when two vertices of the shape meet. For now, not sure what to do here :(
-					warn(`Error when performing line of sight calculation: the line of sight ray starts at ${p1LiesOnEdges.length} vertices of a single shape, but expected 0, 1, 2, or 4. This case is not supported and will likely give incorrect line of sight calculation results.`);
+					if (p1LiesOnEdges.length % 2 !== 0) {
+						warn(`Error when performing line of sight calculation: the line of sight ray starts at ${p1LiesOnEdges.length} vertices of a single shape, but expected 0, 1, or an even number. This case is not supported and will likely give incorrect line of sight calculation results.`);
+						break;
+					}
+
+					// With the default height map, a 4-way intersection would be possible (but rare) on a square grid.
+					// However, with custom providers, there could be more than 4 at a single intersection.
+					// What we need to do is pair off the edges, and test whether the ray is between ALL pairs of edges.
+					isInside = [...groupBy(p1LiesOnEdges, x => x.poly).values()]
+						.every(edgeIntersections => (edgeIntersections[0].poly ?? this.polygon)
+							.pairEdges(edgeIntersections.map(x => x.edge))
+							.every(([e1, e2]) => testRay.isBetween(e1, e2)));
+
 					break;
 			}
 		}
 
 		// If the test ray is flat in the height direction and this shape's top/bottom = the test ray height, then
 		// whenever we 'enter' the shape, we're actually going to be skimming the top or bottom.
-		const isSkimmingTopBottom = usesHeight && h1 === h2 && (h1 === shapeTop || h1 === shapeBottom);
+		// Not skimming if the elevation is 0 and the height is 0 though, as this means the shape is on the ground.
+		const isSkimmingTopBottom = usesHeight && h1 === h2 && h1 !== 0 && (h1 === shapeTop || h1 === shapeBottom);
 
 		let lastIntersectionPosition = { x: x1, y: y1, h: h1, t: 0 };
 
@@ -242,7 +253,8 @@ export class HeightMapShape {
 				regions.push({
 					start: lastIntersectionPosition,
 					end: position,
-					skimmed: isSkimmingTopBottom
+					skimmed: isSkimmingTopBottom,
+					skimSide: isSkimmingTopBottom ? 0 : undefined
 				});
 			}
 			lastIntersectionPosition = position;
@@ -251,13 +263,14 @@ export class HeightMapShape {
 		for (const intersectionsOfT of intersectionsByT) {
 			switch (intersectionsOfT.length) {
 				// In the case of a single intersection, then we have crossed an edge cleanly.
-				case 1:
+				case 1: {
 					pushRegion(intersectionsOfT[0]);
 					isInside = !isInside;
 					break;
+				}
 
 				// In the case of two intersections, we have hit a vertex,
-				case 2:
+				case 2: {
 					// If intersection2 comes before intersection1 in the shape, then swap them
 					let [intersection1, intersection2] = intersectionsOfT;
 					if (intersection2.edge.p2.equals(intersection1.edge.p1))
@@ -274,20 +287,36 @@ export class HeightMapShape {
 						isInside = rayInside;
 					}
 					break;
+				}
 
-				// In the uncommon case of four intersections, we have hit a 4-way vertex on a square grid (not possible
-				// on a hex grid).
-				case 4:
-					// In this case we don't actually need to do anything. The only time this can happen is on a square
-					// grid, and for it to happen opposite corners must be painted (i.e. top left and bottom right; or
-					// top right and bottom left). This means that whatever state the ray is in when it intersections,
-					// it is the same when it comes out because it will end up in the same type of cell - painted or not
-					break;
+				default: {
+					if (intersectionsOfT.length % 2 !== 0) {
+						error(`Error occured when performing line of sight calculation: the line of sight ray met a shape and caused ${intersectionsOfT.length} intersections at the same point but expected either 1, or an even number. This case is not supported and will likely give incorrect line of sight calculation results.`);
+						break;
+					}
 
-				// If anything else, then something has gone wrong. :(
-				default:
-					error(`Error occured when performing line of sight calculation: the line of sight ray met a shape and caused ${intersectionsOfT.length} intersections at the same point but expected either 1, 2, or 4. This case is not supported and will likely give incorrect line of sight calculation results.`);
+					// Pair up the edges which will give the entry/exit pairs. Then, check if the test ray or the
+					// inverse test ray is going between all of them.
+					// Like with the 2 case,
+					const intersectionsOfTByHole = [...groupBy(intersectionsOfT, x => x.hole).values()];
+
+					const rayInside = intersectionsOfTByHole
+						.every(intersectionsOfTOfHole => (intersectionsOfTOfHole[0].hole ?? this.polygon)
+							.pairEdges(intersectionsOfTOfHole.map(x => x.edge))
+							.every(([e1, e2]) => testRay.isBetween(e1, e2)));
+
+					const inverseRayInside = intersectionsOfTByHole
+						.every(intersectionsOfTOfHole => (intersectionsOfTOfHole[0].hole ?? this.polygon)
+							.pairEdges(intersectionsOfTOfHole.map(x => x.edge))
+							.every(([e1, e2]) => inverseTestRay.isBetween(e1, e2)));
+
+					if (rayInside !== inverseRayInside) {
+						pushRegion(intersectionsOfT[0]);
+						isInside = rayInside;
+					}
+
 					break;
+				}
 			}
 		}
 
