@@ -1,30 +1,40 @@
-/** @import { HeightMapShape } from "../geometry/height-map-shape.mjs"; */
+/** @import { TerrainShape } from "../geometry/terrain-shape.mjs"; */
 import { Signal } from "../utils/signal.mjs";
 
-/**
- * @typedef {(value: HeightMapShape[]) => void} TerrainProviderCallback
- */
+/** @typedef {(value: TerrainShape[]) => void} TerrainProviderCallback */
+
 /**
  * @typedef {Object} TerrainProvider
  * @property {(callback: TerrainProviderCallback) => void} addChangeListener
  * @property {(callback: TerrainProviderCallback) => void} removeChangeListener
  */
+
 /**
  * @typedef {Object} TerrainProviderMeta
  * @property {string} id
  * @property {TerrainProvider} provider
- * @property {HeightMapShape[]} currentTerrain
+ * @property {TerrainShape[]} currentTerrain
  * @property {TerrainProviderCallback} callback
  */
 
 /** @type {Map<string, TerrainProviderMeta>} */
 const terrainProviders = new Map();
 
-/** @type {Signal<{ providerId: string; shapes: HeightMapShape[]; }[]>} */
-export const currentTerrain$ = new Signal([]);
+/** @type {Signal<{ providerId: string; shapes: TerrainShape[]; }[]>} */
+export const currentTerrainByProvider$ = new Signal([]);
 
-export function currentTerrainFlat() {
-	return currentTerrain$.value.flatMap(t => t.shapes);
+/** @type {Signal<TerrainShape[]>} */
+export const allCurrentTerrain$ = new Signal([]);
+
+/**
+ * Returns an array of all shapes for the listed provider IDs.
+ * If no IDs are provided, returns all shapes for all providers.
+ * @param {string[] | undefined} terrainProviderIds
+*/
+export function getShapesByTerrainProviderIds(terrainProviderIds) {
+	return terrainProviderIds?.length
+		? currentTerrainByProvider$.value.filter(x => terrainProviderIds.includes(x.providerId)).flatMap(x => x.shapes)
+		: allCurrentTerrain$.value;
 }
 
 /**
@@ -33,7 +43,9 @@ export function currentTerrainFlat() {
  * @type {() => void}
  */
 const updateCurrentTerrain = foundry.utils.throttle(() => {
-	currentTerrain$.value = [...terrainProviders.values()].map(p => ({ providerId: p.id, shapes: [...p.currentTerrain] }));
+	currentTerrainByProvider$.value = [...terrainProviders.values()]
+		.map(p => ({ providerId: p.id, shapes: [...p.currentTerrain] }));
+	allCurrentTerrain$.value = currentTerrainByProvider$.value.flatMap(x => x.shapes);
 }, 100);
 
 /**

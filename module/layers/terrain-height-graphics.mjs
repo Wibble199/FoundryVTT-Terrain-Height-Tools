@@ -1,8 +1,10 @@
-/** @import { HeightMapShape } from "../geometry/height-map-shape.mjs"; */
+/** @import { TerrainShape } from "../geometry/terrain-shape.mjs"; */
 import { sceneControls } from "../config/controls.mjs";
 import { flags, lineTypes, moduleName, settings, tools } from "../consts.mjs";
-import { LineSegment, Point, Polygon } from "../geometry/index.mjs";
-import { currentTerrain$ } from "../stores/terrain-manager.mjs";
+import { LineSegment } from "../geometry/line-segment.mjs";
+import { Point } from "../geometry/point.mjs";
+import { Polygon } from "../geometry/polygon.mjs";
+import { currentTerrainByProvider$ } from "../stores/terrain-manager.mjs";
 import { chunk } from '../utils/array-utils.mjs';
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { debug } from "../utils/log.mjs";
@@ -59,7 +61,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 		this.#subsciptions = [
 			join(() => this.#updateShapeMasks(), this.isLayerActive$, this.isHighlightingObjects$, this.maskRadius$),
 			join(() => this._updateShapesVisibility(), this.isLayerActive$, this.showOnTokenLayer$, sceneControls.activeTool$),
-			currentTerrain$.subscribe(v => this.#updateShapes(v)),
+			currentTerrainByProvider$.subscribe(v => this.#updateShapes(v)),
 		];
 	}
 
@@ -85,7 +87,7 @@ export class TerrainHeightGraphics extends PIXI.Container {
 
 	/**
 	 * Redraws the graphics layer using the supplied height map data.
-	 * @param {{ providerId: string; shapes: HeightMapShape[]; }[]} terrainData
+	 * @param {{ providerId: string; shapes: TerrainShape[]; }[]} terrainData
 	 */
 	async #updateShapes(terrainData) {
 		// If there are no shapes on the map, just clear it and return
@@ -268,7 +270,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 	/** @type {string} */
 	#graphicId;
 
-	/** @type {HeightMapShape} */
+	/** @type {TerrainShape} */
 	#shape;
 
  	/** @type {import("../utils/terrain-types.mjs").TerrainType} */
@@ -287,7 +289,7 @@ class TerrainShapeGraphics extends PIXI.Container {
 	#textureMatrix;
 
 	/**
-	 * @param {HeightMapShape} shape
+	 * @param {TerrainShape} shape
 	 * @param {import("../utils/terrain-types.mjs").TerrainType} terrainType
 	 * @param {{ texture: PIXI.Texture; matrix: PIXI.Matrix; } | undefined} texture
 	*/

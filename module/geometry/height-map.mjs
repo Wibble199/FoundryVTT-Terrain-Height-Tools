@@ -8,8 +8,8 @@ import { DATA_VERSION, migrateData } from "../utils/height-map-migrations.mjs";
 import { debug, error } from '../utils/log.mjs';
 import { OrderedSet } from '../utils/misc-utils.mjs';
 import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
-import { HeightMapShape } from "./height-map-shape.mjs";
 import { Polygon } from './polygon.mjs';
+import { TerrainShape } from "./terrain-shape.mjs";
 
 const maxHistoryItems = 10;
 
@@ -25,7 +25,7 @@ export class HeightMap {
 	/** @type {Partial<HeightMapDataV1>[]} */
 	_history = [];
 
-	/** @type {HeightMapShape[]} */
+	/** @type {TerrainShape[]} */
 	#shapes = [];
 
 	/** @type {Set<TerrainProviderCallback>} */
@@ -41,7 +41,7 @@ export class HeightMap {
 	/**
 	 * The resulting complex shapes that make up the parts of the map.
 	 * This property is calculated and the returned array should not be modified.
-	 * @type {readonly HeightMapShape[]}
+	 * @type {readonly TerrainShape[]}
 	 */
 	get shapes() {
 		return [...this.#shapes];
@@ -311,8 +311,8 @@ export class HeightMap {
 	}
 
 	/**
-	 * Remove the given HeightMapShape from the height map.
-	 * @param {HeightMapShape} shape Shape to remove.
+	 * Remove the given TerrainShape from the height map.
+	 * @param {TerrainShape} shape Shape to remove.
 	 * @returns `true` if the map was updated and needs to be re-drawn, `false` otherwise.
 	 */
 	async eraseShape(shape) {
@@ -488,7 +488,7 @@ export class HeightMap {
 	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
 	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
 	 * @param {number} elevation The elevation value of the given polygons. Only used to populate the metadata.
-	 * @returns {HeightMapShape[]}
+	 * @returns {TerrainShape[]}
 	 */
 	static #combinePolygons(originalPolygons, terrainTypeId, height, elevation) {
 
@@ -578,7 +578,7 @@ export class HeightMap {
 		const polysAreHolesMap = groupBy(combinedPolygons, ({ polygon }) => !polygon.edges[0].clockwise);
 
 		const solidPolygons = (polysAreHolesMap.get(false) ?? [])
-			.map(({ polygon, cells }) => new HeightMapShape({
+			.map(({ polygon, cells }) => new TerrainShape({
 				polygon,
 				holes: [],
 				terrainTypeId,

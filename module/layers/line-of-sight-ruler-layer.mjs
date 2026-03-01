@@ -1,8 +1,9 @@
+/** @import { FlattenedLineOfSightIntersectionRegion } from "../geometry/terrain-shape.mjs" */
 import { sceneControls } from "../config/controls.mjs";
 import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.mjs";
-import { calculateLineOfSight, flattenLineOfSightIntersectionRegions } from "../geometry/line-of-sight.mjs";
+import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
-import { currentTerrainFlat } from "../stores/terrain-manager.mjs";
+import { allCurrentTerrain$ } from "../stores/terrain-manager.mjs";
 import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
 import { isPoint3d, prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
@@ -97,7 +98,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
 		join((rulerStartPoint) => {
 			if (this.#lineStartIndicator) {
-				this.#lineStartIndicator.visible = this.isToolSelected && !rulerStartPoint;
+				this.#lineStartIndicator.visible = this.#isToolSelected && !rulerStartPoint;
 			}
 		}, lineOfSightRulerConfig$.p1$, sceneControls.activeControl$, sceneControls.activeTool$);
 	}
@@ -107,7 +108,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		return canvas.terrainHeightLosRulerLayer;
 	}
 
-	get isToolSelected() {
+	get #isToolSelected() {
 		return game.activeTool === tools.lineOfSight;
 	}
 
@@ -292,7 +293,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	#onMouseDown = event => {
-		if (!this.isToolSelected || event.button !== 0) return;
+		if (!this.#isToolSelected || event.button !== 0) return;
 
 		const [x, y] = this.#getDragPosition(event);
 		lineOfSightRulerConfig$.value = {
@@ -302,9 +303,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	};
 
 	#onMouseMove = event => {
-		if (!this.isToolSelected) return;
+		if (!this.#isToolSelected) return;
 
-		if (!this.isToolSelected) return;
+		if (!this.#isToolSelected) return;
 
 		// Get the drag position, which may include snapping
 		const [x, y] = this.#getDragPosition(event);
@@ -321,7 +322,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	};
 
 	#onMouseUp = event => {
-		if (!this.isToolSelected || !this.#isDraggingRuler || event.button !== 0) return;
+		if (!this.#isToolSelected || !this.#isDraggingRuler || event.button !== 0) return;
 
 		lineOfSightRulerConfig$.value = {
 			p1: undefined,
@@ -358,7 +359,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/** @param {number} delta  */
 	_handleHeightChangeKeybinding(delta) {
-		if (!this.isToolSelected) return;
+		if (!this.#isToolSelected) return;
 
 		// When increasing or decreasing the height, snap to the nearest whole number.
 		// Special case: we also want to snap to 0.5 height.
@@ -511,7 +512,7 @@ class LineOfSightRuler extends PIXI.Container {
 
 	#includeNoHeightTerrain = false;
 
-	/** @type {import("../geometry/line-of-sight.mjs").FlattenedLineOfSightIntersectionRegion[]} */
+	/** @type {FlattenedLineOfSightIntersectionRegion[]} */
 	#intersectionRegions = [];
 
 	/** @type {PIXI.Graphics} */
@@ -574,8 +575,12 @@ class LineOfSightRuler extends PIXI.Container {
 	}
 
 	_recalculateLos() {
-		const intersectionRegions = calculateLineOfSight(currentTerrainFlat(), this.#p1, this.#p2, { includeNoHeightTerrain: this.#includeNoHeightTerrain });
-		this.#intersectionRegions = flattenLineOfSightIntersectionRegions(intersectionRegions);
+		const intersectionRegions = TerrainShape.calculateLineOfSight(
+			allCurrentTerrain$.value,
+			this.#p1, this.#p2,
+			{ includeNoHeightTerrain: this.#includeNoHeightTerrain });
+
+		this.#intersectionRegions = TerrainShape.flattenLineOfSightIntersectionRegions(intersectionRegions);
 	}
 
 	_draw() {

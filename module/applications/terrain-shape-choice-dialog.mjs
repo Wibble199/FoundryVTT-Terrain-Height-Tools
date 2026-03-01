@@ -12,7 +12,7 @@ export class TerrainShapeChoiceDialog extends HandlebarsApplicationMixin(Applica
 	/** @type {((index: number) => void) | undefined} */
 	#submitCallback;
 
-	/** @param {import("../geometry/height-map-shape.mjs").HeightMapShape[]} terrainShapes */
+	/** @param {import("../geometry/terrain-shape.mjs").TerrainShape[]} terrainShapes */
 	constructor(terrainShapes, options = {}) {
 		super(options);
 		this.#terrainShapes = this.#calculateShapeRenderData(terrainShapes);
@@ -54,7 +54,7 @@ export class TerrainShapeChoiceDialog extends HandlebarsApplicationMixin(Applica
 		};
 	}
 
-	/** @param {import("../geometry/height-map-shape.mjs").HeightMapShape[]} terrainShapes */
+	/** @param {import("../geometry/terrain-shape.mjs").TerrainShape[]} terrainShapes */
 	#calculateShapeRenderData(terrainShapes) {
 		const terrainTypeMap = getTerrainTypeMap();
 
@@ -96,12 +96,12 @@ export class TerrainShapeChoiceDialog extends HandlebarsApplicationMixin(Applica
 	}
 
 	/**
-	 * @param {import("../geometry/height-map-shape.mjs").HeightMapShape[]} terrainShapes
+	 * @param {import("../geometry/terrain-shape.mjs").TerrainShape[]} terrainShapes
 	 * @param {Object} [options]
 	 * @param {string} [options.hint] Hint message to show.
 	 * @param {string} [options.submitLabel] Submit button label.
 	 * @param {string} [options.submitIcon] Submit button icon.
-	 * @returns {Promise<import("../geometry/height-map-shape.mjs").HeightMapShape>}
+	 * @returns {Promise<import("../geometry/terrain-shape.mjs").TerrainShape>}
 	 */
 	static show(terrainShapes, options) {
 		return new Promise(resolve => {

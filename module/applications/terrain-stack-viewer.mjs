@@ -47,7 +47,10 @@ export class TerrainStackViewer extends HandlebarsApplicationMixin(ApplicationV2
 			this._terrain$);
 
 		// Re-render when the terrain changes
-		this._terrain$.subscribe(() => this.render());
+		this._terrain$.subscribe(() => {
+			if (this.#visible)
+				this.render();
+		});
 
 		// When a scene is unloaded, be sure to clear the hovered terrain
 		Hooks.on("canvasTearDown", () => this._terrain$.value = []);

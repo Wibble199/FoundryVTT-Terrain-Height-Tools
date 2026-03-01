@@ -1,18 +1,19 @@
 // ! These are functions specifically for macros and scripts.
 // ! Changing these functions should always be done in a backwards-compatible way.
 
+/** @import { FlattenedLineOfSightIntersectionRegion, LineOfSightIntersectionRegion } from "./geometry/terrain-shape.mjs"; */
 import { defaultGroupName, moduleName, settings } from "./consts.mjs";
-import { HeightMapShape } from "./geometry/height-map-shape.mjs";
-import { HeightMap } from "./geometry/height-map.mjs";
+import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
+import { getShapesByTerrainProviderIds } from "./stores/terrain-manager.mjs";
 import { getTerrainTypes } from "./utils/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
 export { registerTerrainProvider, unregisterTerrainProvider } from "./stores/terrain-manager.mjs";
 export { getTerrainTypes } from "./utils/terrain-types.mjs";
 
-export const classes = { HeightMapShape };
+export const classes = { TerrainShape };
 
 /**
  * Attempts to find a terrain type with the given name or ID.
@@ -43,7 +44,7 @@ export function getCell(x, y) {
  * Gets the terrain shapes at the given grid coordinates.
  * @param {number} x
  * @param {number} y
- * @param {import("./geometry/height-map.mjs").HeightMapShape | undefined}
+ * @param {import("./geometry/height-map.mjs").TerrainShape | undefined}
  */
 export function getShapes(x, y) {
 	return TerrainHeightEditorLayer.current?._heightMap.getShapes(y, x);
@@ -98,10 +99,18 @@ export function eraseCells(cells) {
  * @param {Object} [options={}] Options that change how the calculation is done.
  * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
  * height value will be included in the return list. They are treated as having infinite height.
- * @returns {import("./geometry/height-map.mjs").FlattenedLineOfSightIntersectionRegion[]}
+ * @param {string[]} [options.terrainProviderIds] If provided, limits the line of sight checks to only shapes from the
+ * specified terrain providers.
+ * @returns {FlattenedLineOfSightIntersectionRegion[]}
  */
-export function calculateLineOfSight(p1, p2, options = {}) {
-	return HeightMap.flattenLineOfSightIntersectionRegions(calculateLineOfSightByShape(p1, p2, options));
+export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+	return TerrainShape.flattenLineOfSightIntersectionRegions(
+		TerrainShape.calculateLineOfSight(
+			getShapesByTerrainProviderIds(terrainProviderIds),
+			p1, p2,
+			{ includeNoHeightTerrain }
+		)
+	);
 }
 
 /**
@@ -112,10 +121,16 @@ export function calculateLineOfSight(p1, p2, options = {}) {
  * @param {Object} [options={}] Options that change how the calculation is done.
  * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
  * height value will be included in the return list. They are treated as having infinite height.
- * @returns {{ shape: import('./geometry/height-map.mjs').HeightMapShape; regions: import('./geometry/height-map-shape.mjs').LineOfSightIntersectionRegion[]; }[]}
+ * @param {string[]} [options.terrainProviderIds] If provided, limits the line of sight checks to only shapes from the
+ * specified terrain providers.
+ * @returns {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[]; }[]}
  */
-export function calculateLineOfSightByShape(p1, p2, options = {}) {
-	return TerrainHeightEditorLayer.current?._heightMap.calculateLineOfSight(p1, p2, options);
+export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+	return TerrainShape.calculateLineOfSight(
+		getShapesByTerrainProviderIds(terrainProviderIds),
+		p1, p2,
+		{ includeNoHeightTerrain }
+	);
 }
 
 /**

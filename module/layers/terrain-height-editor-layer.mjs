@@ -397,7 +397,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 	/**
 	 * Converts a shape to drawings and/or walls.
-	 * @param {import("../geometry/height-map-shape.mjs").HeightMapShape} shape
+	 * @param {import("../geometry/terrain-shape.mjs").TerrainShape} shape
 	 * @param {Object} [options]
 	 * @param {boolean} [options.toDrawing] Whether to convert the shape to drawings.
 	 * @param {boolean} [options.toRegion] Whether to convert the shape to a new scene region.

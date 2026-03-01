@@ -81,7 +81,7 @@ An combined array of distinct regions where a ray drawn from `p1` to `p2` inters
 |`end.y`|`number`|The Y coordinate (in canvas pixels) where the intersection ended.|
 |`end.h`|`number`|The height where the intersection ended.|
 |`end.t`|`number`|How far along the line of sight ray the intersection ended. Will always be a value between 0 and 1 inclusive. E.G. on a ray that is 200px long, a `t` value of 0.3 would mean that it ended 60 pixels along the ray.|
-|`shapes`|`HeightMapShape[]`|An array of the shape(s) that were intersected at this region.|
+|`shapes`|`TerrainShape[]`|An array of the shape(s) that were intersected at this region.|
 |`skimmed`|`boolean`|If `true`, this region is an area where the line of sight ray touches but does not completely enter the shape. This will also be the case if the line of sight ray is flat and the shape is the height of the ray. For example a ray where p1.h = 1 and p2.h = 2 intersecting a height 1 object will always result in a skim. If `false`, the ray has completely entered the shape.|
 
 ### Examples
@@ -407,10 +407,10 @@ Fetches the height map shapes that exist at a specific cell.
 
 ### Returns
 
-Either any array containing 0 or more `HeightMapShape`s. Each shape represents one region of terrain that exists at that
+Either any array containing 0 or more `TerrainShape`s. Each shape represents one region of terrain that exists at that
 cell. The order of the terrain is not guaranteed.
 
-Each `HeightMapShape` has the following properties:
+Each `TerrainShape` has the following properties:
 
 |Name|Type|Description|
 |-|-|-|

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HeightMapShape } from "../../module/geometry/height-map-shape.mjs";
+import { TerrainShape } from "../../module/geometry/terrain-shape.mjs";
 
-describe("HeightMapShape::calculateLineOfSight()", () => {
+describe("TerrainShape::calculateLineOfSight()", () => {
 
-	const rectangle = new HeightMapShape({
+	const rectangle = new TerrainShape({
 		terrainTypeId: "a",
 		polygon: [
 			{ x: 0, y: 0 },
@@ -18,7 +18,7 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		cells: []
 	});
 
-	const doughnut = new HeightMapShape({
+	const doughnut = new TerrainShape({
 		terrainTypeId: "a",
 		polygon: [
 			{ x: 0, y: 0 },
@@ -57,7 +57,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 0, y: 25, h: 2.5, t: 0.25 },
 			end: { x: 100, y: 25, h: 3.5, t: 0.75 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -68,12 +69,14 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 			{
 				start: { x: 15, y: 0, h: 5.125, t: 0.125 },
 				end: { x: 15, y: 10, h: 5.375, t: 0.375 },
-				skimmed: false
+				skimmed: false,
+				skimSide: undefined
 			},
 			{
 				start: { x: 15, y: 20, h: 5.625, t: 0.625 },
 				end: { x: 15, y: 30, h: 5.875, t: 0.875 },
-				skimmed: false
+				skimmed: false,
+				skimSide: undefined
 			}
 		]);
 	});
@@ -84,7 +87,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 50, y: 25, h: 3, t: 0 },
 			end: { x: 40, y: 0, h: 3, t: 0.5 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -94,7 +98,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 40, y: 50, h: 3, t: 0.5 },
 			end: { x: 50, y: 25, h: 3, t: 1 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -104,7 +109,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 10, y: 10, h: 5.6, t: 0.5 },
 			end: { x: 5, y: 5, h: 5.8, t: 1 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -114,7 +120,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 25, y: 5, h: 5.2, t: 0 },
 			end: { x: 20, y: 10, h: 5.2, t: 0.5 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -124,7 +131,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 30, y: 25, h: 2, t: 0.25 },
 			end: { x: 50, y: 25, h: 4, t: 0.5 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -134,7 +142,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 10, y: 30, h: 3, t: 0 },
 			end: { x: 20, y: 35, h: 4, t: 0.5 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -144,7 +153,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 20, y: 35, h: 4, t: 0.5 },
 			end: { x: 10, y: 30, h: 3, t: 1 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -154,7 +164,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 10, y: 30, h: 3, t: 0 },
 			end: { x: 20, y: 35, h: 2, t: 0.5 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -164,7 +175,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 20, y: 35, h: 2, t: 0.5 },
 			end: { x: 10, y: 30, h: 3, t: 1 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 
@@ -174,7 +186,8 @@ describe("HeightMapShape::calculateLineOfSight()", () => {
 		assert.deepEqual(intersections, [{
 			start: { x: 30, y: 10, h: 2.5, t: 0 },
 			end: { x: 80, y: 15, h: 3.5, t: 1 },
-			skimmed: false
+			skimmed: false,
+			skimSide: undefined
 		}]);
 	});
 

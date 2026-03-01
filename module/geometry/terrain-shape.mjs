@@ -1,6 +1,7 @@
-import { groupBy } from "../utils/array-utils.mjs";
+import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { error, warn } from "../utils/log.mjs";
 import { roundTo } from "../utils/misc-utils.mjs";
+import { getTerrainTypeMap, getTerrainTypes } from "../utils/terrain-types.mjs";
 import { encodeCellKey } from "./height-map.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from "./polygon.mjs";
@@ -24,28 +25,39 @@ import { Polygon } from "./polygon.mjs";
  * @property {{ x: number; y: number; h: number; t: number; }} end The end position of the intersection region.
  * @property {boolean} skimmed Did this intersection region "skim" the shape - i.e. just barely touched the edge of the
  * shape rather than entering it completely.
- * @property {-1 | 0 | 1} skimSide If a skim occured, which side of the test ray it occured. -1 = left, 1 = right, 0 =
- * top/bottom.
+ * @property {-1 | 0 | 1 | undefined} skimSide If a skim occured, which side of the test ray it occured. -1 = left,
+ * 1 = right, 0 = top/bottom.
+ */
+
+/**
+ * @typedef {Object} FlattenedLineOfSightIntersectionRegion
+ * @property {{ x: number; y: number; h: number; t: number; }} start The start position of the intersection region.
+ * @property {{ x: number; y: number; h: number; t: number; }} end The end position of the intersection region.
+ * @property {TerrainShape[]} shapes The shapes that make up this intersection region.
+ * @property {boolean} skimmed
  */
 
 /**
  * Represents a shape that can be drawn to the map.
  * It is a closed polygon that may have one or more holes within it.
+ * Also contains functions for testing collisions/intersections and calculating line of sight.
  */
-export class HeightMapShape {
+export class TerrainShape {
 
 	/**
 	 * @param {Object} data
 	 * @param {string} data.terrainTypeId
 	 * @param {InputPolygon} data.polygon The polygon that makes up the perimeter of this shape.
-	 * @param {InputPolygon[]} data.holes Other additional polygons that make holes in this shape.
+	 * @param {InputPolygon[]} [data.holes] Other additional polygons that make holes in this shape.
 	 * @param {number} data.height
-	 * @param {number} data.elevation
-	 * @param {Iterable<string>} data.cells A Set of all cells that this HeightMapShape consists of, stored as 'row.col'
+	 * @param {number} [data.elevation]
+	 * @param {Iterable<string>} [data.cells] A Set of all cells that this TerrainShape consists of, stored as 'row.col'
 	 * This is only required for the internal HeightMap implementation. External providers do not need to populate this.
-	 * @param {boolean} data.visible
+	 * @param {boolean} [data.visible] Whether the shape should be drawn to the canvas or not.
 	 */
 	constructor({ terrainTypeId, polygon, holes = [], height, elevation = 0, cells = [], visible = true }) {
+		if (typeof height !== "number" || height < 0) throw new Error("Invalid height. Must be 0 or larger.");
+
 		this.terrainTypeId = terrainTypeId;
 		this.polygon = polygon instanceof Polygon ? polygon : new Polygon(polygon);
 		this.holes = holes.map(hole => hole instanceof Polygon ? hole : new Polygon(hole));
@@ -76,52 +88,53 @@ export class HeightMapShape {
 	 * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
 	 * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
 	 * @param {boolean} usesHeight Whether or not the terrain type assigned to the shape utilises height or not.
-	 * skim regions.
 	 */
-	getIntersections({ x: x1, y: y1, h: h1 }, { x: x2, y: y2, h: h2 }, usesHeight) {
+	getIntersections(p1, p2, usesHeight) {
 		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
 		// the line of sight ray would never cross at the required height for an intersection.
 		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
 		const shapeTop = usesHeight ? this.elevation + this.height : Infinity;
 		const shapeBottom = usesHeight ? this.elevation : -Infinity;
-		if (usesHeight && h1 > shapeTop && h2 > shapeTop) return [];
-		if (usesHeight && h1 < shapeBottom && h2 < shapeBottom) return [];
-
-		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
-		const inverseLerpLosHeight = (/** @type {number} */ h) => (h - h1) / (h2 - h1);
+		if (usesHeight && p1.h > shapeTop && p2.h > shapeTop) return [];
+		if (usesHeight && p1.h < shapeBottom && p2.h < shapeBottom) return [];
 
 		// If the test ray extends above the height of the shape, instead stop it at that height
-		let t1 = 0;
-		if (usesHeight && h1 > shapeTop) {
-			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeTop)));
-			h1 = shapeTop;
-		} else if (usesHeight && h1 < shapeBottom) {
-			({ x: x1, y: y1 } = LineSegment.lerp(x1, y1, x2, y2, t1 = inverseLerpLosHeight(shapeBottom)));
-			h1 = shapeBottom;
-		}
+		const clampPoint = (/** @type {0|1} */ t) => {
+			const inverseLerpLosHeight = (/** @type {number} */ h) => (h - p1.h) / (p2.h - p1.h);
+			const p = [p1, p2][t];
 
-		let t2 = 1;
-		if (usesHeight && h2 > shapeTop) {
-			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeTop)));
-			h2 = shapeTop;
-		} else if (usesHeight && h2 < shapeBottom) {
-			({ x: x2, y: y2 } = LineSegment.lerp(x1, y1, x2, y2, t2 = inverseLerpLosHeight(shapeBottom)));
-			h2 = shapeBottom;
-		}
+			if (p.h > this.top)
+				return {
+					...LineSegment.lerp(p1.x, p1.y, p2.x, p2.y, inverseLerpLosHeight(this.top)),
+					h: this.top,
+					t: inverseLerpLosHeight(this.top)
+				};
 
-		// If, after vertically clamping the line to within the same, we get a zero length line, then there are no
-		// intersections.
-		if (Math.abs(t1 - t2) < Number.EPSILON) return [];
+			if (p.h < this.bottom)
+				return {
+					...LineSegment.lerp(p1.x, p1.y, p2.x, p2.y, inverseLerpLosHeight(this.bottom)),
+					h: this.bottom,
+					t: inverseLerpLosHeight(this.bottom)
+				};
 
+			return { ...p, t };
+		};
+
+		// Work out the start and end points of the ray within the shape ("trim" off the irrelevant parts of the ray)
+		const { x: x1, y: y1, h: h1, t: t1 } = usesHeight ? clampPoint(0) : p1;
+		const { x: x2, y: y2, h: h2, t: t2 } = usesHeight ? clampPoint(1) : p2;
+
+		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
 		const inverseTestRay = testRay.inverse();
 
 		// Loop each edge in this shape and check for an intersection. Record height, shape and how far along the
 		// test line the intersection occured.
+		/** @type {[Polygon | undefined, LineSegment][]} */
 		const allEdges = this.polygon.edges
-			.map(e => /** @type {[Polygon | undefined, LineSegment]} */ ([undefined, e]))
+			.map(e => ([undefined, e]))
 			.concat(this.holes
-				.flatMap(h => h.edges.map(e => /** @type {[Polygon, LineSegment]} */ ([h, e]))));
+				.flatMap(h => h.edges.map(e => ([h, e]))));
 
 		/** @type {LineOfSightIntersection[]} */
 		const intersections = [];
@@ -438,5 +451,109 @@ export class HeightMapShape {
 			}
 
 		return regions;
+	}
+
+	/**
+	 * Calculates the line of sight between the two given pixel coordinate points and heights.
+	 * Returns an array of all shapes that were intersected, along with the regions where those shapes were intersected.
+	 * @param {TerrainShape[]} shapes Shapes to perform LoS calculations against.
+	 * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
+	 * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
+	 * @param {Object} [options={}] Options that change how the calculation is done.
+	 * @param {boolean} [options.includeNoHeightTerrain=false] If true, terrain types that are configured as not using a
+	 * height value will be included in the return list. They are treated as having infinite height.
+	 * @returns {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[] }[]}
+	 */
+	static calculateLineOfSight(shapes, p1, p2, { includeNoHeightTerrain = false } = {}) {
+		const terrainTypes = getTerrainTypeMap();
+
+		/** @type {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[] }[]} */
+		const intersectionsByShape = [];
+
+		for (const shape of shapes) {
+			// Ignore shapes of deleted terrain types
+			if (!terrainTypes.has(shape.terrainTypeId)) continue;
+
+			const { usesHeight } = terrainTypes.get(shape.terrainTypeId);
+
+			// If this shape has a no-height terrain, only test for intersections if we are includeNoHeightTerrain
+			if (!usesHeight && !includeNoHeightTerrain) continue;
+
+			const regions = shape.getIntersections(p1, p2, usesHeight);
+			if (regions.length > 0)
+				intersectionsByShape.push({ shape, regions });
+		}
+
+		return intersectionsByShape;
+	}
+
+	/**
+	 * Flattens an array of line of sight intersection regions into a single collection of regions.
+	 * @param {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[] }[]} shapeRegions
+	 * @returns {FlattenedLineOfSightIntersectionRegion[]}
+	 */
+	static flattenLineOfSightIntersectionRegions(shapeRegions) {
+		/** @type {FlattenedLineOfSightIntersectionRegion[]} */
+		const flatIntersections = [];
+
+		// Find all points where a change happens - this may be entering, leaving or touching a shape.
+		const boundaries = distinctBy(
+				shapeRegions.flatMap(s => s.regions.flatMap(r => [r.start, r.end])),
+				r => r.t
+			).sort((a, b) => a.t - b.t);
+
+		/** @type {{ x: number; y: number; h: number; t: number; }} */
+		let lastPosition = undefined; // first boundary should always have 0 'active regions'
+
+		// Array of terrainTypeIds ordered by their order defined in the settings. We use this to determine which should
+		// be shown in the case of multiple overlapping shapes.
+		const terrainTypeIdPriority = getTerrainTypes().map(t => t.id);
+
+		for (const boundary of boundaries) {
+			// Collect a list of intersection regions 'active' at this boundary.
+			// An 'active' intersection is one that has been happening up until this particular point. Consider a map
+			// as follows, where 1 and 2 are different shapes:
+			// 1--22
+			// 2222-
+			// If a ray was drawn from (0,1) -> (3,1), the boundaries would be at x=0, x=1, x=3, x=4, x=5.
+			// At boundary x=0, no regions would be 'active' as up until this point no intersections where happening.
+			// At boundary x=1, two regions would be 'active', one from shape 1 and one from shape 2.
+			// At boundary x=3, one region would be 'active', the skimming region against shape 2.
+			// At boundary x=4, one region would be 'active', the shape entry into shape 2.
+			// At boundary x=5, one region would be 'active', another skimming region against shape 2.
+			const { t } = boundary;
+			const activeRegions = shapeRegions
+				.map(({ shape, regions }) => ({ shape, region: regions.find(r => r.start.t < t && r.end.t >= t) }))
+				.filter(({ region }) => !!region);
+
+			// If there is no active region, don't add an element to the intersections array, just move the position on.
+			if (activeRegions.length > 0) {
+				// Prioritise the shapes based on the index the terrain is defined in the settings.
+				// I.E. terrain types that appear higher in the list in the palette have priority here.
+				const prioritisedShapes = activeRegions
+					.sort((a, b) => terrainTypeIdPriority.indexOf(a.shape.terrainTypeId) - terrainTypeIdPriority.indexOf(b.shape.terrainTypeId))
+					.map(s => s.shape);
+
+				// To determine if the resulting flattened region has skimmed there are a few cases to account for.
+				// - If any of the constituent regions are not skimmed, then the flat region is a non-skim
+				// - If all of the constituent regions are skims, AND if there is a skim on either side of the test ray,
+				//   then the flat region is effectively not a skim as it goes through terrain.
+				// - Only if all the constituent regions are skims and all are on the same side of the test ray does
+				//   the flat region as a whole become a skim.
+				const skimmed = activeRegions.every(r => r.region.skimmed)
+					&& !(activeRegions.some(r => r.region.skimSide === 1) && activeRegions.some(r => r.region.skimSide === -1));
+
+				flatIntersections.push({
+					start: lastPosition,
+					end: boundary,
+					shapes: prioritisedShapes,
+					skimmed
+				});
+			}
+
+			lastPosition = boundary;
+		}
+
+		return flatIntersections;
 	}
 }
