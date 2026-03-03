@@ -14,8 +14,8 @@
 			"discord": "@wibble199"
 		}
 	],
-	"esmodules": [
-		"module/main.mjs"
+	"scripts": [
+		"dist/module.js"
 	],
 	"styles": [
 		"styles/main.css"

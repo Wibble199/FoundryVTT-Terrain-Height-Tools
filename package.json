@@ -2,9 +2,16 @@
 	"name": "terrain-height-tools",
 	"private": true,
 	"scripts": {
+		"dev": "rollup -c -w",
+		"build": "rollup -c",
 		"test": "node --test test/**/*.test.mjs"
 	},
 	"devDependencies": {
-		"@types/node": "^22.8.1"
+		"@types/node": "^22.8.1",
+		"rollup": "^2.80.0",
+		"rollup-plugin-sourcemaps": "^0.6.3"
+	},
+	"dependencies": {
+		"@preact/signals-core": "^1.13.0"
 	}
 }
