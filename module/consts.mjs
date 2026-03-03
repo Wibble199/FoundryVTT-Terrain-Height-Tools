@@ -8,6 +8,8 @@ export const wallHeightModuleName = "wall-height";
 
 export const heightMapProviderId = `${moduleName}.heightMap`;
 
+export const terrainUpdatedHook = `${moduleName}.terrainUpdated`;
+
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
 	paint: "paint",
@@ -21,8 +23,8 @@ export const tools = /** @type {const} */ ({
 	terrainVisibility: "terrainVisibility"
 });
 
-/** @enum {keyof typeof settings} */
-export const settings = /** @type {const} */ ({
+/** @enum {keyof typeof settingNames} */
+export const settingNames = /** @type {const} */ ({
 	defaultTokenLosTokenHeight: "defaultTokenLosTokenHeight",
 	displayLosMeasurementGm: "displayLosMeasurementGm",
 	displayLosMeasurementPlayer: "displayLosMeasurementPlayer",

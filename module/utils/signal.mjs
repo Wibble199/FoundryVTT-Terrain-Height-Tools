@@ -10,7 +10,7 @@
 /**
  * A Signal represents a value that can be subscribed to, to be notified when its value changes.
  * @template T
- * @implements {Subscribable<T>}
+ * @implements {SignalLike<T>}
  */
 export class Signal {
 
@@ -215,4 +215,200 @@ export function fromObject(source) {
 			return prop.endsWith("$") && prop.slice(0, -1) in signals ? signals[prop.slice(0, -1)] : target[prop];
 		}
 	});
+}
+
+/**
+ * A specialised signal that behaves like a Set, but allows subscribing to the value.
+ * @template TElement
+ * @implements {SignalLike<Iterable<TElement>>}
+ */
+export class SetSignal {
+
+	/** @type {Set<TElement>T} */
+	#values;
+
+	/** @type {Set<(value: Iterable<TElement>) => void>} */
+	#changeSubscriptions = new Set();
+
+	/** @type {Set<(newItems: TElement[]) => void>} */
+	#itemAddedSubscriptions = new Set();
+
+	/** @type {Set<(removedItems: TElement[]) => void>} */
+	#itemRemovedSubscriptions = new Set();
+
+	/**
+	 * @param {Iterable<TElement>} [initialValues]
+	 */
+	constructor(initialValues) {
+		this.#values = new Set(initialValues ?? []);
+	}
+
+	/** @type {Iterable<TElement>} */
+	get value() {
+		return [...this.#values.values()];
+	}
+
+	set value(newValues) {
+		const newValuesSet = new Set(newValues ?? []);
+
+		const newlyAddedValues = [];
+		for (const newValue of newValuesSet)
+			if (!this.#values.has(newValue))
+				newlyAddedValues.push(newValue);
+
+		const removedValues = [];
+		for (const oldValue of this.#values)
+			if (!newValuesSet.has(oldValue))
+				removedValues.push(oldValue);
+
+		// If no values have been added or removed, the set is unchanged
+		if (newlyAddedValues.length === 0 && removedValues.length === 0) return;
+
+		this.#values = newValuesSet;
+		this.#notifySubscribers({ newValues: newlyAddedValues, removedValues });
+	}
+
+	get size() {
+		return this.#values.size;
+	}
+
+	/**
+	 * Adds one or more items to the set.
+	 * @param {...TElement} values
+	 * @returns true if any of the given values were added to the set, or false if they all already exist.
+	 */
+	add(...values) {
+		const newValues = [];
+
+		for (const value of values) {
+			if (this.#values.has(value)) continue;
+
+			this.#values.add(value);
+			newValues.push(value);
+		}
+
+		this.#notifySubscribers({ newValues });
+		return newValues.length > 0;
+	}
+
+	/**
+	 * @param {...TElement} values
+	 * @returns true if any of the values have been removed from the set, or false if all values did not exist.
+	 */
+	delete(...values) {
+		const removedValues = [];
+
+		for (const value of values) {
+			if (this.#values.delete(value))
+				removedValues.push(value);
+		}
+
+		this.#notifySubscribers({ removedValues });
+		return removedValues.length > 0;
+	}
+
+	clear() {
+		if (this.#values.size === 0) return;
+
+		const deletedValues = [...this.#values.values()];
+		this.#values.clear();
+
+		for (const callback of this.#changeSubscriptions)
+			callback([]);
+
+		for (const callback of this.#itemRemovedSubscriptions)
+			callback(deletedValues)
+	}
+
+	/** @param {TElement} value */
+	has(value) {
+		return this.#values.has(value);
+	}
+
+	/**
+	 * Registers the given callback as a subscription, so that it is called when the values in this SetSignal change.
+	 * @param {((value: Iterable<T>) => void) | { change?: (value: Iterable<T>) => void; add?: (newItems: TElement[]) => void; remove?: (removedItems: TElement[]) => void; }} callback Function to call when the value changes.
+	 * @param {boolean} [immediate] If `true`, immediately calls the callback with the current value.
+	 * @returns A function that can be called to unsubscribe this callback.
+	 */
+	subscribe(callback, immediate = false) {
+		if (typeof callback === "function") {
+			this.#changeSubscriptions.add(callback);
+			if (immediate) callback(this.value);
+		} else {
+			if (typeof callback.change === "function") this.subscribe(callback.change, immediate);
+			if (typeof callback.add === "function") this.subscribeAdd(callback.add);
+			if (typeof callback.remove === "function") this.subscribeRemove(callback.remove);
+		}
+		return () => this.unsubscribe(callback);
+	}
+
+	/**
+	 * Registers the given callback to be called whenever items are added to the set.
+	 * @param {(newItems: TElement[]) => void} callback
+	 * @returns A function that can be called to unsubscribe this callback.
+	 */
+	subscribeAdd(callback) {
+		this.#itemAddedSubscriptions.add(callback);
+	}
+
+	/**
+	 * Registers the given callback to be called whenever item are removed from the set.
+	 * @param {(removedItems: TElement[]) => void} callback
+	 * @returns A function that can be called to unsubscribe this callback.
+	 */
+	subscribeRemove(callback) {
+		this.#itemRemovedSubscriptions.add(callback);
+	}
+
+	/**
+	 * Unregisters the given callback, stopping it from being called when the values in this SetSignal change.
+	 * @param {((value: Iterable<T>) => void) | { change?: (value: Iterable<T>) => void; add?: (newItems: TElement[]) => void; remove?: (removedItems: TElement[]) => void; }} callback The callback that was subscribed to this Signal.
+	 */
+	unsubscribe(callback) {
+		if (typeof callback === "function") {
+			this.#changeSubscriptions.delete(callback);
+		} else {
+			if (typeof callback.change === "function") this.unsubscribe(callback.change);
+			if (typeof callback.add === "function") this.unsubscribeAdd(callback.add);
+			if (typeof callback.remove === "function") this.unsubscribeRemove(callback.remove);
+		}
+	}
+
+	/**
+	 * Unregisters the given callback, stopping it from being called when values are added to this SetSignal.
+	 * @param {(newItems: TElement[]) => void} callback The callback that was subscribed to this Signal.
+	 */
+	unsubscribeAdd(callback) {
+		this.#itemAddedSubscriptions.delete(callback);
+	}
+
+	/**
+	 * Unregisters the given callback, stopping it from being called when values are removed from this SetSignal.
+	 * @param {(removedItems: TElement[]) => void} callback The callback that was subscribed to this Signal.
+	 */
+	unsubscribeRemove(callback) {
+		this.#itemRemovedSubscriptions.delete(callback);
+	}
+
+	unsubscribeAll() {
+		this.#changeSubscriptions.clear();
+		this.#itemAddedSubscriptions.clear();
+		this.#itemRemovedSubscriptions.clear();
+	}
+
+	/** @param {{ newValues?: TElement[]; removedValues?: TElement[]; }} changes */
+	#notifySubscribers({ newValues, removedValues } = {}) {
+		if (newValues?.length > 0 || removedValues?.length > 0)
+			for (const callback of this.#changeSubscriptions)
+				callback(this.value);
+
+		if (newValues?.length > 0)
+			for (const callback of this.#itemAddedSubscriptions)
+				callback(newValues);
+
+		if (removedValues?.length > 0)
+			for (const callback of this.#itemRemovedSubscriptions)
+				callback(removedValues);
+	}
 }

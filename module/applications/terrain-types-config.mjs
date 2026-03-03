@@ -1,6 +1,6 @@
 /** @import { TerrainType } from "../utils/terrain-types.mjs" */
-import { lineTypes, moduleName, settings } from "../consts.mjs";
-import { createDefaultTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
+import { lineTypes, moduleName, settingNames } from "../consts.mjs";
+import { createDefaultTerrainType, terrainTypes$ } from '../utils/terrain-types.mjs';
 import { TerrainTypesPreset } from "./terrain-types-presets.mjs";
 
 const { ApplicationV2, DialogV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -14,7 +14,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 	constructor() {
 		super();
 
-		this.#terrainTypes = getTerrainTypes();
+		this.#terrainTypes = terrainTypes$.value;
 		this.#selectedTerrainTypeId = this.#terrainTypes[0]?.id ?? "";
 	}
 
@@ -233,7 +233,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 	static async #saveTerrainTypes() {
 		const formData = new FormDataExtended(this.element);
 		const terrainTypes = this.#getTerrainTypesFromForm(formData);
-		await game.settings.set(moduleName, settings.terrainTypes, terrainTypes);
+		await game.settings.set(moduleName, settingNames.terrainTypes, terrainTypes);
 		await this.close();
 	}
 

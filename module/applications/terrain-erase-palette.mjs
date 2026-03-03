@@ -1,7 +1,7 @@
 import { moduleName } from "../consts.mjs";
 import { eraseConfig$ } from "../stores/drawing.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
-import { getCssColorsFor, getTerrainTypes } from '../utils/terrain-types.mjs';
+import { getCssColorsFor, terrainTypes$ } from '../utils/terrain-types.mjs';
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -45,7 +45,7 @@ export class TerrainErasePalette extends withSubscriptions(HandlebarsApplication
 	/** @override */
 	async _prepareContext() {
 		return {
-			availableTerrains: getTerrainTypes().map(t => ({
+			availableTerrains: terrainTypes$.value.map(t => ({
 				id: t.id,
 				name: t.name,
 
@@ -124,13 +124,13 @@ export class TerrainErasePalette extends withSubscriptions(HandlebarsApplication
 
 	/** @this {TerrainErasePalette} */
 	static #selectNone() {
-		eraseConfig$.excludedTerrainTypeIds$.value = getTerrainTypes().map(t => t.id);
+		eraseConfig$.excludedTerrainTypeIds$.value = terrainTypes$.value.map(t => t.id);
 	}
 
 	/** @this {TerrainErasePalette} */
 	static #selectInverse() {
 		const currentlySelected = new Set(eraseConfig$.excludedTerrainTypeIds$.value);
-		const allTerrainTypes = getTerrainTypes().map(t => t.id);
+		const allTerrainTypes = terrainTypes$.value.map(t => t.id);
 		eraseConfig$.excludedTerrainTypeIds$.value = allTerrainTypes.filter(t => !currentlySelected.has(t));
 	}
 

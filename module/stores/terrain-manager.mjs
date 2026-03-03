@@ -1,52 +1,59 @@
 /** @import { TerrainShape } from "../geometry/terrain-shape.mjs"; */
-import { Signal } from "../utils/signal.mjs";
 
-/** @typedef {(value: TerrainShape[]) => void} TerrainProviderCallback */
-
-/**
- * @typedef {Object} TerrainProvider
- * @property {(callback: TerrainProviderCallback) => void} addChangeListener
- * @property {(callback: TerrainProviderCallback) => void} removeChangeListener
- */
+import { SetSignal } from "../utils/signal.mjs";
 
 /**
  * @typedef {Object} TerrainProviderMeta
  * @property {string} id
  * @property {TerrainProvider} provider
- * @property {TerrainShape[]} currentTerrain
- * @property {TerrainProviderCallback} callback
+ * @property {() => void} cleanup
  */
 
 /** @type {Map<string, TerrainProviderMeta>} */
 const terrainProviders = new Map();
 
-/** @type {Signal<{ providerId: string; shapes: TerrainShape[]; }[]>} */
-export const currentTerrainByProvider$ = new Signal([]);
-
-/** @type {Signal<TerrainShape[]>} */
-export const allCurrentTerrain$ = new Signal([]);
+/** @type {SetSignal<TerrainShape>} */
+export const allTerrainShapes$ = new SetSignal();
 
 /**
- * Returns an array of all shapes for the listed provider IDs.
- * If no IDs are provided, returns all shapes for all providers.
- * @param {string[] | undefined} terrainProviderIds
-*/
-export function getShapesByTerrainProviderIds(terrainProviderIds) {
-	return terrainProviderIds?.length
-		? currentTerrainByProvider$.value.filter(x => terrainProviderIds.includes(x.providerId)).flatMap(x => x.shapes)
-		: allCurrentTerrain$.value;
+ * Gets all shapes on the canvas.
+ * @param {Object} [options]
+ * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
+ * @returns {TerrainShape[]}
+ */
+export function getAllShapes({ providerIds } = {}) {
+	const shapes = [];
+	for (const [providerId, { provider }] of terrainProviders)
+		if (!providerIds?.length || providerIds.includes(providerId))
+			shapes.push(...provider.terrainShapes$.value);
+	return shapes;
 }
 
 /**
- * Updates the currentTerrain$ signal with the current terrain data from the providers.
- * Throttled so that rapid updates don't cause rapid re-renders.
- * @type {() => void}
+ * Gets shapes that exist at the given point.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [options]
+ * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
  */
-const updateCurrentTerrain = foundry.utils.throttle(() => {
-	currentTerrainByProvider$.value = [...terrainProviders.values()]
-		.map(p => ({ providerId: p.id, shapes: [...p.currentTerrain] }));
-	allCurrentTerrain$.value = currentTerrainByProvider$.value.flatMap(x => x.shapes);
-}, 100);
+export function getShapesAtPoint(x, y, options) {
+	return getShapesByBounds(new PIXI.Rectangle(x, y, 0, 0), options);
+}
+
+/**
+ * Gets shapes whose bounds overlap the given rectangle.
+ * @param {PIXI.Rectangle} rect
+ * @param {Object} [options]
+ * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
+ */
+export function getShapesByBounds(rect, { providerIds } = {}) {
+	const shapes = [];
+	for (const [providerId, { provider }] of terrainProviders) {
+		if (providerIds?.length && !providerIds.includes(providerId)) continue;
+		shapes.push(...provider.quadtree.getObjects(rect));
+	}
+	return shapes;
+}
 
 /**
  * Registers a new TerrainProvider, enabling it to provide terrain data to THT.
@@ -59,19 +66,20 @@ export function registerTerrainProvider(providerId, provider) {
 	if (terrainProviders.has(providerId))
 		throw new Error("A TerrainProvider with this ID has already been registered.");
 
-	/** @type {TerrainProviderMeta} */
-	const providerMeta = {
-		id: providerId,
-		provider,
-		currentTerrain: []
-	};
-
-	terrainProviders.set(providerMeta.id, providerMeta);
-
-	provider.addChangeListener(providerMeta.callback = newTerrainShapes => {
-		providerMeta.currentTerrain = Array.isArray(newTerrainShapes) ? newTerrainShapes : [];
-		updateCurrentTerrain();
+	const cleanup = provider.terrainShapes$.subscribe({
+		add: newShapes => {
+			for (const shape of newShapes)
+				shape._providerId = providerId;
+			allTerrainShapes$.add(...newShapes);
+		},
+		remove: removedShapes => {
+			allTerrainShapes$.delete(...removedShapes);
+		}
 	});
+
+	allTerrainShapes$.add(...provider.terrainShapes$.value);
+
+	terrainProviders.set(providerId, { id: providerId, provider, cleanup });
 }
 
 /**
@@ -87,7 +95,76 @@ export function unregisterTerrainProvider(providerOrId) {
 	if (providerMeta === undefined)
 		return;
 
-	providerMeta.provider.removeChangeListener(providerMeta.callback);
+	providerMeta.cleanup();
+
+	allTerrainShapes$.remove(...providerMeta.provider.terrainShapes$.value);
+
 	terrainProviders.delete(providerId);
-	updateCurrentTerrain();
+}
+
+export class TerrainProvider {
+
+	/** @type {SetSignal<TerrainShape>} */
+	terrainShapes$ = new SetSignal();
+
+	quadtree = new CanvasQuadtree();
+
+	#canvasReadyHookId;
+	#canvasTearDownHookId;
+
+	constructor() {
+		this.#canvasReadyHookId = Hooks.on("canvasReady", () => this._canvasReady());
+		this.#canvasTearDownHookId = Hooks.on("canvasTearDown", () => this._canvasTearDown());
+
+		this.terrainShapes$.subscribe({
+			add: shapes => {
+				for (const shape of shapes)
+					this.quadtree.insert({ r: shape.polygon.boundingRect, t: { shape } });
+			},
+			remove: shapes => {
+				for (const shape of shapes)
+					this.quadtree.remove(shape);
+			}
+		});
+	}
+
+	/**
+	 * Adds a terrain shape to the provider.
+	 * @param {TerrainShape} shape
+	 */
+	addShape(shape) {
+		this.terrainShapes$.add(shape);
+	}
+
+	/**
+	 * Overwrites all the current shapes with the new given shapes.
+	 * @param {TerrainShape[]} shapes
+	 */
+	setShapes(shapes) {
+		this.terrainShapes$.value = shapes;
+	}
+
+	/**
+	 * Removes a terrain shape from the provider.
+	 * @param {TerrainShape} shape
+	 */
+	deleteShape(shape) {
+		this.terrainShapes$.delete(shape);
+	}
+
+	_canvasReady() {
+		// When the canvas is ready, update the quadtree as the bounds of the scene may have changed.
+		this.quadtree.clear();
+		for (const shape of this.terrainShapes$.value) {
+			this.quadtree.insert({ r: shape.polygon.boundingRect, t: shape });
+		}
+	}
+
+	_canvasTearDown() {}
+
+	destroy() {
+		Hooks.off("canvasReady", this.#canvasReadyHookId);
+		Hooks.off("canvasTearDown", this.#canvasTearDownHookId);
+		this.terrainShapes$.unsubscribeAll();
+	}
 }

@@ -454,7 +454,7 @@ Attempts to find a specific terrain type by its name or its ID.
 ### Returns
 
 If a terrain type with the given name or ID was not found, then `undefined`.
-If it was found, an object with the following properties:
+If it was found, a readonly object with the following properties:
 
 |Name|Type|Description|
 |-|-|-|
@@ -498,7 +498,7 @@ Gets an array of all terrain types that have been configured in the system.
 
 ### Returns
 
-An array of objects with the following properties:
+A readonly array of readonly objects with the following properties:
 
 |Name|Type|Description|
 |-|-|-|

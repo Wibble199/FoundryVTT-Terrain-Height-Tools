@@ -4,7 +4,7 @@ import { TerrainErasePalette } from "../applications/terrain-erase-palette.mjs";
 import { TerrainPaintPalette } from "../applications/terrain-paint-palette.mjs";
 import { TerrainVisibilityConfig } from "../applications/terrain-visibility-config.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
-import { moduleName, settings, tools } from "../consts.mjs";
+import { moduleName, settingNames, tools } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
 import { Signal } from "../utils/signal.mjs";
@@ -65,9 +65,9 @@ export function registerSceneControls(controls) {
 			name: "terrainHeightLayerToggle",
 			title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerToggle"),
 			icon: "fas fa-chart-simple",
-			onClick: isActive => game.settings.set(moduleName, settings.showTerrainHeightOnTokenLayer, isActive),
+			onClick: isActive => game.settings.set(moduleName, settingNames.showTerrainHeightOnTokenLayer, isActive),
 			toggle: true,
-			active: game.settings.get(moduleName, settings.showTerrainHeightOnTokenLayer)
+			active: game.settings.get(moduleName, settingNames.showTerrainHeightOnTokenLayer)
 		}
 	);
 

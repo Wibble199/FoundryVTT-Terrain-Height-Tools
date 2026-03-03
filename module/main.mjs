@@ -7,6 +7,7 @@ import { moduleName, socketFuncs, socketName } from './consts.mjs';
 import { handleTokenElevationChange, handleTokenPreCreation } from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from './layers/line-of-sight-ruler-layer.mjs';
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
+import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
 import { log } from "./utils/log.mjs";
 
 Hooks.once("init", init);
@@ -37,6 +38,7 @@ function init() {
 	registerKeybindings();
 
 	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightEditorLayer };
+	CONFIG.Canvas.layers.terrainHeightGraphicsLayer = { group: "interface", layerClass: TerrainHeightGraphicsLayer };
 	CONFIG.Canvas.layers.terrainHeightLosRulerLayer = { group: "interface", layerClass: LineOfSightRulerLayer };
 
 	if (game.modules.get("lib-wrapper")?.active) initLibWrapper();

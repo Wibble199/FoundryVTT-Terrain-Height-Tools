@@ -1,4 +1,4 @@
-import { moduleName, settings } from "../consts.mjs";
+import { moduleName, settingNames } from "../consts.mjs";
 
 /**
  * Rounds the value to the nearest multiple of the given precision.
@@ -15,7 +15,7 @@ export function roundTo(value, precision) {
  * @returns {string}
  */
 export function prettyFraction(v) {
-	if (!game.settings.get(moduleName, settings.useFractionsForLabels))
+	if (!game.settings.get(moduleName, settingNames.useFractionsForLabels))
 		return v + "";
 
 	const floored = Math.floor(v);

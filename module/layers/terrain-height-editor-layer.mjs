@@ -7,7 +7,7 @@ import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { Signal } from "../utils/signal.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
-import { TerrainHeightGraphics } from "./terrain-height-graphics.mjs";
+import { TerrainHeightGraphicsLayer } from "./terrain-height-graphics/terrain-height-graphics-layer.mjs";
 
 /**
  * Layer for handling interaction with the terrain height data.
@@ -29,9 +29,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	 * @type {PIXI.Container | undefined}
 	 */
 	_eventListenerObj;
-
-	/** @type {TerrainHeightGraphics | undefined} */
-	_graphics;
 
 	/** @type {GridHighlightGraphics | undefined} */
 	_highlightGraphics;
@@ -83,33 +80,26 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	async _draw(options) {
 		super._draw(options);
 
-		if (this._graphics) {
-			await this._updateGraphics();
-		} else {
-			this._eventListenerObj = new PIXI.Container();
-			this._eventListenerObj.eventMode = "static";
-			canvas.interface.addChild(this._eventListenerObj);
+		this._eventListenerObj = new PIXI.Container();
+		this._eventListenerObj.eventMode = "static";
+		canvas.interface.addChild(this._eventListenerObj);
 
-			this._eventListenerObj.on("globalmousemove", this.#onGlobalMouseMove);
+		this._eventListenerObj.on("globalmousemove", this.#onGlobalMouseMove);
 
-			this._graphics = new TerrainHeightGraphics();
-			canvas.primary.addChild(this._graphics);
+		this._highlightGraphics = new GridHighlightGraphics();
+		canvas.interface.addChild(this._highlightGraphics);
 
-			this._highlightGraphics = new GridHighlightGraphics();
-			canvas.interface.addChild(this._highlightGraphics);
+		this._heightMap = new HeightMap(canvas.scene);
+		registerTerrainProvider(heightMapProviderId, this._heightMap);
 
-			this._heightMap = new HeightMap(canvas.scene);
-			registerTerrainProvider(heightMapProviderId, this._heightMap);
-
-			this.#subscriptions.push(this._hoveredCell$.subscribe(({ row, col }) =>
-				globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col)));
-		}
+		this.#subscriptions.push(this._hoveredCell$.subscribe(({ row, col }) =>
+			globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col)));
 	}
 
 	/** @override */
 	_activate() {
 		// When this layer is activated (via the menu sidebar), always show the height map
-		this._graphics.isLayerActive$.value = true;
+		TerrainHeightGraphicsLayer.current._isEditLayerActive$.value = true;
 
 		// Start mouse event listeners
 		this.#setupEventListeners("on");
@@ -118,7 +108,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	/** @override */
 	_deactivate() {
 		// When this layer is deactivated (via the menu sidebar), hide the height map unless configured to show
-		this._graphics.isLayerActive$.value = false;
+		TerrainHeightGraphicsLayer.current._isEditLayerActive$.value = false;
 
 		// Stop mouse event listeners
 		this.#setupEventListeners("off");
@@ -130,11 +120,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 		this._eventListenerObj?.off("globalmousemove", this.#onGlobalMouseMove);
 		this._eventListenerObj?.parent.removeChild(this._eventListenerObj);
-		this._eventListenerObj = undefined;
-
-		this._graphics?._tearDown();
-		this._graphics?.parent.removeChild(this._graphics);
-		this._graphics = undefined;
 
 		this._highlightGraphics?.parent.removeChild(this._highlightGraphics);
 		this._highlightGraphics = undefined;
@@ -153,7 +138,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		// If only the terrain type visiblity settings have changed, just do a visibility update. Otherwise do a full
 		// redraw.
 		if (delta.flags?.[moduleName]?.[flags.invisibleTerrainTypes]) {
-			await this._graphics?._updateShapesVisibility();
+			await TerrainHeightGraphicsLayer.current._updateShapesVisibility();
 		} else {
 			this._heightMap.reload();
 		}
@@ -440,7 +425,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 					strokeAlpha: terrainData.lineOpacity,
 					strokeColor: terrainData.lineColor,
 					strokeWidth: terrainData.lineWidth,
-					text: TerrainHeightGraphics._getLabelText(shape, terrainData),
+					text: TerrainHeightGraphicsLayer._getLabelText(shape, terrainData),
 					textAlpha: terrainData.textOpacity,
 					textColor: terrainData.textColor,
 					fontFamily: terrainData.font,

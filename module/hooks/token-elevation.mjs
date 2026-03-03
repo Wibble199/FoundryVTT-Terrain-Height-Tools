@@ -1,4 +1,4 @@
-import { moduleName, settings } from "../consts.mjs";
+import { moduleName, settingNames } from "../consts.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
 import { getSpacesUnderToken, toSceneUnits } from "../utils/grid-utils.mjs";
 import { getTerrainType } from "../utils/terrain-types.mjs";
@@ -12,7 +12,7 @@ import { getTerrainType } from "../utils/terrain-types.mjs";
  */
 export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
 	// If the token was not updated by the current user, or the setting is disabled, do nothing
-	if (userId !== game.userId || !game.settings.get(moduleName, settings.tokenElevationChange)) return;
+	if (userId !== game.userId || !game.settings.get(moduleName, settingNames.tokenElevationChange)) return;
 
 	// If the token has not moved or changed size, then there will be no elevation change due to THT
 	if (["x", "y", "width", "height"].every(prop => !(prop in delta))) return;
@@ -41,7 +41,7 @@ export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
  */
 export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) {
 	// If the token was not created by the current user, or the setting is disabled, do nothing
-	if (userId !== game.userId || !game.settings.get(moduleName, settings.tokenElevationChange)) return;
+	if (userId !== game.userId || !game.settings.get(moduleName, settingNames.tokenElevationChange)) return;
 
 	const terrainHeight = getHighestTerrainUnderToken(tokenDoc);
 

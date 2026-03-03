@@ -1,8 +1,8 @@
 import { sceneControls } from "../config/controls.mjs";
-import { moduleName, settings } from "../consts.mjs";
+import { moduleName, settingNames } from "../consts.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { join, Signal } from "../utils/signal.mjs";
-import { getCssColorsFor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
+import { getCssColorsFor, terrainTypeMap$ } from "../utils/terrain-types.mjs";
 
 // How many pixels each unit in height is represented by in proportional mode.
 const proportionalModeScale = 28;
@@ -34,7 +34,7 @@ export class TerrainStackViewer extends HandlebarsApplicationMixin(ApplicationV2
 				//   show the toolbox on the token layer turned on.
 				this.#visible = keybindPressed ||
 					activeControl === moduleName ||
-					(terrain.length > 0 && activeControl === "token" && game.settings.get(moduleName, settings.showTerrainStackViewerOnTokenLayer));
+					(terrain.length > 0 && activeControl === "token" && game.settings.get(moduleName, settingNames.showTerrainStackViewerOnTokenLayer));
 
 				this.#updateVisibility();
 
@@ -99,7 +99,7 @@ export class TerrainStackViewer extends HandlebarsApplicationMixin(ApplicationV2
 
 	/** @override */
 	async _prepareContext() {
-		const terrainTypes = getTerrainTypeMap();
+		const terrainTypes = terrainTypeMap$.value;
 
 		const terrain = this._terrain$.value
 		.filter(t => terrainTypes.has(t.terrainTypeId))
@@ -129,7 +129,7 @@ export class TerrainStackViewer extends HandlebarsApplicationMixin(ApplicationV2
 
 		const highestElevation = Math.max((heightLayers[0]?.elevation ?? 0) + (heightLayers[0]?.height ?? 0), 0);
 
-		const configuredDisplayMode = game.settings.get(moduleName, settings.terrainStackViewerDisplayMode);
+		const configuredDisplayMode = game.settings.get(moduleName, settingNames.terrainStackViewerDisplayMode);
 		const isProportionalDisplayMode = configuredDisplayMode === "auto"
 			? highestElevation <= 8
 			: configuredDisplayMode === "proportional";

@@ -1,6 +1,6 @@
 import { moduleName } from "../consts.mjs";
 import { fromHook } from "../utils/signal.mjs";
-import { getCssColorsFor, getInvisibleSceneTerrainTypes, getTerrainTypes, setSceneTerrainTypeVisible } from '../utils/terrain-types.mjs';
+import { getCssColorsFor, getInvisibleSceneTerrainTypes, setSceneTerrainTypeVisible, terrainTypes$ } from '../utils/terrain-types.mjs';
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -41,7 +41,7 @@ export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplica
 	async _prepareContext() {
 		const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
 		return {
-			availableTerrains: getTerrainTypes().map(t => ({
+			availableTerrains: terrainTypes$.value.map(t => ({
 				id: t.id,
 				name: t.name,
 				visible: !invisibleTerrainTypes.has(t.id),

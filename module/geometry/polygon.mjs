@@ -46,6 +46,11 @@ export class Polygon {
 		return [...this.#centroid];
 	}
 
+	/** @type {PIXI.Rectangle} */
+	get boundingRect() {
+		return new PIXI.Rectangle(this.boundingBox.x1, this.boundingBox.y1, this.boundingBox.w, this.boundingBox.h);
+	}
+
 	/**
 	 * Pushes a vertex to the end of the polygon.
 	 * @param {number | Point | { x: number; y: number }} x The X coordinate of the point or a Point object to add.

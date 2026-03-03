@@ -7,7 +7,7 @@ import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 import { DATA_VERSION, migrateData } from "../utils/height-map-migrations.mjs";
 import { debug, error } from '../utils/log.mjs';
 import { OrderedSet } from '../utils/misc-utils.mjs';
-import { getTerrainTypeMap, getTerrainTypes } from '../utils/terrain-types.mjs';
+import { terrainTypeMap$, terrainTypes$ } from '../utils/terrain-types.mjs';
 import { Polygon } from './polygon.mjs';
 import { TerrainShape } from "./terrain-shape.mjs";
 
@@ -43,7 +43,7 @@ export class HeightMap {
 	 * This property is calculated and the returned array should not be modified.
 	 * @type {readonly TerrainShape[]}
 	 */
-	get shapes() {
+	get terrainShapes() {
 		return [...this.#shapes];
 	}
 
@@ -110,7 +110,7 @@ export class HeightMap {
 		/** @type {this["_history"][number]} */
 		const history = {};
 
-		const terrainTypeMap = getTerrainTypeMap();
+		const terrainTypeMap = terrainTypeMap$.value;
 		const terrainType = terrainTypeMap.get(terrainTypeId);
 		if (!terrainType)
 			throw new Error(`Cannot paint cells with unknown terrain type '${terrainTypeId}'.`);
@@ -119,7 +119,7 @@ export class HeightMap {
 		if (terrainType.usesHeight && (typeof elevation !== "number" || elevation < 0))
 			throw new Error("`elevation` must be a positive number or zero.");
 
-		const noHeightTerrains = getTerrainTypes().filter(t => !t.usesHeight).map(t => t.id);
+		const noHeightTerrains = terrainTypes$.value.filter(t => !t.usesHeight).map(t => t.id);
 
 		for (const cell of cells) {
 			const cellKey = encodeCellKey(...cell);
@@ -195,7 +195,7 @@ export class HeightMap {
 	 * - `"strictBoundary"` - Only fills cells that contain identical terrain data (looks at the entire cell).
 	 */
 	async fillCells(originCell, terrainTypeId, height = 1, elevation = 0, { mode = "applicableBoundary" } = {}) {
-		const terrainTypeMap = getTerrainTypeMap();
+		const terrainTypeMap = terrainTypeMap$.value;
 		const terrainType = terrainTypeMap.get(terrainTypeId);
 		if (!terrainType)
 			throw new Error(`Cannot paint cells with unknown terrain type '${terrainTypeId}'.`);
@@ -270,7 +270,7 @@ export class HeightMap {
 		/** @type {this["_history"][number]} */
 		const history = {};
 
-		const noHeightTerrains = getTerrainTypes().filter(t => !t.usesHeight).map(t => t.id);
+		const noHeightTerrains = terrainTypes$.value.filter(t => !t.usesHeight).map(t => t.id);
 
 		for (const cell of cells) {
 			const cellKey = typeof cell === "string" ? cell : encodeCellKey(...cell);

@@ -1,11 +1,17 @@
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
-import { flags, moduleName, settings, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
+import { flags, moduleName, settingNames, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
-import { sceneControls } from "./controls.mjs";
+import { Signal } from "../utils/signal.mjs";
+import { loadTerrainTypes } from "../utils/terrain-types.mjs";
+
+export const showTerrainHeightOnTokenLayer$ = new Signal(false);
+export const terrainHeightLayerVisibilityRadius$ = new Signal(0);
+export const useFractionsForLabels$ = new Signal(true);
+export const smartLabelPlacement$ = new Signal(true);
 
 export function registerSettings() {
 
-	game.settings.registerMenu(moduleName, settings.terrainTypes, {
+	game.settings.registerMenu(moduleName, settingNames.terrainTypes, {
 		name: "SETTINGS.TerrainTypes.Name",
 		label: "SETTINGS.TerrainTypes.Button",
 		hint: "SETTINGS.TerrainTypes.Hint",
@@ -14,16 +20,14 @@ export function registerSettings() {
 		restricted: true
 	});
 
-	game.settings.register(moduleName, settings.terrainTypes, {
+	registerSetting(settingNames.terrainTypes, {
 		name: "SETTINGS.TerrainTypes.Name",
 		scope: "world",
 		default: [],
 		type: Array,
 		config: false,
 		onChange: () => {
-			sceneControls.terrainPaintPalette?.render(false);
-			TerrainHeightEditorLayer.current?._updateGraphics();
-			globalThis.terrainHeightTools.ui.terrainStackViewer?.render();
+			loadTerrainTypes();
 		}
 	});
 
@@ -32,7 +36,7 @@ export function registerSettings() {
 	// The UI labels have been corrected so that users have the expected behaviour, but the name of the setting has not
 	// been changed so that users do not have to re-do their settings.
 	// Will fix if there are ever any more breaking changes (such as a v13 port).
-	game.settings.register(moduleName, settings.terrainLayerAboveTilesDefault, {
+	registerSetting(settingNames.terrainLayerAboveTilesDefault, {
 		name: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Name",
 		hint: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Hint",
 		scope: "world",
@@ -45,7 +49,7 @@ export function registerSettings() {
 		}
 	});
 
-	game.settings.register(moduleName, settings.displayLosMeasurementGm, {
+	registerSetting(settingNames.displayLosMeasurementGm, {
 		name: "SETTINGS.DisplayLosMeasurementGm.Name",
 		hint: "SETTINGS.DisplayLosMeasurementGm.Hint",
 		scope: "world",
@@ -54,7 +58,7 @@ export function registerSettings() {
 		config: true
 	});
 
-	game.settings.register(moduleName, settings.displayLosMeasurementPlayer, {
+	registerSetting(settingNames.displayLosMeasurementPlayer, {
 		name: "SETTINGS.DisplayLosMeasurementPlayer.Name",
 		hint: "SETTINGS.DisplayLosMeasurementPlayer.Hint",
 		scope: "world",
@@ -63,7 +67,7 @@ export function registerSettings() {
 		config: true
 	});
 
-	game.settings.register(moduleName, settings.defaultTokenLosTokenHeight, {
+	registerSetting(settingNames.defaultTokenLosTokenHeight, {
 		name: "SETTINGS.DefaultTokenLosHeight.Name",
 		hint: "SETTINGS.DefaultTokenLosHeight.Hint",
 		scope: "world",
@@ -73,18 +77,15 @@ export function registerSettings() {
 		config: true
 	});
 
-	game.settings.register(moduleName, settings.showTerrainHeightOnTokenLayer, {
+	registerSetting(settingNames.showTerrainHeightOnTokenLayer, {
 		name: "SETTINGS.ShowTerrainHeightOnTokenLayer",
 		scope: "client",
 		type: Boolean,
 		config: false,
-		default: true,
-		onChange: value => {
-			TerrainHeightEditorLayer.current._graphics.showOnTokenLayer$.value = value;
-		}
-	});
+		default: true
+	}, showTerrainHeightOnTokenLayer$);
 
-	game.settings.register(moduleName, settings.showTerrainStackViewerOnTokenLayer, {
+	registerSetting(settingNames.showTerrainStackViewerOnTokenLayer, {
 		name: "SETTINGS.ShowTerrainStackViewerOnTokenLayer.Name",
 		hint: "SETTINGS.ShowTerrainStackViewerOnTokenLayer.Hint",
 		scope: "client",
@@ -93,7 +94,7 @@ export function registerSettings() {
 		default: false
 	});
 
-	game.settings.register(moduleName, settings.terrainStackViewerDisplayMode, {
+	registerSetting(settingNames.terrainStackViewerDisplayMode, {
 		name: "SETTINGS.TerrainStackViewerDisplayMode.Name",
 		hint: "SETTINGS.TerrainStackViewerDisplayMode.Hint",
 		scope: "client",
@@ -103,20 +104,17 @@ export function registerSettings() {
 		default: "auto"
 	});
 
-	game.settings.register(moduleName, settings.terrainHeightLayerVisibilityRadius, {
+	registerSetting(settingNames.terrainHeightLayerVisibilityRadius, {
 		name: "SETTINGS.TerrainHeightLayerVisibilityRadius.Name",
 		hint: "SETTINGS.TerrainHeightLayerVisibilityRadius.Hint",
 		scope: "client",
 		type: Number,
 		range: { min: 0, max: 40, step: 1 },
 		config: true,
-		default: 0,
-		onChange: value => {
-			TerrainHeightEditorLayer.current._graphics.maskRadius$.value = value;
-		}
-	});
+		default: 0
+	}, terrainHeightLayerVisibilityRadius$);
 
-	game.settings.register(moduleName, settings.otherUserLineOfSightRulerOpacity, {
+	registerSetting(settingNames.otherUserLineOfSightRulerOpacity, {
 		name: "SETTINGS.OtherUserLineOfSightRulerOpacity.Name",
 		hint: "SETTINGS.OtherUserLineOfSightRulerOpacity.Hint",
 		scope: "client",
@@ -126,7 +124,7 @@ export function registerSettings() {
 		default: 0.5
 	});
 
-	game.settings.register(moduleName, settings.tokenLosToolPreselectToken1, {
+	registerSetting(settingNames.tokenLosToolPreselectToken1, {
 		name: "SETTINGS.TokenLosToolPreselectToken1.Name",
 		hint: "SETTINGS.TokenLosToolPreselectToken1.Hint",
 		scope: "client",
@@ -135,7 +133,7 @@ export function registerSettings() {
 		default: true
 	});
 
-	game.settings.register(moduleName, settings.tokenLosToolPreselectToken2, {
+	registerSetting(settingNames.tokenLosToolPreselectToken2, {
 		name: "SETTINGS.TokenLosToolPreselectToken2.Name",
 		hint: "SETTINGS.TokenLosToolPreselectToken2.Hint",
 		scope: "client",
@@ -144,7 +142,7 @@ export function registerSettings() {
 		default: true
 	});
 
-	game.settings.register(moduleName, settings.tokenElevationChange, {
+	registerSetting(settingNames.tokenElevationChange, {
 		name: "SETTINGS.TokenElevationChange.Name",
 		hint: "SETTINGS.TokenElevationChange.Hint",
 		scope: "world",
@@ -153,7 +151,7 @@ export function registerSettings() {
 		default: false
 	});
 
-	game.settings.register(moduleName, settings.showZonesAboveNonZones, {
+	registerSetting(settingNames.showZonesAboveNonZones, {
 		name: "SETTINGS.ShowZonesAboveNonZones.Name",
 		hint: "SETTINGS.ShowZonesAboveNonZones.Hint",
 		scope: "world",
@@ -163,7 +161,7 @@ export function registerSettings() {
 		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
 	});
 
-	game.settings.register(moduleName, settings.useFractionsForLabels, {
+	registerSetting(settingNames.useFractionsForLabels, {
 		name: "SETTINGS.UseFractionsForLabels.Name",
 		hint: "SETTINGS.UseFractionsForLabels.Hint",
 		scope: "world",
@@ -171,17 +169,36 @@ export function registerSettings() {
 		config: true,
 		default: true,
 		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
-	});
+	}, useFractionsForLabels$);
 
-	game.settings.register(moduleName, settings.smartLabelPlacement, {
+	registerSetting(settingNames.smartLabelPlacement, {
 		name: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Name",
 		hint: "SETTINGS.TerrainHeightLayerSmartLabelPlacement.Hint",
 		scope: "world",
 		type: Boolean,
 		config: true,
-		default: true,
-		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
-	});
+		default: true
+	}, smartLabelPlacement$);
+
+	/**
+	 * Registers a setting and optionally binds it's value to a sigmal.
+	 * @param {string} settingName
+	 * @param {*} config
+	 * @param {Signal<any>} signal
+	*/
+	function registerSetting(settingName, config, signal) {
+		game.settings.register(moduleName, settingName, {
+			...config,
+			onChange: newValue => {
+				config?.onChange(newValue);
+				if (signal) signal.value = newValue;
+			}
+		});
+
+		if (signal) {
+			signal.value = game.settings.get(moduleName, settingName);
+		}
+	}
 }
 
 /**

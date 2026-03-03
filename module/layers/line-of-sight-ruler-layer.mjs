@@ -1,14 +1,14 @@
 /** @import { FlattenedLineOfSightIntersectionRegion } from "../geometry/terrain-shape.mjs" */
 import { sceneControls } from "../config/controls.mjs";
-import { moduleName, settings, socketFuncs, socketName, tools } from "../consts.mjs";
+import { moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
-import { allCurrentTerrain$ } from "../stores/terrain-manager.mjs";
+import { allTerrainShapes$ } from "../stores/terrain-manager.mjs";
 import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
 import { isPoint3d, prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
 import { fromHook, join } from "../utils/signal.mjs";
-import { getTerrainColor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
+import { getTerrainColor, terrainTypeMap$ } from "../utils/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "../utils/token-utils.mjs";
 
 /**
@@ -52,8 +52,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		this.eventMode = "static";
 
 		tokenLineOfSightConfig$.value = {
-			h1: game.settings.get(moduleName, settings.defaultTokenLosTokenHeight),
-			h2: game.settings.get(moduleName, settings.defaultTokenLosTokenHeight)
+			h1: game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight),
+			h2: game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight)
 		};
 
 		// Ensure rulers are deleted when a user quits
@@ -237,13 +237,13 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	 * @return {boolean}
 	 */
 	get #shouldShowUsersRuler() {
-		return game.settings.get(moduleName, game.user.isGM ? settings.displayLosMeasurementGm : settings.displayLosMeasurementPlayer);
+		return game.settings.get(moduleName, game.user.isGM ? settingNames.displayLosMeasurementGm : settingNames.displayLosMeasurementPlayer);
 	}
 
 	/** Attempts to populate the token1 and token2 values based on the user's selected/targetted tokens. */
 	_autoSelectTokenLosTargets() {
 		// For the primary token, prefer the selected token, falling back to the user's configured character token
-		if (game.settings.get(moduleName, settings.tokenLosToolPreselectToken1)) {
+		if (game.settings.get(moduleName, settingNames.tokenLosToolPreselectToken1)) {
 			let token = canvas.tokens.controlled?.[0] ?? game.user.character?.getActiveTokens()?.[0];
 
 			// Special case for LANCER: If the user's active character is a pilot, get their active mech's active tokens
@@ -255,7 +255,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		}
 
 		// For the secondary token, prefer the targeted token
-		if (game.settings.get(moduleName, settings.tokenLosToolPreselectToken2)) {
+		if (game.settings.get(moduleName, settingNames.tokenLosToolPreselectToken2)) {
 			const token = game.user.targets.first();
 
 			if (token && tokenLineOfSightConfig$.token1$.value !== token) // do not allow same token as primary token (e.g. if user targets own token)
@@ -576,7 +576,7 @@ class LineOfSightRuler extends PIXI.Container {
 
 	_recalculateLos() {
 		const intersectionRegions = TerrainShape.calculateLineOfSight(
-			allCurrentTerrain$.value,
+			[...allTerrainShapes$.value],
 			this.#p1, this.#p2,
 			{ includeNoHeightTerrain: this.#includeNoHeightTerrain });
 
@@ -586,7 +586,7 @@ class LineOfSightRuler extends PIXI.Container {
 	_draw() {
 		this.#line.clear();
 
-		const terrainTypes = getTerrainTypeMap();
+		const terrainTypes = terrainTypeMap$.value;
 
 		// Draw the line's shadow
 		this.#line.lineStyle({ color: 0x000000, alpha: 0.5, width: rulerLineWidth + 2 })

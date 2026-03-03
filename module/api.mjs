@@ -2,16 +2,14 @@
 // ! Changing these functions should always be done in a backwards-compatible way.
 
 /** @import { FlattenedLineOfSightIntersectionRegion, LineOfSightIntersectionRegion } from "./geometry/terrain-shape.mjs"; */
-import { defaultGroupName, moduleName, settings } from "./consts.mjs";
+import { defaultGroupName, moduleName, settingNames } from "./consts.mjs";
 import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
-import { getShapesByTerrainProviderIds } from "./stores/terrain-manager.mjs";
-import { getTerrainTypes } from "./utils/terrain-types.mjs";
+import { terrainTypes$ } from "./utils/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
 export { registerTerrainProvider, unregisterTerrainProvider } from "./stores/terrain-manager.mjs";
-export { getTerrainTypes } from "./utils/terrain-types.mjs";
 
 export const classes = { TerrainShape };
 
@@ -20,14 +18,21 @@ export const classes = { TerrainShape };
  * @param {Object} shapes The terrain to search for.
  * @param {string} shapes.id The ID of the terrain type to find. Either this or `name` must be provided.
  * @param {string} shapes.name The name of the terrain type to find. Either this or `id` must be provided.
- * @returns {import("./utils/terrain-types.mjs").TerrainType | undefined}
+ * @returns {Readonly<import("./utils/terrain-types.mjs").TerrainType> | undefined}
  */
 export function getTerrainType(terrain) {
 	if (!terrain?.id?.length && !terrain?.name?.length)
 		throw new Error("Expected `terrain` to have an `id` or `name` property.");
 
-	const types = getTerrainTypes();
-	return types.find(t => t.id === terrain.id || t.name === terrain.name);
+	return terrainTypes$.value.find(t => t.id === terrain.id || t.name === terrain.name);
+}
+
+/**
+ * Gets an array of all terrain types that have been configured in the system.
+ * @returns {readonly Readonly<import("./utils/terrain-types.mjs").TerrainType>[]}
+ */
+export function getTerrainTypes() {
+	return terrainTypes$.value;
 }
 
 /**
@@ -103,7 +108,8 @@ export function eraseCells(cells) {
  * specified terrain providers.
  * @returns {FlattenedLineOfSightIntersectionRegion[]}
  */
-export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+// TODO:
+/*export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
 	return TerrainShape.flattenLineOfSightIntersectionRegions(
 		TerrainShape.calculateLineOfSight(
 			getShapesByTerrainProviderIds(terrainProviderIds),
@@ -111,7 +117,7 @@ export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainPr
 			{ includeNoHeightTerrain }
 		)
 	);
-}
+}*/
 
 /**
  * Calculates the line of sight between the two given pixel coordinate points and heights.
@@ -125,13 +131,14 @@ export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainPr
  * specified terrain providers.
  * @returns {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[]; }[]}
  */
-export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+// TODO:
+/*export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
 	return TerrainShape.calculateLineOfSight(
 		getShapesByTerrainProviderIds(terrainProviderIds),
 		p1, p2,
 		{ includeNoHeightTerrain }
 	);
-}
+}*/
 
 /**
  * Calculates the start and end points of line of right rays between two tokens. One from the left-most point of token1
@@ -147,7 +154,7 @@ export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, te
  * world-configured default value.
  */
 export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1RelativeHeight, token2RelativeHeight } = {}) {
-	const defaultRelativeHeight = game.settings.get(moduleName, settings.defaultTokenLosTokenHeight);
+	const defaultRelativeHeight = game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight);
 	const { left, centre, right } = calculateRaysBetweenTokensOrPoints(token1, token2, token1RelativeHeight ?? defaultRelativeHeight, token2RelativeHeight ?? defaultRelativeHeight);
 	return {
 		left: { p1: left[0], p2: left[1] },
@@ -217,7 +224,7 @@ export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOth
  * @param {boolean} [options.includeEdges] Whether to include edge-to-edge rulers between tokens.
  */
 export function drawLineOfSightRaysBetweenTokens(token1, token2, { group = defaultGroupName, token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true, includeEdges = true } = {}) {
-	const defaultRelativeHeight = game.settings.get(moduleName, settings.defaultTokenLosTokenHeight);
+	const defaultRelativeHeight = game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight);
 	LineOfSightRulerLayer.current?._drawLineOfSightRays([{
 		a: token1, ah: token1RelativeHeight ?? defaultRelativeHeight,
 		b: token2, bh: token2RelativeHeight ?? defaultRelativeHeight,

@@ -1,7 +1,7 @@
 import { moduleName } from "../consts.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
-import { getCssColorsFor, getTerrainTypeMap } from "../utils/terrain-types.mjs";
+import { getCssColorsFor, terrainTypeMap$ } from "../utils/terrain-types.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -56,7 +56,7 @@ export class TerrainShapeChoiceDialog extends HandlebarsApplicationMixin(Applica
 
 	/** @param {import("../geometry/terrain-shape.mjs").TerrainShape[]} terrainShapes */
 	#calculateShapeRenderData(terrainShapes) {
-		const terrainTypeMap = getTerrainTypeMap();
+		const terrainTypeMap = terrainTypeMap$.value;
 
 		return terrainShapes
 			.map(shape => {

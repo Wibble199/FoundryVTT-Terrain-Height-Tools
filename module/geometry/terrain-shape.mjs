@@ -1,7 +1,7 @@
 import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { error, warn } from "../utils/log.mjs";
 import { roundTo } from "../utils/misc-utils.mjs";
-import { getTerrainTypeMap, getTerrainTypes } from "../utils/terrain-types.mjs";
+import { terrainTypeMap$, terrainTypes$ } from "../utils/terrain-types.mjs";
 import { encodeCellKey } from "./height-map.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from "./polygon.mjs";
@@ -43,6 +43,9 @@ import { Polygon } from "./polygon.mjs";
  * Also contains functions for testing collisions/intersections and calculating line of sight.
  */
 export class TerrainShape {
+
+	/** @type {string | undefined} */
+	_providerId;
 
 	/**
 	 * @param {Object} data
@@ -465,7 +468,7 @@ export class TerrainShape {
 	 * @returns {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[] }[]}
 	 */
 	static calculateLineOfSight(shapes, p1, p2, { includeNoHeightTerrain = false } = {}) {
-		const terrainTypes = getTerrainTypeMap();
+		const terrainTypes = terrainTypeMap$.value;
 
 		/** @type {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[] }[]} */
 		const intersectionsByShape = [];
@@ -507,7 +510,7 @@ export class TerrainShape {
 
 		// Array of terrainTypeIds ordered by their order defined in the settings. We use this to determine which should
 		// be shown in the case of multiple overlapping shapes.
-		const terrainTypeIdPriority = getTerrainTypes().map(t => t.id);
+		const terrainTypeIdPriority = terrainTypes$.value.map(t => t.id);
 
 		for (const boundary of boundaries) {
 			// Collect a list of intersection regions 'active' at this boundary.

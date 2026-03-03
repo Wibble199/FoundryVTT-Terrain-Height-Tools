@@ -1,5 +1,6 @@
-import { flags, lineTypes, moduleName, settings } from '../consts.mjs';
+import { flags, lineTypes, moduleName, settingNames } from '../consts.mjs';
 import { alphaToHex } from "./misc-utils.mjs";
+import { Signal } from "./signal.mjs";
 
 /**
  * @typedef {object} TerrainType
@@ -38,6 +39,23 @@ import { alphaToHex } from "./misc-utils.mjs";
  * @property {number | null} defaultHeight
  * @property {number | null} defaultElevation
  */
+
+/** @type {Signal<readonly Readonly<TerrainType>[]>} */
+export const terrainTypes$ = new Signal([]);
+
+/** @type {Signal<Map<string, Readonly<TerrainType>>>} */
+export const terrainTypeMap$ = new Signal(new Map());
+
+export function loadTerrainTypes() {
+	/** @type {Partial<TerrainType>[]} */
+	const terrainTypes = game.settings.get(moduleName, settingNames.terrainTypes);
+
+	// As we're sharing TerrainType instances, freeze them to prevent modification
+	terrainTypes$.value = Object.freeze(terrainTypes
+		.map(t => Object.freeze({ ...createDefaultTerrainType(t.id), ...t })));
+
+	terrainTypeMap$.value = new Map(terrainTypes$.value.map(t => [t.id, t]));
+}
 
 /**
  * Creates a new TerrainType object with the default options.
@@ -89,17 +107,10 @@ export function createDefaultTerrainType(id = undefined) {
  */
 export function getTerrainTypes() {
 	/** @type {Partial<TerrainType>[]} */
-	const terrainTypes = game.settings.get(moduleName, settings.terrainTypes);
+	const terrainTypes = game.settings.get(moduleName, settingNames.terrainTypes);
 
 	// Merge with the default terrain type so that any new properties get their default values.
-	return terrainTypes.map(t => ({ ...createDefaultTerrainType(t.id), ...t }));
-}
-
-/**
- * Loads the TerrainTypes from the settings into a Map that is keyed by the terrain type ID.
- */
-export function getTerrainTypeMap() {
-	return new Map(getTerrainTypes().map(t => [t.id, t]));
+	return terrainTypes.map(t => Object.freeze({ ...createDefaultTerrainType(t.id), ...t }));
 }
 
 /**
@@ -108,7 +119,7 @@ export function getTerrainTypeMap() {
  * @returns {TerrainType | undefined}
  */
 export function getTerrainType(terrainTypeId) {
-	return getTerrainTypes().find(x => x.id === terrainTypeId);
+	return terrainTypeMap$.value.find(x => x.id === terrainTypeId);
 }
 
 /**

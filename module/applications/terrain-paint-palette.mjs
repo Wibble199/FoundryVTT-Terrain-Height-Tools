@@ -1,7 +1,7 @@
 import { moduleName, tools } from "../consts.mjs";
 import { paintingConfig$ } from "../stores/drawing.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
-import { getCssColorsFor, getTerrainType, getTerrainTypes } from '../utils/terrain-types.mjs';
+import { getCssColorsFor, getTerrainType, terrainTypes$ } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
@@ -57,7 +57,7 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 	/** @override */
 	async _prepareContext() {
 		return {
-			availableTerrains: getTerrainTypes().map(t => ({
+			availableTerrains: terrainTypes$.value.map(t => ({
 				id: t.id,
 				name: t.name,
 
