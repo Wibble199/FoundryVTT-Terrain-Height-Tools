@@ -1,4 +1,4 @@
-import { distinctBy } from '../utils/array-utils.mjs';
+import { distinctBy } from "../utils/array-utils.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Point } from "./point.mjs";
 
@@ -22,8 +22,8 @@ export class Polygon {
 			x2: -Infinity, y2: -Infinity,
 			get w() { return this.x2 - this.x1; },
 			get h() { return this.y2 - this.y1; },
-			get xMid() { return (this.x1 + this.x2) / 2 },
-			get yMid() { return (this.x1 + this.x2) / 2 }
+			get xMid() { return (this.x1 + this.x2) / 2; },
+			get yMid() { return (this.x1 + this.x2) / 2; }
 		};
 
 		for (const vertex of vertices ?? []) {
@@ -59,7 +59,7 @@ export class Polygon {
 	pushVertex(x, y = undefined) {
 		const vertex = x instanceof Point ? x
 			: typeof x === "object" ? new Point(x.x, x.y)
-			: new Point(x, y);
+				: new Point(x, y);
 
 		// Check that the point is not identical to the previous, as this would cause a 0 length edge.
 		if (this.#vertices.length > 0 && vertex.equals(this.#vertices[this.#vertices.length - 1], { precision: Number.EPSILON }))
@@ -178,7 +178,7 @@ export class Polygon {
 			detectHorizontallyConnectedEdge(edge, 1) || detectHorizontallyConnectedEdge(edge, -1);
 		}
 
-    	return intersectedEdges.size % 2 == 1;
+		return intersectedEdges.size % 2 == 1;
 	}
 
 	/**

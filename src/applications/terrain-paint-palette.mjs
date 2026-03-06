@@ -1,7 +1,7 @@
 import { moduleName, tools } from "../consts.mjs";
 import { paintingConfig$ } from "../stores/drawing.mjs";
+import { getCssColorsFor, getTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
-import { getCssColorsFor, getTerrainType, terrainTypes$ } from '../utils/terrain-types.mjs';
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
@@ -20,7 +20,7 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 		},
 		position: {
 			width: 220,
-			height: 378,
+			height: 378
 		},
 		actions: {
 			configureTerrainTypes: TerrainPaintPalette.#configureTerrainTypes,
@@ -30,7 +30,7 @@ export class TerrainPaintPalette extends withSubscriptions(HandlebarsApplication
 
 	static PARTS = {
 		main: {
-			template: `modules/${moduleName}/templates/terrain-paint-palette.hbs`,
+			template: `modules/${moduleName}/templates/terrain-paint-palette.hbs`
 		}
 	};
 

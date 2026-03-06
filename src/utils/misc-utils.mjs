@@ -40,7 +40,7 @@ export function alphaToHex(a) {
 * @returns {obj is Point3D}
 */
 export function isPoint3d(obj) {
-   return typeof obj === "object"
+	return typeof obj === "object"
 	   && typeof obj.x === "number"
 	   && typeof obj.y === "number"
 	   && typeof obj.h === "number";
@@ -107,5 +107,5 @@ export function cacheReturn(func, keyFunc = undefined) {
 		const result = func(...args);
 		cache.set(key, result);
 		return result;
-	}
+	};
 }

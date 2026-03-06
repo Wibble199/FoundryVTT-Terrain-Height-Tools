@@ -1,6 +1,7 @@
-import { flags, lineTypes, moduleName, settingNames } from '../consts.mjs';
-import { alphaToHex } from "./misc-utils.mjs";
-import { Signal } from "./signal.mjs";
+/** @import { ReadonlySignal, Signal } from "@preact/signals-core"; */
+import { computed, signal } from "@preact/signals-core";
+import { flags, lineTypes, moduleName, settingNames } from "../consts.mjs";
+import { alphaToHex } from "../utils/misc-utils.mjs";
 
 /**
  * @typedef {object} TerrainType
@@ -41,10 +42,8 @@ import { Signal } from "./signal.mjs";
  */
 
 /** @type {Signal<readonly Readonly<TerrainType>[]>} */
-export const terrainTypes$ = new Signal([]);
-
-/** @type {Signal<Map<string, Readonly<TerrainType>>>} */
-export const terrainTypeMap$ = new Signal(new Map());
+export const terrainTypes$ = signal([]);
+export const terrainTypeMap$ = computed(() => new Map(terrainTypes$.value.map(t => [t.id, t])));
 
 export function loadTerrainTypes() {
 	/** @type {Partial<TerrainType>[]} */
@@ -53,8 +52,6 @@ export function loadTerrainTypes() {
 	// As we're sharing TerrainType instances, freeze them to prevent modification
 	terrainTypes$.value = Object.freeze(terrainTypes
 		.map(t => Object.freeze({ ...createDefaultTerrainType(t.id), ...t })));
-
-	terrainTypeMap$.value = new Map(terrainTypes$.value.map(t => [t.id, t]));
 }
 
 /**
@@ -102,24 +99,12 @@ export function createDefaultTerrainType(id = undefined) {
 }
 
 /**
- * Loads the TerrainTypes from the settings.
- * @returns {TerrainType[]}
- */
-export function getTerrainTypes() {
-	/** @type {Partial<TerrainType>[]} */
-	const terrainTypes = game.settings.get(moduleName, settingNames.terrainTypes);
-
-	// Merge with the default terrain type so that any new properties get their default values.
-	return terrainTypes.map(t => Object.freeze({ ...createDefaultTerrainType(t.id), ...t }));
-}
-
-/**
  * Returns the terrain type for the given ID.
  * @param {string} terrainTypeId
  * @returns {TerrainType | undefined}
  */
 export function getTerrainType(terrainTypeId) {
-	return terrainTypeMap$.value.find(x => x.id === terrainTypeId);
+	return terrainTypeMap$.value.get(terrainTypeId);
 }
 
 /**
@@ -156,7 +141,7 @@ export function getCssColorsFor(terrainType) {
 			: terrainType.lineColor + alphaToHex(terrainType.lineOpacity),
 		borderWidth: terrainType.lineType === lineTypes.none
 			? 0
-			: terrainType.lineWidth,
+			: terrainType.lineWidth
 	};
 }
 

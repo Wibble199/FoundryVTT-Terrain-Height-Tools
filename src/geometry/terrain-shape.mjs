@@ -1,7 +1,7 @@
+import { terrainTypeMap$, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { error, warn } from "../utils/log.mjs";
 import { roundTo } from "../utils/misc-utils.mjs";
-import { terrainTypeMap$, terrainTypes$ } from "../utils/terrain-types.mjs";
 import { encodeCellKey } from "./height-map.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from "./polygon.mjs";
@@ -135,9 +135,9 @@ export class TerrainShape {
 		// test line the intersection occured.
 		/** @type {[Polygon | undefined, LineSegment][]} */
 		const allEdges = this.polygon.edges
-			.map(e => ([undefined, e]))
+			.map(e => [undefined, e])
 			.concat(this.holes
-				.flatMap(h => h.edges.map(e => ([h, e]))));
+				.flatMap(h => h.edges.map(e => [h, e])));
 
 		/** @type {LineOfSightIntersection[]} */
 		const intersections = [];
@@ -501,9 +501,9 @@ export class TerrainShape {
 
 		// Find all points where a change happens - this may be entering, leaving or touching a shape.
 		const boundaries = distinctBy(
-				shapeRegions.flatMap(s => s.regions.flatMap(r => [r.start, r.end])),
-				r => r.t
-			).sort((a, b) => a.t - b.t);
+			shapeRegions.flatMap(s => s.regions.flatMap(r => [r.start, r.end])),
+			r => r.t
+		).sort((a, b) => a.t - b.t);
 
 		/** @type {{ x: number; y: number; h: number; t: number; }} */
 		let lastPosition = undefined; // first boundary should always have 0 'active regions'

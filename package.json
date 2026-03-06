@@ -4,10 +4,15 @@
 	"scripts": {
 		"dev": "rollup -c -w",
 		"build": "rollup -c",
-		"test": "node --test test/**/*.test.mjs"
+		"test": "node --test test/**/*.test.mjs",
+		"lint": "eslint -c eslint.config.mjs"
 	},
 	"devDependencies": {
+		"@eslint/js": "^9.39.3",
+		"@rollup/plugin-node-resolve": "^16.0.3",
+		"@stylistic/eslint-plugin-js": "^4.4.1",
 		"@types/node": "^22.8.1",
+		"eslint": "^9.39.3",
 		"rollup": "^2.80.0",
 		"rollup-plugin-sourcemaps": "^0.6.3"
 	},

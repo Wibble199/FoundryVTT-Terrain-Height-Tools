@@ -128,8 +128,8 @@ function getGradientTexture() {
 	const canvasContext = canvas.getContext("2d");
 
 	const gradient = canvasContext.createLinearGradient(0, 0, gradientTextureResolution * textureBuffer, 0);
-	gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
-	gradient.addColorStop(1 / textureBuffer, `rgba(255, 255, 255, 0)`);
+	gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+	gradient.addColorStop(1 / textureBuffer, "rgba(255, 255, 255, 0)");
 
 	canvasContext.fillStyle = gradient;
 	canvasContext.fillRect(0, 0, gradientTextureResolution * textureBuffer, 1);

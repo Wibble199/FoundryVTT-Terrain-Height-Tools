@@ -5,6 +5,7 @@ export class Point {
 
 	// Hide X & Y and expose them as get properties so the Vertex is immutable
 	#x;
+
 	#y;
 
 	/**

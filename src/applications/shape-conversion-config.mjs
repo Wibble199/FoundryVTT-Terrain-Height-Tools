@@ -4,7 +4,7 @@ import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-export class ShapeConversionConifg extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+export class ShapeConversionConfig extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_shapeConversionConfig",
@@ -100,7 +100,7 @@ class WallConversionConfig extends FormApplication {
 			_id: null,
 			c: [0, 0, 1, 1],
 			...convertConfig$.wallConfig$.value,
-			flags: {},
+			flags: {}
 		};
 		context.p0 = { x: 0, y: 0 };
 		context.p1 = { x: 1, y: 1 };
@@ -109,27 +109,27 @@ class WallConversionConfig extends FormApplication {
 
 		// Copied from the normal WallConfig
 		context.moveTypes = Object.keys(CONST.WALL_MOVEMENT_TYPES).reduce((obj, key) => {
-			let k = CONST.WALL_MOVEMENT_TYPES[key];
+			const k = CONST.WALL_MOVEMENT_TYPES[key];
 			obj[k] = game.i18n.localize(`WALLS.SenseTypes.${key}`);
 			return obj;
 		}, {});
 		context.senseTypes = Object.keys(CONST.WALL_SENSE_TYPES).reduce((obj, key) => {
-			let k = CONST.WALL_SENSE_TYPES[key];
+			const k = CONST.WALL_SENSE_TYPES[key];
 			obj[k] = game.i18n.localize(`WALLS.SenseTypes.${key}`);
 			return obj;
 		}, {});
 		context.dirTypes = Object.keys(CONST.WALL_DIRECTIONS).reduce((obj, key) => {
-			let k = CONST.WALL_DIRECTIONS[key];
+			const k = CONST.WALL_DIRECTIONS[key];
 			obj[k] = game.i18n.localize(`WALLS.Directions.${key}`);
 			return obj;
 		}, {});
 		context.doorTypes = Object.keys(CONST.WALL_DOOR_TYPES).reduce((obj, key) => {
-			let k = CONST.WALL_DOOR_TYPES[key];
+			const k = CONST.WALL_DOOR_TYPES[key];
 			obj[k] = game.i18n.localize(`WALLS.DoorTypes.${key}`);
 			return obj;
 		}, {});
 		context.doorStates = Object.keys(CONST.WALL_DOOR_STATES).reduce((obj, key) => {
-			let k = CONST.WALL_DOOR_STATES[key];
+			const k = CONST.WALL_DOOR_STATES[key];
 			obj[k] = game.i18n.localize(`WALLS.DoorStates.${key}`);
 			return obj;
 		}, {});
@@ -175,7 +175,7 @@ class WallConversionConfig extends FormApplication {
 		if (!sounds) return;
 		if (!Array.isArray(sounds)) sounds = [sounds];
 		const src = sounds[Math.floor(Math.random() * sounds.length)];
-		game.audio.play(src, {context: game.audio.interface});
+		game.audio.play(src, { context: game.audio.interface });
 	}
 
 	#enableDoorOptions(isDoor) {

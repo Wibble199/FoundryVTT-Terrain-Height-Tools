@@ -1,6 +1,6 @@
 import { moduleName } from "../consts.mjs";
-import { fromHook } from "../utils/signal.mjs";
-import { getCssColorsFor, getInvisibleSceneTerrainTypes, setSceneTerrainTypeVisible, terrainTypes$ } from '../utils/terrain-types.mjs';
+import { invisibleTerrainTypes$ } from "../stores/canvas.mjs";
+import { getCssColorsFor, setSceneTerrainTypeVisible, terrainTypes$ } from '../stores/terrain-types.mjs';
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -39,7 +39,7 @@ export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplica
 
 	/** @override */
 	async _prepareContext() {
-		const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
+		const invisibleTerrainTypes = invisibleTerrainTypes$.value;
 		return {
 			availableTerrains: terrainTypes$.value.map(t => ({
 				id: t.id,
@@ -53,7 +53,8 @@ export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplica
 	/** @override */
 	_onRender() {
 		this._unsubscribeFromAll();
-		this._subscriptions = [
+		// TODO:
+		/* this._subscriptions = [
 			fromHook("updateScene", scene => scene.active).subscribe(() => {
 				const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
 				this.element.querySelectorAll("[data-terrain-id]").forEach(el => {
@@ -61,7 +62,7 @@ export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplica
 					el.classList.toggle("active", isVisible);
 				});
 			})
-		];
+		];*/
 	}
 
 	/**

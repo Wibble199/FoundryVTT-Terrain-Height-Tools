@@ -1,13 +1,14 @@
+import { signal } from "@preact/signals-core";
 import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-dialog.mjs";
 import { flags, heightMapProviderId, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { registerTerrainProvider, unregisterTerrainProvider } from "../stores/terrain-manager.mjs";
+import { getTerrainType } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
-import { Signal } from "../utils/signal.mjs";
-import { getTerrainType } from "../utils/terrain-types.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
 import { TerrainHeightGraphicsLayer } from "./terrain-height-graphics/terrain-height-graphics-layer.mjs";
+import { getLabelText } from "./terrain-height-graphics/terrain-shape-graphic.mjs";
 
 /**
  * Layer for handling interaction with the terrain height data.
@@ -39,7 +40,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	/** @type {[number, number][]} */
 	_pendingChanges = [];
 
-	_hoveredCell$ = new Signal({ row: -1, col: -1 }, { equalityComparer: (a, b) => a.row === b.row && a.col === b.col });
+	_hoveredCell$ = signal({ row: -1, col: -1 });
 
 	/** @type {(() => void)[]} */
 	#subscriptions = [];
@@ -92,8 +93,9 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		this._heightMap = new HeightMap(canvas.scene);
 		registerTerrainProvider(heightMapProviderId, this._heightMap);
 
-		this.#subscriptions.push(this._hoveredCell$.subscribe(({ row, col }) =>
-			globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col)));
+		// TODO:
+		/* this.#subscriptions.push(this._hoveredCell$.subscribe(({ row, col }) =>
+			globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col)));*/
 	}
 
 	/** @override */
@@ -149,10 +151,10 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	// ---- //
 	async _updateGraphics() {
 		// TODO: terrain stack viewer
-		const { row, col } = this._hoveredCell$.value
-		globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col);
+		/*const { row, col } = this._hoveredCell$.value;
+		globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col);*/
 
-		//await this._graphics?.update(this._heightMap);
+		// await this._graphics?.update(this._heightMap);
 	}
 
 	// -------------------- //
@@ -327,16 +329,18 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		this._pendingTool = undefined;
 
 		switch (pendingTool) {
-			case tools.paint:
+			case tools.paint: {
 				const { selectedTerrainId, selectedHeight, selectedElevation, mode } = this.#paintingConfig;
 				if (selectedTerrainId)
 					await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { mode });
 				break;
+			}
 
-			case tools.erase:
+			case tools.erase: {
 				const { excludedTerrainTypeIds: excludingTerrainTypeIds, bottom, top } = eraseConfig$.value;
 				await this._heightMap.eraseCells(pendingChanges, { excludingTerrainTypeIds, bottom, top });
 				break;
+			}
 		}
 
 		this._highlightGraphics.clear();
@@ -385,7 +389,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	 * @param {import("../geometry/terrain-shape.mjs").TerrainShape} shape
 	 * @param {Object} [options]
 	 * @param {boolean} [options.toDrawing] Whether to convert the shape to drawings.
-	 * @param {boolean} [options.toRegion] Whether to convert the shape to a new scene region.
+	 * @param {boolean} [options.toRegion] Whether to convert the shape to a scene region.
 	 * @param {boolean} [options.toWalls] Whether to convert the shape to walls.
 	 * @param {any} [options.wallConfig] The config to apply to the walls (such as movement restiction, etc.)
 	 * @param {boolean} [options.setWallHeightFlags] Whether to populate Wall Height module flags when converting to walls.
@@ -425,7 +429,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 					strokeAlpha: terrainData.lineOpacity,
 					strokeColor: terrainData.lineColor,
 					strokeWidth: terrainData.lineWidth,
-					text: TerrainHeightGraphicsLayer._getLabelText(shape, terrainData),
+					text: getLabelText(shape, terrainData),
 					textAlpha: terrainData.textOpacity,
 					textColor: terrainData.textColor,
 					fontFamily: terrainData.font,

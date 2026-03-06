@@ -1,7 +1,7 @@
 import { moduleName } from "../consts.mjs";
 import { eraseConfig$ } from "../stores/drawing.mjs";
+import { getCssColorsFor, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
-import { getCssColorsFor, terrainTypes$ } from '../utils/terrain-types.mjs';
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -27,13 +27,13 @@ export class TerrainErasePalette extends withSubscriptions(HandlebarsApplication
 			selectNone: TerrainErasePalette.#selectNone,
 			selectInverse: TerrainErasePalette.#selectInverse
 		}
-	}
+	};
 
 	static PARTS = {
 		main: {
 			template: `modules/${moduleName}/templates/terrain-erase-palette.hbs`
 		}
-	}
+	};
 
 	/** @override */
 	async _renderFrame(options) {

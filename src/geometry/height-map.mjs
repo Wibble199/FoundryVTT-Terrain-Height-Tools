@@ -1,14 +1,14 @@
 /** @import { terrainPaintMode as TerrainPaintMode, terrainFillMode as TerrainFillMode } from "../consts.mjs" */
 /** @import { HeightMapDataV1, HeightMapDataV1Terrain } from "../utils/height-map-migrations.mjs" */
-/** @import { TerrainProvider, TerrainProviderCallback } from "../stores/terrain-manager.mjs" */
 import { flags, moduleName } from "../consts.mjs";
-import { groupBy } from '../utils/array-utils.mjs';
+import { TerrainProvider } from "../stores/terrain-manager.mjs";
+import { terrainTypeMap$, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { groupBy } from "../utils/array-utils.mjs";
 import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 import { DATA_VERSION, migrateData } from "../utils/height-map-migrations.mjs";
-import { debug, error } from '../utils/log.mjs';
-import { OrderedSet } from '../utils/misc-utils.mjs';
-import { terrainTypeMap$, terrainTypes$ } from '../utils/terrain-types.mjs';
-import { Polygon } from './polygon.mjs';
+import { debug, error } from "../utils/log.mjs";
+import { OrderedSet } from "../utils/misc-utils.mjs";
+import { Polygon } from "./polygon.mjs";
 import { TerrainShape } from "./terrain-shape.mjs";
 
 const maxHistoryItems = 10;
@@ -17,7 +17,7 @@ const maxHistoryItems = 10;
  * Manages height map data for a scene, providing read/update functionality.
  * @implements {TerrainProvider}
  */
-export class HeightMap {
+export class HeightMap extends TerrainProvider {
 
 	/** @type {HeightMapDataV1["data"]} */
 	data;
@@ -25,26 +25,13 @@ export class HeightMap {
 	/** @type {Partial<HeightMapDataV1>[]} */
 	_history = [];
 
-	/** @type {TerrainShape[]} */
-	#shapes = [];
-
-	/** @type {Set<TerrainProviderCallback>} */
-	#onChangeCallbacks = new Set();
-
 	/** @param {Scene} */
 	constructor(scene) {
+		super();
+
 		/** @type {Scene} */
 		this.scene = scene;
 		this.reload();
-	}
-
-	/**
-	 * The resulting complex shapes that make up the parts of the map.
-	 * This property is calculated and the returned array should not be modified.
-	 * @type {readonly TerrainShape[]}
-	 */
-	get terrainShapes() {
-		return [...this.#shapes];
 	}
 
 	/**
@@ -72,23 +59,7 @@ export class HeightMap {
 	 * @param {number} col
 	 */
 	getShapes(row, col) {
-		return this.#shapes.filter(s => s.containsCell(row, col));
-	}
-
-	/** @type {TerrainProvider["addChangeListener"]} */
-	addChangeListener(callback) {
-		this.#onChangeCallbacks.add(callback);
-		callback(this.#shapes);
-	}
-
-	/** @type {TerrainProvider["removeChangeListener"]} */
-	removeChangeListener(callback) {
-		this.#onChangeCallbacks.delete(callback);
-	}
-
-	#notifiySubscribers() {
-		for (const callback of this.#onChangeCallbacks)
-			callback(this.#shapes);
+		return [...this.terrainShapes$.value].filter(s => s.containsCell(row, col));
 	}
 
 	// -------------- //
@@ -282,7 +253,7 @@ export class HeightMap {
 
 			// Remove terrain that has a height
 			let anyChanges = HeightMap._eraseTerrainDataBetween(terrainsInCell, bottom, top, {
-				excludingTerrainTypeIds: [...noHeightTerrains, ...(excludingTerrainTypeIds ?? [])],
+				excludingTerrainTypeIds: [...noHeightTerrains, ...excludingTerrainTypeIds ?? []],
 				onlyTerrainTypeIds: onlyTerrainTypeIds
 			});
 
@@ -327,8 +298,7 @@ export class HeightMap {
 		if (Object.keys(this.data).length === 0) return false;
 		this.data = {};
 		await this.#saveChanges();
-		this.#shapes = [];
-		this.#notifiySubscribers();
+		this.deleteAllShapes();
 		return true;
 	}
 
@@ -381,7 +351,7 @@ export class HeightMap {
 
 			// If the bottom of the existing terrain overlaps the top of the erasure range
 			else if (terrain.elevation < rangeTop && terrainTop > rangeTop) {
-				terrain.height -= (rangeTop - terrain.elevation);
+				terrain.height -= rangeTop - terrain.elevation;
 				terrain.elevation = rangeTop;
 				anyChanges = true;
 			}
@@ -448,11 +418,10 @@ export class HeightMap {
 	// Geometry //
 	// -------- //
 	#recalculateShapes() {
-		this.#shapes = [];
+		this.deleteAllShapes();
 
 		// Gridless scenes not supported
 		if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) {
-			this.#notifiySubscribers();
 			return;
 		}
 
@@ -460,8 +429,10 @@ export class HeightMap {
 
 		const dataByTerrainDetails = groupBy(
 			Object.entries(this.data).flatMap(([cell, terrains]) => terrains.map(t => ({ cell, position: decodeCellKey(cell), ...t }))),
-			x => `${x.terrainTypeId}|${x.height}|${x.elevation}`);
+			x => `${x.terrainTypeId}|${x.height}|${x.elevation}`
+		);
 
+		const shapes = [];
 		for (const [, cells] of dataByTerrainDetails) {
 			const { terrainTypeId, height, elevation } = cells[0];
 
@@ -472,13 +443,13 @@ export class HeightMap {
 			const polygons = cells.map(({ cell, position }) => ({ cell, poly: new Polygon(getGridCellPolygon(...position)) }));
 
 			// Combine connected grid-sized polygons into larger polygons where possible
-			this.#shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height, elevation));
+			shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height, elevation));
 		}
 
 		const t2 = performance.now();
 		debug(`Shape calculation took ${t2 - t1}ms`);
 
-		this.#notifiySubscribers();
+		this.addShapes(...shapes);
 	}
 
 	/**
@@ -504,7 +475,7 @@ export class HeightMap {
 			const set = connectedCells.get(c1);
 			if (set) set.add(c2);
 			else connectedCells.set(c1, new Set([c2]));
-		}
+		};
 
 		// Remove any duplicate edges
 		for (let i = 0; i < allEdges.length; i++) {
@@ -613,8 +584,7 @@ export class HeightMap {
 						intersectsAt: edge.intersectsYAt(testPoint.y),
 						shape
 					}))
-					.filter(x => x.intersectsAt && x.intersectsAt < testPoint.x)
-				);
+					.filter(x => x.intersectsAt && x.intersectsAt < testPoint.x));
 
 				if (intersectsWithEdges.length === 0) {
 					error("Something went wrong calculating which polygon this hole belonged to: No edges intersected horizontal ray.", { holePolygon, solidPolygons });
@@ -717,7 +687,8 @@ export class HeightMap {
 	static #terrainEqualInRange(a, b, bottom, top) {
 		return HeightMap.#terrainEqual(
 			HeightMap.#terrainSlice(a, bottom, top),
-			HeightMap.#terrainSlice(b, bottom, top));
+			HeightMap.#terrainSlice(b, bottom, top)
+		);
 	}
 
 	/**

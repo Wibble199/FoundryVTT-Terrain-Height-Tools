@@ -1,6 +1,7 @@
+/** @import { Signal } from "@preact/signals-core" */
+import { signal } from "@preact/signals-core";
 import { moduleName, tokenRelativeHeights } from "../consts.mjs";
 import { includeNoHeightTerrain$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
-import { fromHook, Signal } from "../utils/signal.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -8,7 +9,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 export class TokenLineOfSightConfig extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
 
 	/** @type {Signal<1 | 2 | undefined>} */
-	#selectingToken$ = new Signal(undefined);
+	#selectingToken$ = signal(undefined);
 
 	/** @type {Token | undefined} */
 	#hoveredToken = undefined;
@@ -56,7 +57,7 @@ export class TokenLineOfSightConfig extends withSubscriptions(HandlebarsApplicat
 			// Since there is no hook for selecting a token (and players cannot select tokens they don't own anyways),
 			// we instead listen to the hover hook, and then detect when a mouse down has happened.
 			// Not sure if there's a better way to do this, but it seems to work.
-			fromHook("hoverToken").subscribe(this.#onTokenHover),
+			// TODO: fromHook("hoverToken").subscribe(this.#onTokenHover),
 
 			includeNoHeightTerrain$.subscribe(v =>
 				this.element.querySelector("[name='rulerIncludeNoHeightTerrain']").checked = v, true),
@@ -104,7 +105,8 @@ export class TokenLineOfSightConfig extends withSubscriptions(HandlebarsApplicat
 		// Update tooltip
 		const tooltipText = game.i18n.format(
 			"TERRAINHEIGHTTOOLS.TokenLineOfSightRelativeRayPosition",
-			{ current: game.i18n.localize(tokenRelativeHeights[height]) });
+			{ current: game.i18n.localize(tokenRelativeHeights[height]) }
+		);
 		target.dataset.tooltip = tooltipText;
 
 		// If the tooltip is currently being shown to the user, we need to re-activate it so that the tooltip updates

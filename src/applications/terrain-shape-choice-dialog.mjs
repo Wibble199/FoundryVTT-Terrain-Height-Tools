@@ -1,7 +1,7 @@
 import { moduleName } from "../consts.mjs";
+import { getCssColorsFor, terrainTypeMap$ } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
-import { getCssColorsFor, terrainTypeMap$ } from "../utils/terrain-types.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -74,13 +74,12 @@ export class TerrainShapeChoiceDialog extends HandlebarsApplicationMixin(Applica
 					svgPath: `${vertices.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join("")}Z`,
 					svgViewBox: `${bb.x1 - svgPadding} ${bb.y1 - svgPadding} ${bb.w + svgPadding * 2} ${bb.h + svgPadding * 2}`,
 					original: shape
-				}
+				};
 			})
 			// sort by usesHeight (true first), then by elevation (highest first)
 			.sort((a, b) =>
 				b.usesHeight - a.usesHeight ||
-				b.elevation - a.elevation
-			);
+				b.elevation - a.elevation);
 	}
 
 	/**

@@ -29,7 +29,7 @@ export function getGridCellPolygon(row, col) {
 		{ x, y },
 		{ x: x + w, y },
 		{ x: x + w, y: y + h },
-		{ x, y: y + h },
+		{ x, y: y + h }
 	];
 }
 
@@ -73,7 +73,7 @@ export function getGridVerticesFromToken(token) {
 		{ x: x, y: y },
 		{ x: x + w, y: y },
 		{ x: x + w, y: y + h },
-		{ x: x, y: y + h },
+		{ x: x, y: y + h }
 	];
 }
 
@@ -128,8 +128,8 @@ const getSquareTokenSpaces = cacheReturn(
 		const spaces = [];
 
 		for (let x = 0; x < width; x++)
-		for (let y = 0; y < height; y++)
-			spaces.push({ x: x + 0.5, y: y + 0.5 });
+			for (let y = 0; y < height; y++)
+				spaces.push({ x: x + 0.5, y: y + 0.5 });
 
 		return spaces;
 	}
@@ -259,7 +259,8 @@ const getRectangleHexTokenSpaces = cacheReturn(
 			for (let j = 0; j < primaryAxisSize - (isLarge ? 0 : 1); j++) {
 				spaces.push(coordinate(
 					j + (isLarge ? 0.5 : 1),
-					i * HEX_UNIT_SIDE_LENGTH * 1.5 + HEX_UNIT_SIDE_LENGTH));
+					i * HEX_UNIT_SIDE_LENGTH * 1.5 + HEX_UNIT_SIDE_LENGTH
+				));
 			}
 		}
 

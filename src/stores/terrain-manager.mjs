@@ -1,6 +1,5 @@
 /** @import { TerrainShape } from "../geometry/terrain-shape.mjs"; */
-
-import { SetSignal } from "../utils/signal.mjs";
+import { ObservableSet } from "../utils/observable-set.mjs";
 
 /**
  * @typedef {Object} TerrainProviderMeta
@@ -12,8 +11,8 @@ import { SetSignal } from "../utils/signal.mjs";
 /** @type {Map<string, TerrainProviderMeta>} */
 const terrainProviders = new Map();
 
-/** @type {SetSignal<TerrainShape>} */
-export const allTerrainShapes$ = new SetSignal();
+/** @type {ObservableSet<TerrainShape>} */
+export const allTerrainShapes$ = new ObservableSet();
 
 /**
  * Gets all shapes on the canvas.
@@ -61,8 +60,8 @@ export function getShapesByBounds(rect, { providerIds } = {}) {
  * @param {TerrainProvider} provider
  */
 export function registerTerrainProvider(providerId, provider) {
-	if (typeof provider.addChangeListener !== "function" && typeof provider.removeChangeListener !== "function")
-		throw new Error("Expected provider to have `addChangeListener` and `removeChangeListener` functions.");
+	if (!(provider instanceof TerrainProvider))
+		throw new Error("Expected provider to be an instance of TerrainProvider.");
 	if (terrainProviders.has(providerId))
 		throw new Error("A TerrainProvider with this ID has already been registered.");
 
@@ -97,19 +96,20 @@ export function unregisterTerrainProvider(providerOrId) {
 
 	providerMeta.cleanup();
 
-	allTerrainShapes$.remove(...providerMeta.provider.terrainShapes$.value);
+	allTerrainShapes$.delete(...providerMeta.provider.terrainShapes$.value);
 
 	terrainProviders.delete(providerId);
 }
 
 export class TerrainProvider {
 
-	/** @type {SetSignal<TerrainShape>} */
-	terrainShapes$ = new SetSignal();
+	/** @type {ObservableSet<TerrainShape>} */
+	terrainShapes$ = new ObservableSet();
 
 	quadtree = new CanvasQuadtree();
 
 	#canvasReadyHookId;
+
 	#canvasTearDownHookId;
 
 	constructor() {
@@ -130,10 +130,10 @@ export class TerrainProvider {
 
 	/**
 	 * Adds a terrain shape to the provider.
-	 * @param {TerrainShape} shape
+	 * @param {...TerrainShape} shapes
 	 */
-	addShape(shape) {
-		this.terrainShapes$.add(shape);
+	addShapes(...shapes) {
+		this.terrainShapes$.add(...shapes);
 	}
 
 	/**
@@ -146,10 +146,17 @@ export class TerrainProvider {
 
 	/**
 	 * Removes a terrain shape from the provider.
-	 * @param {TerrainShape} shape
+	 * @param {...TerrainShape} shapes
 	 */
-	deleteShape(shape) {
-		this.terrainShapes$.delete(shape);
+	deleteShapes(...shapes) {
+		this.terrainShapes$.delete(...shapes);
+	}
+
+	/**
+	 * Removes all shapes from this provider.
+	 */
+	deleteAllShapes() {
+		this.terrainShapes$.clear();
 	}
 
 	_canvasReady() {

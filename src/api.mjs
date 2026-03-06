@@ -6,7 +6,7 @@ import { defaultGroupName, moduleName, settingNames } from "./consts.mjs";
 import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
-import { terrainTypes$ } from "./utils/terrain-types.mjs";
+import { terrainTypes$ } from "./stores/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
 export { registerTerrainProvider, unregisterTerrainProvider } from "./stores/terrain-manager.mjs";
@@ -18,7 +18,7 @@ export const classes = { TerrainShape };
  * @param {Object} shapes The terrain to search for.
  * @param {string} shapes.id The ID of the terrain type to find. Either this or `name` must be provided.
  * @param {string} shapes.name The name of the terrain type to find. Either this or `id` must be provided.
- * @returns {Readonly<import("./utils/terrain-types.mjs").TerrainType> | undefined}
+ * @returns {Readonly<import("./stores/terrain-types.mjs").TerrainType> | undefined}
  */
 export function getTerrainType(terrain) {
 	if (!terrain?.id?.length && !terrain?.name?.length)
@@ -29,7 +29,7 @@ export function getTerrainType(terrain) {
 
 /**
  * Gets an array of all terrain types that have been configured in the system.
- * @returns {readonly Readonly<import("./utils/terrain-types.mjs").TerrainType>[]}
+ * @returns {readonly Readonly<import("./stores/terrain-types.mjs").TerrainType>[]}
  */
 export function getTerrainTypes() {
 	return terrainTypes$.value;
@@ -109,7 +109,7 @@ export function eraseCells(cells) {
  * @returns {FlattenedLineOfSightIntersectionRegion[]}
  */
 // TODO:
-/*export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+/* export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
 	return TerrainShape.flattenLineOfSightIntersectionRegions(
 		TerrainShape.calculateLineOfSight(
 			getShapesByTerrainProviderIds(terrainProviderIds),
@@ -132,7 +132,7 @@ export function eraseCells(cells) {
  * @returns {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[]; }[]}
  */
 // TODO:
-/*export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+/* export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
 	return TerrainShape.calculateLineOfSight(
 		getShapesByTerrainProviderIds(terrainProviderIds),
 		p1, p2,
@@ -177,7 +177,7 @@ export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1Re
  * @param {} [options.showLabels=true] Whether height labels are shown at the start and end of the ruler.
  */
 export function drawLineOfSightRay(p1, p2, { group = defaultGroupName, drawForOthers = true, includeNoHeightTerrain = false, showLabels = true } = {}) {
-	LineOfSightRulerLayer.current?._drawLineOfSightRays([{
+	LineOfSightRulerLayer.current?._updateTokenLineOfSightRays([{
 		a: p1,
 		b: p2,
 		includeNoHeightTerrain,
@@ -196,7 +196,7 @@ export function drawLineOfSightRay(p1, p2, { group = defaultGroupName, drawForOt
  */
 export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOthers = true } = {}) {
 	// For legacy reasons, if a and b are not provided, use p1 and p2.
-	LineOfSightRulerLayer.current?._drawLineOfSightRays(rays.map(ray => ({
+	LineOfSightRulerLayer.current?._updateTokenLineOfSightRays(rays.map(ray => ({
 		...ray,
 		a: ray.a ?? ray.p1,
 		b: ray.b ?? ray.p2
@@ -225,7 +225,7 @@ export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOth
  */
 export function drawLineOfSightRaysBetweenTokens(token1, token2, { group = defaultGroupName, token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true, includeEdges = true } = {}) {
 	const defaultRelativeHeight = game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight);
-	LineOfSightRulerLayer.current?._drawLineOfSightRays([{
+	LineOfSightRulerLayer.current?._updateTokenLineOfSightRays([{
 		a: token1, ah: token1RelativeHeight ?? defaultRelativeHeight,
 		b: token2, bh: token2RelativeHeight ?? defaultRelativeHeight,
 		includeNoHeightTerrain,

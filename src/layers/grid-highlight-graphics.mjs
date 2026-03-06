@@ -1,5 +1,5 @@
-import { getGridCellPolygon } from '../utils/grid-utils.mjs';
-import { getTerrainColor, getTerrainType } from '../utils/terrain-types.mjs';
+import { getTerrainColor, getTerrainType } from "../stores/terrain-types.mjs";
+import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 
 export class GridHighlightGraphics extends GridHighlight {
 
@@ -16,7 +16,7 @@ export class GridHighlightGraphics extends GridHighlight {
 	_drawGridCell(row, col) {
 		this.beginFill(this.color, 0.4)
 			.drawPolygon(getGridCellPolygon(row, col))
-			.endFill()
+			.endFill();
 	}
 
 	/**

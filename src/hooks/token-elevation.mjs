@@ -1,7 +1,7 @@
 import { moduleName, settingNames } from "../consts.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
+import { getTerrainType } from "../stores/terrain-types.mjs";
 import { getSpacesUnderToken, toSceneUnits } from "../utils/grid-utils.mjs";
-import { getTerrainType } from "../utils/terrain-types.mjs";
 
 /**
  * When dragging a token over solid terrain, changes the token's elevation to remain at the same elevation above the
@@ -21,7 +21,7 @@ export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
 
 	const terrainHeightAfterMove = getHighestTerrainUnderToken(tokenDoc, {
 		x: delta.x ?? tokenDoc.x,
-		y: delta.y ?? tokenDoc.y,
+		y: delta.y ?? tokenDoc.y
 	});
 
 	// If the heights before and after are different, work out the difference and then apply this to the token's elev

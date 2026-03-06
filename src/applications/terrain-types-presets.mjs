@@ -2,7 +2,7 @@ import { moduleName } from "../consts.mjs";
 
 /**
  * @typedef {Object} TerrainTypesPresetDialogResult
- * @property {Partial<import("../utils/terrain-types.mjs").TerrainType>[]} data
+ * @property {Partial<import("../stores/terrain-types.mjs").TerrainType>[]} data
  * @property {boolean} replace
  */
 
@@ -121,7 +121,7 @@ export class TerrainTypesPreset extends HandlebarsApplicationMixin(ApplicationV2
 	 * @param {{ result?: TerrainTypesPresetDialogResult }} options
 	 */
 	async close(options = {}) {
-		if (!!options.result) this.#resolve(options.result);
+		if (options.result) this.#resolve(options.result);
 		else this.#reject();
 
 		return super.close(options);

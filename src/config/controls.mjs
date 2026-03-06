@@ -1,5 +1,7 @@
-import { LineOfSightRulerConfig } from '../applications/line-of-sight-ruler-config.mjs';
-import { ShapeConversionConifg } from "../applications/shape-conversion-config.mjs";
+/** @import { Signal } from "@preact/signals-core" */
+import { signal } from "@preact/signals-core";
+import { LineOfSightRulerConfig } from "../applications/line-of-sight-ruler-config.mjs";
+import { ShapeConversionConfig } from "../applications/shape-conversion-config.mjs";
 import { TerrainErasePalette } from "../applications/terrain-erase-palette.mjs";
 import { TerrainPaintPalette } from "../applications/terrain-paint-palette.mjs";
 import { TerrainVisibilityConfig } from "../applications/terrain-visibility-config.mjs";
@@ -7,14 +9,13 @@ import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-conf
 import { moduleName, settingNames, tools } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
-import { Signal } from "../utils/signal.mjs";
 
 export const sceneControls = {
 	/** @type {Signal<string>} */
-	activeControl$: new Signal(),
+	activeControl$: signal(),
 
 	/** @type {Signal<string>} */
-	activeTool$: new Signal(),
+	activeTool$: signal(),
 
 	/** @type {SceneControlTool | undefined} */
 	terrainHeightToolsLayerToggleControlButton: undefined,
@@ -34,7 +35,7 @@ export const sceneControls = {
 	/** @type {TerrainVisibilityConfig | undefined} */
 	terrainVisibilityConfig: undefined,
 
-	/** @type {ShapeConversionConifg | undefined} */
+	/** @type {ShapeConversionConfig | undefined} */
 	shapeConversionConfig: undefined
 };
 
@@ -149,37 +150,43 @@ export function renderToolSpecificApplications(controls) {
 	renderToolSpecificApplication(
 		controls.activeControl === moduleName && [tools.paint, tools.fill].includes(controls.activeTool),
 		sceneControls.terrainPaintPalette,
-		() => sceneControls.terrainPaintPalette = new TerrainPaintPalette());
+		() => sceneControls.terrainPaintPalette = new TerrainPaintPalette()
+	);
 
 	// Show the eraser config if the eraser tool is selected
 	renderToolSpecificApplication(
 		controls.activeControl === moduleName && controls.activeTool === tools.erase,
 		sceneControls.terrainErasePalette,
-		() => sceneControls.terrainErasePalette = new TerrainErasePalette());
+		() => sceneControls.terrainErasePalette = new TerrainErasePalette()
+	);
 
 	// Show the line of sight ruler config if the line of sight ruler is selected
 	renderToolSpecificApplication(
 		controls.activeControl === "token" && controls.activeTool === tools.lineOfSight,
 		sceneControls.lineOfSightRulerConfig,
-		() => sceneControls.lineOfSightRulerConfig = new LineOfSightRulerConfig());
+		() => sceneControls.lineOfSightRulerConfig = new LineOfSightRulerConfig()
+	);
 
 	// Show the token line of sight config if that tool is selected
 	renderToolSpecificApplication(
 		controls.activeControl === "token" && controls.activeTool === tools.tokenLineOfSight,
 		sceneControls.tokenLineOfSightConfig,
-		() => sceneControls.tokenLineOfSightConfig = new TokenLineOfSightConfig());
+		() => sceneControls.tokenLineOfSightConfig = new TokenLineOfSightConfig()
+	);
 
 	// Show the visibility config if the visibility tool is selected
 	renderToolSpecificApplication(
 		controls.activeControl === moduleName && controls.activeTool === tools.terrainVisibility,
 		sceneControls.terrainVisibilityConfig,
-		() => sceneControls.terrainVisibilityConfig = new TerrainVisibilityConfig());
+		() => sceneControls.terrainVisibilityConfig = new TerrainVisibilityConfig()
+	);
 
 	// Show the conversion config if the convert tool is selected
 	renderToolSpecificApplication(
 		controls.activeControl === moduleName && controls.activeTool === tools.convert,
 		sceneControls.shapeConversionConfig,
-		() => sceneControls.shapeConversionConfig = new ShapeConversionConifg());
+		() => sceneControls.shapeConversionConfig = shapeConversionConifg()
+	);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { moduleName } from '../consts.mjs';
+import { moduleName } from "../consts.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$ } from "../stores/line-of-sight.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
@@ -21,7 +21,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(HandlebarsApplicat
 
 	static PARTS = {
 		main: {
-			template: `modules/${moduleName}/templates/line-of-sight-config.hbs`,
+			template: `modules/${moduleName}/templates/line-of-sight-config.hbs`
 		}
 	};
 
@@ -41,7 +41,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(HandlebarsApplicat
 				this.element.querySelector("[name='rulerStartHeight']").value = toSceneUnits(v), true),
 
 			lineOfSightRulerConfig$.h2$.subscribe(v =>
-				this.element.querySelector("[name='rulerEndHeight']").value = v !== undefined ? toSceneUnits(v) : '', true),
+				this.element.querySelector("[name='rulerEndHeight']").value = v !== undefined ? toSceneUnits(v) : "", true),
 
 			includeNoHeightTerrain$.subscribe(v =>
 				this.element.querySelector("[name='rulerIncludeNoHeightTerrain']").checked = v, true)
@@ -57,7 +57,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(HandlebarsApplicat
 		// End height
 		this.element.querySelector("[name='rulerEndHeight']").addEventListener("input", e => {
 			// Allow leaving blank to inherit start height
-			if (e.target.value === '' && lineOfSightRulerConfig$.h2$.value !== undefined) {
+			if (e.target.value === "" && lineOfSightRulerConfig$.h2$.value !== undefined) {
 				lineOfSightRulerConfig$.h2$.value = undefined;
 				return;
 			}
@@ -69,7 +69,7 @@ export class LineOfSightRulerConfig extends withSubscriptions(HandlebarsApplicat
 
 		// Include flat terrain
 		this.element.querySelector("[name='rulerIncludeNoHeightTerrain']").addEventListener("change", e => {
-			includeNoHeightTerrain$.value = e.target.checked ?? false
+			includeNoHeightTerrain$.value = e.target.checked ?? false;
 		});
 	}
 }

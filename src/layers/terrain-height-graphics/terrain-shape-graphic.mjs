@@ -1,14 +1,20 @@
 /** @import { TerrainShape } from "../../geometry/terrain-shape.mjs"; */
-/** @import { TerrainType } from "../../utils/terrain-types.mjs" */
+/** @import { TerrainType } from "../../stores/terrain-types.mjs" */
 /** @import { TerrainHeightGraphicsLayer } from "./terrain-height-graphics-layer.mjs" */
 import { lineTypes, moduleName, settingNames } from "../../consts.mjs";
 import { LineSegment } from "../../geometry/line-segment.mjs";
 import { Point } from "../../geometry/point.mjs";
+import { getTerrainType, terrainTypes$ } from "../../stores/terrain-types.mjs";
 import { chunk } from "../../utils/array-utils.mjs";
+import { toSceneUnits } from "../../utils/grid-utils.mjs";
+import { prettyFraction } from "../../utils/misc-utils.mjs";
 import { drawDashedPath, drawInnerFade } from "../../utils/pixi-utils.mjs";
-import { join } from "../../utils/signal.mjs";
-import { terrainTypes$ } from "../../utils/terrain-types.mjs";
-import { TerrainHeightGraphicsLayer, labelPositionAnchors } from "./terrain-height-graphics-layer.mjs";
+
+/**
+ * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.
+ * Note that the order represents the order that ties are resolved, so in this case the middle will be prefered in ties.
+ */
+export const labelPositionAnchors = [0.5, 0.4, 0.6, 0.2, 0.8];
 
 export class TerrainShapeGraphic extends PIXI.Container {
 
@@ -30,36 +36,37 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	/** @type {PreciseText} */
 	#label;
 
-	/** @type {(() => void)[]} */
-	#subscriptions;
+	#destroyController = new AbortController();
 
 	/**
 	 * @param {TerrainHeightGraphicsLayer} parent
 	 * @param {TerrainShape} shape
-	 * @param {TerrainType} terrainType
 	*/
-	constructor(parent, shape, terrainType) {
+	constructor(parent, shape) {
 		super();
 
 		this.#parent = parent;
 		this.#graphicId = foundry.utils.randomID();
 		this.#shape = shape;
-		this._terrainType = terrainType;
+
+		this._terrainType = getTerrainType(shape.terrainTypeId);
 
 		this.#redraw();
-
-		this.#subscriptions = [
-			join(() => this.#redraw(), terrainTypes$),
-			parent._cursorRadiusMask$.subscribe(this._setMask.bind(this), true)
-		];
-	}
-
-	get sort() {
-		return 99999; // TODO: sort this out (no pun intended)
 	}
 
 	get elevation() {
-		return 99999; // TODO: sort this out (no pun intended)
+		// Elevation is the primary Z sorting key - use the shape's elevation for this
+		// TODO: for no-height terrain this should be 0 or a very high number(?) depending on settings
+		return this.#shape.elevation;
+	}
+
+	// `sortLayer` is the first tie-break and varies depending on the item type (e.g. tiles = 500, tokens = 700)
+	// Render the terrain just above or below the tiles depending on the setting (handled in graphics layer).
+	sortLayer = 490;
+
+	get sort() {
+		// `sort` is the second tie-break, and we use the terrain type's index in the terrain type list.
+		return terrainTypes$.value.findIndex(t => t.id === this.#shape.terrainTypeId);
 	}
 
 	get _canHaveMask() {
@@ -71,18 +78,14 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	 * @param {boolean} animate
 	 */
 	async _setVisible(visible, animate) {
-		if (animate) {
-			const name = `thtShape_${this.#graphicId}_alpha`;
-			await CanvasAnimation.animate([
-				{
-					parent: this,
-					attribute: "alpha",
-					to: visible ? 1 : 0
-				}
-			], { name, duration: 250 });
-		} else {
-			this.alpha = visible ? 1 : 0;
-		}
+		const name = `thtShape_${this.#graphicId}_alpha`;
+		await CanvasAnimation.animate([
+			{
+				parent: this,
+				attribute: "alpha",
+				to: visible ? 1 : 0
+			}
+		], { name, duration: animate ? 250 : 1 });
 	}
 
 	_setMask(mask) {
@@ -90,16 +93,15 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	}
 
 	destroy() {
-		for (const unsubscribe of this.#subscriptions)
-			unsubscribe();
+		this.#destroyController.abort();
 	}
 
 	async #redraw() {
 		if (this.#graphics) this.removeChild(this.#graphics);
 		if (this.#label) this.removeChild(this.#label);
 
-		this.#label = this.addChild(this.#createLabel());
 		this.#graphics = this.addChild(await this.#drawGraphics());
+		this.#label = this.addChild(this.#createLabel());
 	}
 
 	/** @returns {Promise<PIXI.Graphics>} */
@@ -171,7 +173,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		if (this._terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE) {
 			graphics.beginFill(0x000000, 0);
 
-		} else if (this._terrainType.fillType === CONST.DRAWING_FILL_TYPES.PATTERN) {
+		} else if (this._terrainType.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && this._terrainType.fillTexture?.length) {
 			const { x: xOffset, y: yOffset } = this._terrainType.fillTextureOffset;
 			const { x: xScale, y: yScale } = this._terrainType.fillTextureScale;
 			const matrix = new PIXI.Matrix(xScale / 100, 0, 0, yScale / 100, xOffset, yOffset);
@@ -201,7 +203,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		const smartPlacement = game.settings.get(moduleName, settingNames.smartLabelPlacement);
 		const allowRotation = this._terrainType.textRotation;
 		const textStyle = this.#getTextStyle();
-		const text = TerrainHeightGraphicsLayer._getLabelText(this.#shape, this._terrainType);
+		const text = getLabelText(this.#shape, this._terrainType);
 
 		// Create the label - with this we can get the width and height
 		const label = new PreciseText(text, textStyle);
@@ -221,8 +223,8 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		/** Tests that if the label was position centrally at the given point, if it fits in the shape entirely. */
 		const testLabelPosition = (x, y, rotated = false) => {
 			const testEdge = rotated
-				? new LineSegment(new Point(x, y - label.width / 2), new Point(x, y + label.width / 2))
-				: new LineSegment(new Point(x - label.width / 2, y), new Point(x + label.width / 2, y));
+				? new LineSegment(new Point(x, y - (label.width / 2)), new Point(x, y + (label.width / 2)))
+				: new LineSegment(new Point(x - (label.width / 2), y), new Point(x + (label.width / 2), y));
 
 			return this.#shape.polygon.containsPoint(x, y)
 				&& this.#shape.holes.every(h => !h.containsPoint(x, y, false))
@@ -246,7 +248,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		// On square or hex row grids, we position it to the center of the cells (hex columns have alternating Xs, so don't)
 		/** @type {number[]} */
 		const testPoints = [...new Set(labelPositionAnchors
-			.map(y => y * this.#shape.polygon.boundingBox.h + this.#shape.polygon.boundingBox.y1)
+			.map(y => (y * this.#shape.polygon.boundingBox.h) + this.#shape.polygon.boundingBox.y1)
 			.map(y => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXODDR].includes(canvas.grid.type)
 				? canvas.grid.getCenterPoint({ x: this.#shape.polygon.boundingBox.xMid, y }).y
 				: y))];
@@ -273,7 +275,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 			// On square or hex col grids, we position it to the center of the cells (hex rows have alternating Ys, so don't)
 			/** @type {number[]} */
 			const testPoints = [...new Set(labelPositionAnchors
-				.map(x => x * this.#shape.polygon.boundingBox.w + this.#shape.polygon.boundingBox.x1)
+				.map(x => (x * this.#shape.polygon.boundingBox.w) + this.#shape.polygon.boundingBox.x1)
 				.map(x => [CONST.GRID_TYPES.SQUARE, CONST.GRID_TYPES.HEXEVENQ, CONST.GRID_TYPES.HEXODDQ].includes(canvas.grid.type)
 					? canvas.grid.getCenterPoint({ x, y: this.#shape.polygon.boundingBox.yMid }).x
 					: x))];
@@ -331,4 +333,22 @@ export class TerrainShapeGraphic extends PIXI.Container {
 
 		return style;
 	}
+}
+
+/**
+ * @param {{ height: number; elevation: number; }} shape
+ * @param {TerrainType} terrainStyle
+ */
+export function getLabelText(shape, terrainStyle) {
+	// If the shape has elevation, and the user has provided a different format for elevated terrain, use that.
+	const format = shape.elevation !== 0 && terrainStyle.elevatedTextFormat?.length > 0
+		? terrainStyle.elevatedTextFormat
+		: terrainStyle.textFormat;
+
+	return terrainStyle.usesHeight
+		? format
+			.replace(/%h%/g, prettyFraction(toSceneUnits(shape.height)))
+			.replace(/%e%/g, prettyFraction(toSceneUnits(shape.elevation)))
+			.replace(/%t%/g, prettyFraction(toSceneUnits(shape.height + shape.elevation)))
+		: format;
 }

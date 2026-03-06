@@ -1,3 +1,4 @@
+import resolve from '@rollup/plugin-node-resolve';
 import sourcemaps from "rollup-plugin-sourcemaps";
 
 const production = !process.env.ROLLUP_WATCH;
@@ -7,9 +8,11 @@ export default {
 	output: {
 		file: "dist/module.js",
 		format: "es",
-		sourcemap: !production
+		sourcemap: !production,
+		inlineDynamicImports: true
 	},
 	plugins: [
+		resolve(),
 		sourcemaps()
 	]
 };

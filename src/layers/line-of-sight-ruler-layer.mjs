@@ -1,14 +1,14 @@
 /** @import { FlattenedLineOfSightIntersectionRegion } from "../geometry/terrain-shape.mjs" */
+import { effect } from "@preact/signals-core";
 import { sceneControls } from "../config/controls.mjs";
-import { moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
+import { moduleDrawingGroupName, moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
 import { allTerrainShapes$ } from "../stores/terrain-manager.mjs";
+import { getTerrainColor, terrainTypeMap$ } from "../stores/terrain-types.mjs";
 import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
 import { isPoint3d, prettyFraction } from "../utils/misc-utils.mjs";
 import { drawDashedPath } from "../utils/pixi-utils.mjs";
-import { fromHook, join } from "../utils/signal.mjs";
-import { getTerrainColor, terrainTypeMap$ } from "../utils/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "../utils/token-utils.mjs";
 
 /**
@@ -49,7 +49,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	constructor() {
 		super();
-		this.eventMode = "static";
+		// TODO: this.eventMode = "static";
 
 		tokenLineOfSightConfig$.value = {
 			h1: game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight),
@@ -57,50 +57,47 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		};
 
 		// Ensure rulers are deleted when a user quits
-		Hooks.on("userConnected", (user, _connected) => this._clearLineOfSightRays({ userId: user.id, clearForOthers: false }));
+		Hooks.on("userConnected", user => this._clearLineOfSightRays({ userId: user.id, clearForOthers: false }));
 
 		// When any of the drag values are changed, update the ruler
-		join(({ p1, h1, p2, h2 }, includeNoHeightTerrain) => {
-				if (p1 && p2)
-					this._drawLineOfSightRays([{ a: { ...p1, h: h1 }, b: { ...p2, h: h2 ?? h1 }, includeNoHeightTerrain }], { drawForOthers: true });
-				else
-					this._clearLineOfSightRays({ clearForOthers: true });
-			},
-			lineOfSightRulerConfig$,
-			includeNoHeightTerrain$);
+		effect(() => {
+			const { p1, h1, p2, h2 } = lineOfSightRulerConfig$.value;
+			if (p1 && p2) {
+				this._drawLineOfSightRays(
+					[{ a: { ...p1, h: h1 }, b: { ...p2, h: h2 ?? h1 }, includeNoHeightTerrain: includeNoHeightTerrain$.value }],
+					{ group: moduleDrawingGroupName, drawForOthers: true }
+				);
+			} else {
+				this._clearLineOfSightRays({ clearForOthers: true });
+			}
+		});
 
 		// When the start height is changed, update the ghost indicator
-		lineOfSightRulerConfig$.h1$.subscribe(v => {
+		lineOfSightRulerConfig$.subscribe(({ h1 }) => {
 			if (this.#lineStartIndicator)
-				this.#lineStartIndicator.height = v;
+				this.#lineStartIndicator.height = h1;
 		});
 
 		// When either of the selected tokens for the token LOS are changed, update the token LOS rulers.
-		join(({ token1, token2, h1, h2 }, includeNoHeightTerrain, _) => {
-				if (token1 && token2) {
-					this._drawLineOfSightRays([
-						{ a: token1, ah: h1, b: token2, bh: h2, includeNoHeightTerrain }
-					]);
-				} else {
-					this._clearLineOfSightRays();
-				}
-			},
-			tokenLineOfSightConfig$,
-			includeNoHeightTerrain$,
-			fromHook("updateToken", t => tokenLineOfSightConfig$.token1$.value?.id === t.id || tokenLineOfSightConfig$.token2$.value?.id === t.id)
-		);
+		effect(() => this._updateTokenLineOfSightRulers());
+
+		Hooks.on("updateToken", token => {
+			const { token1, token2 } = tokenLineOfSightConfig$.value;
+			if (token1?.id === token.id || token2?.id === token.id)
+				this._updateTokenLineOfSightRulers();
+		});
 
 		// Only enable events when the ruler layer is active, otherwise it interferes with other standard layers
-		join((activeControl, activeTool) => {
+		// TODO: is this needed?
+		/* join((activeControl, activeTool) => {
 			this.eventMode = activeControl === "token" && activeTool === tools.lineOfSight ? "static" : "none";
-		}, sceneControls.activeControl$, sceneControls.activeTool$);
+		}, sceneControls.activeControl$, sceneControls.activeTool$); */
 
 		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
-		join((rulerStartPoint) => {
-			if (this.#lineStartIndicator) {
-				this.#lineStartIndicator.visible = this.#isToolSelected && !rulerStartPoint;
-			}
-		}, lineOfSightRulerConfig$.p1$, sceneControls.activeControl$, sceneControls.activeTool$);
+		effect(() => {
+			if (!this.#lineStartIndicator) return;
+			this.#lineStartIndicator.visible = this.#isToolSelected && !lineOfSightRulerConfig$.value.p1;
+		});
 	}
 
 	/** @return {LineOfSightRulerLayer | undefined} */
@@ -109,7 +106,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	get #isToolSelected() {
-		return game.activeTool === tools.lineOfSight;
+		return sceneControls.activeTool$.value === tools.lineOfSight;
 	}
 
 	get #isDraggingRuler() {
@@ -120,13 +117,13 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	async _draw() {
 		if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
 
-		this.hitArea = canvas.dimensions.rect;
+		//this.hitArea = canvas.dimensions.rect; ??
 		this.zIndex = 900; // Above token layer, below control layers
 
 		this.#setupEventListeners("on");
 
 		this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
-		this.#lineStartIndicator.height = lineOfSightRulerConfig$.h1$.value;
+		this.#lineStartIndicator.height = lineOfSightRulerConfig$.value.h1;
 		this.#lineStartIndicator.visible = false;
 	}
 
@@ -176,7 +173,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		rulerGroup._updateConfig(rulers.map(r => ({
 			...r,
 			a: typeof r.a === "string" ? canvas.tokens.get(r.a) : r.a,
-			b: typeof r.b === "string" ? canvas.tokens.get(r.b) : r.b,
+			b: typeof r.b === "string" ? canvas.tokens.get(r.b) : r.b
 		})));
 
 		// Draw for other players
@@ -214,6 +211,17 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 				func: socketFuncs.clearLineOfSightRay,
 				args: [{ group, userId: game.userId, clearForOthers: false }]
 			});
+		}
+	}
+
+	_updateTokenLineOfSightRulers() {
+		const { token1, h1, token2, h2 } = tokenLineOfSightConfig$.value;
+		if (token1 && token2) {
+			this._drawLineOfSightRays([
+				{ a: token1, ah: h1, b: token2, bh: h2, includeNoHeightTerrain: includeNoHeightTerrain$ }
+			], { group: moduleDrawingGroupName, drawForOthers: true });
+		} else {
+			this._clearLineOfSightRays({ clearForOthers: true });
 		}
 	}
 
@@ -578,7 +586,8 @@ class LineOfSightRuler extends PIXI.Container {
 		const intersectionRegions = TerrainShape.calculateLineOfSight(
 			[...allTerrainShapes$.value],
 			this.#p1, this.#p2,
-			{ includeNoHeightTerrain: this.#includeNoHeightTerrain });
+			{ includeNoHeightTerrain: this.#includeNoHeightTerrain }
+		);
 
 		this.#intersectionRegions = TerrainShape.flattenLineOfSightIntersectionRegions(intersectionRegions);
 	}

@@ -1,7 +1,7 @@
-/** @import { HeightMapDataV1Terrain } from "../../module/utils/height-map-migrations.mjs" */
+/** @import { HeightMapDataV1Terrain } from "../../src/utils/height-map-migrations.mjs" */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HeightMap } from "../../module/geometry/height-map.mjs";
+import { HeightMap } from "../../src/geometry/height-map.mjs";
 
 describe("HeightMap::_eraseTerrainDataBetween()", () => {
 	it("should clip the top of existing terrain that extends within the given range", () => {

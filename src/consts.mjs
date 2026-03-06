@@ -1,8 +1,11 @@
+/* eslint-disable @stylistic/js/no-extra-parens */
 export const moduleName = "terrain-height-tools";
 
 export const socketName = `module.${moduleName}`;
 
 export const defaultGroupName = "default";
+
+export const moduleDrawingGroupName = `${moduleName}.rulers`;
 
 export const wallHeightModuleName = "wall-height";
 
@@ -59,11 +62,11 @@ export const flags = /** @type {const} */ ({
 });
 
 /** @enum {number} */
-export const lineTypes = ({
+export const lineTypes = {
 	none: 0,
 	solid: 1,
 	dashed: 2
-});
+};
 
 /** @enum {keyof typeof socketFuncs} */
 export const socketFuncs = /** @type {const} */ ({
@@ -75,7 +78,7 @@ export const socketFuncs = /** @type {const} */ ({
 export const terrainPaintMode = /** @type {const} */ ({
 	additiveMerge: "TERRAINHEIGHTTOOLS.PaintMode.AdditiveMerge.Name",
 	destructiveMerge: "TERRAINHEIGHTTOOLS.PaintMode.DestructiveMerge.Name",
-	totalReplace: "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Name",
+	totalReplace: "TERRAINHEIGHTTOOLS.PaintMode.TotalReplace.Name"
 });
 
 /** @enum {keyof typeof terrainFillMode} */
@@ -88,7 +91,7 @@ export const terrainFillMode = /** @type {const} */ ({
 export const tokenRelativeHeights = /** @type {const} */ ({
 	[1]: "SETTINGS.DefaultTokenLosHeight.Choice.Top",
 	[0.5]: "SETTINGS.DefaultTokenLosHeight.Choice.Middle",
-	[0]: "SETTINGS.DefaultTokenLosHeight.Choice.Bottom",
+	[0]: "SETTINGS.DefaultTokenLosHeight.Choice.Bottom"
 });
 
 /** @enum {keyof typeof terrainStackViewerDisplayModes} */

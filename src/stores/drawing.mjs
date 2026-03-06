@@ -1,19 +1,17 @@
-/** @import { DeepSignal } from "../utils/signal.mjs" */
-import { fromObject } from "../utils/signal.mjs";
+/** @import { terrainFillMode, terrainPaintMode } from "../consts.mjs" */
+/** @import { Signal } from "@preact/signals-core"; */
+import { signal } from "@preact/signals-core";
 
 /**
- * @typedef {Object} PaintingConfigObj
+ * @typedef {Object} PaintingConfigModel
  * @property {string | undefined} terrainTypeId
  * @property {number} height
  * @property {number} elevation
- * @property {import("../consts.mjs").terrainPaintMode} mode
- * @property {import("../consts.mjs").terrainFillMode} floodMode
+ * @property {terrainPaintMode} mode
+ * @property {terrainFillMode} floodMode
  */
-/**
- * Config state for the paint tool.
- * @type {DeepSignal<PaintingConfigObj>}
- */
-export const paintingConfig$ = fromObject({
+/** @type {Signal<PaintingConfigModel>} */
+export const paintingConfig$ = signal({
 	terrainTypeId: undefined,
 	height: 1,
 	elevation: 0,
@@ -22,19 +20,19 @@ export const paintingConfig$ = fromObject({
 });
 
 /**
- * Config state for the erase tool.
- * @type {DeepSignal<{ excludedTerrainTypeIds: string[]; bottom: number | null; top: number | null; }>}
+ * @typedef {Object} EraseConfigModel
+ * @property {string[]} excludedTerrainTypeIds
+ * @property {number | null} bottom
+ * @property {number | null} top
  */
-export const eraseConfig$ = fromObject({
+/** @type {Signal<EraseConfigModel>} */
+export const eraseConfig$ = signal({
 	excludedTerrainTypeIds: [], // we use an exclusion instead of inclusion so that the default selects all terrain types (without needing to load them)
 	bottom: null,
 	top: null
 });
 
-/**
- * Config state for the conversion tool.
- */
-export const convertConfig$ = fromObject({
+export const convertConfig$ = signal({
 	toDrawing: true,
 	toRegion: false,
 	toWalls: false,

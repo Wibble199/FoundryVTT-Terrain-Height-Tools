@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { TerrainShape } from "../../module/geometry/terrain-shape.mjs";
+import { TerrainShape } from "../../src/geometry/terrain-shape.mjs";
 
 describe("TerrainShape::calculateLineOfSight()", () => {
 

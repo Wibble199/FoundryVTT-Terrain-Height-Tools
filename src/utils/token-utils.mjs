@@ -87,6 +87,6 @@ export function calculateRaysBetweenTokensOrPoints(a, b, token1RelativeHeight = 
 		right: [
 			{ x: aRight.x, y: aRight.y, h: aHeight },
 			{ x: bRight.x, y: bRight.y, h: bHeight }
-		],
+		]
 	};
 }

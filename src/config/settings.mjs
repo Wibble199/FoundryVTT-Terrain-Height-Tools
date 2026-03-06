@@ -1,13 +1,15 @@
+/** @import { Signal } from "@preact/signals-core" */
+import { signal } from "@preact/signals-core";
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
 import { flags, moduleName, settingNames, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
-import { Signal } from "../utils/signal.mjs";
-import { loadTerrainTypes } from "../utils/terrain-types.mjs";
+import { loadTerrainTypes } from "../stores/terrain-types.mjs";
 
-export const showTerrainHeightOnTokenLayer$ = new Signal(false);
-export const terrainHeightLayerVisibilityRadius$ = new Signal(0);
-export const useFractionsForLabels$ = new Signal(true);
-export const smartLabelPlacement$ = new Signal(true);
+export const showTerrainHeightOnTokenLayer$ = signal(false);
+export const terrainHeightLayerVisibilityRadius$ = signal(0);
+export const useFractionsForLabels$ = signal(true);
+export const smartLabelPlacement$ = signal(true);
+export const terrainLayerAboveTilesDefault$ = signal(true);
 
 export function registerSettings() {
 
@@ -42,12 +44,8 @@ export function registerSettings() {
 		scope: "world",
 		type: Boolean,
 		default: false,
-		config: true,
-		onChange: () => {
-			if (canvas?.ready)
-				canvas.primary?.sortChildren();
-		}
-	});
+		config: true
+	}, terrainLayerAboveTilesDefault$);
 
 	registerSetting(settingNames.displayLosMeasurementGm, {
 		name: "SETTINGS.DisplayLosMeasurementGm.Name",
@@ -190,7 +188,7 @@ export function registerSettings() {
 		game.settings.register(moduleName, settingName, {
 			...config,
 			onChange: newValue => {
-				config?.onChange(newValue);
+				config.onChange?.(newValue);
 				if (signal) signal.value = newValue;
 			}
 		});

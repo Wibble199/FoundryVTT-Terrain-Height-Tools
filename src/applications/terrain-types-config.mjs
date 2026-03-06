@@ -1,6 +1,6 @@
-/** @import { TerrainType } from "../utils/terrain-types.mjs" */
+/** @import { TerrainType } from "../stores/terrain-types.mjs" */
 import { lineTypes, moduleName, settingNames } from "../consts.mjs";
-import { createDefaultTerrainType, terrainTypes$ } from '../utils/terrain-types.mjs';
+import { createDefaultTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { TerrainTypesPreset } from "./terrain-types-presets.mjs";
 
 const { ApplicationV2, DialogV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -25,7 +25,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 		window: {
 			title: "SETTINGS.TerrainTypes.Button",
 			contentClasses: ["standard-form"],
-			resizable: true,
+			resizable: true
 		},
 		position: {
 			width: 860,
@@ -56,7 +56,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 			scrollable: [".terrain-type-list", ".terrain-type-edit-pane"]
 		},
 		footer: {
-			template: "templates/generic/form-footer.hbs",
+			template: "templates/generic/form-footer.hbs"
 		}
 	};
 
@@ -349,7 +349,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 			// Combine it with defaults,
 			const sanitisedTerrainType = {
 				...defaultTerrainType,
-				...(existing ?? {}),
+				...existing ?? {},
 				...parsed[i]
 			};
 

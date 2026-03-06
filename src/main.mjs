@@ -1,13 +1,15 @@
-import * as api from './api.mjs';
+import * as api from "./api.mjs";
 import { TerrainStackViewer } from "./applications/terrain-stack-viewer.mjs";
 import { registerSceneControls, renderToolSpecificApplications, sceneControls } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
-import { addAboveTilesToSceneConfig, registerSettings } from './config/settings.mjs';
-import { moduleName, socketFuncs, socketName } from './consts.mjs';
+import { addAboveTilesToSceneConfig, registerSettings } from "./config/settings.mjs";
+import { moduleName, socketFuncs, socketName } from "./consts.mjs";
 import { handleTokenElevationChange, handleTokenPreCreation } from "./hooks/token-elevation.mjs";
-import { LineOfSightRulerLayer } from './layers/line-of-sight-ruler-layer.mjs';
+import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
 import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
+import { onUpdateScene } from "./stores/canvas.mjs";
+import { loadTerrainTypes } from "./stores/terrain-types.mjs";
 import { log } from "./utils/log.mjs";
 
 Hooks.once("init", init);
@@ -18,6 +20,8 @@ Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 Hooks.on("preCreateToken", handleTokenPreCreation);
 Hooks.on("preUpdateToken", handleTokenElevationChange);
 Hooks.on("refreshToken", token => LineOfSightRulerLayer.current?._onTokenRefresh(token));
+
+Hooks.on("updateScene", onUpdateScene);
 
 Object.defineProperty(globalThis, "terrainHeightTools", {
 	value: {
@@ -34,6 +38,7 @@ function init() {
 	log("Initialising");
 
 	registerSettings();
+	loadTerrainTypes();
 
 	registerKeybindings();
 
@@ -101,7 +106,7 @@ function initLibWrapper() {
 function handleSocketEvent({ func, args }) {
 	switch (func) {
 		case socketFuncs.drawLineOfSightRay: {
-			LineOfSightRulerLayer.current?._drawLineOfSightRays(...args);
+			LineOfSightRulerLayer.current?._updateTokenLineOfSightRays(...args);
 			break;
 		}
 

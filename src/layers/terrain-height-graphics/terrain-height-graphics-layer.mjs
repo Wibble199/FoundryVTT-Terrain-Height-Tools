@@ -1,19 +1,16 @@
 /** @import { TerrainShape } from "../../geometry/terrain-shape.mjs"; */
+/** @import { TerrainType } from "../../stores/terrain-types.mjs" */
+/** @import { Signal } from "@preact/signals-core" */
+import { computed, signal } from "@preact/signals-core";
 import { sceneControls } from "../../config/controls.mjs";
+import { terrainLayerAboveTilesDefault$ } from "../../config/settings.mjs";
 import { heightMapProviderId, tools } from "../../consts.mjs";
+import { cursorWorldPosition$, invisibleTerrainTypes$, sceneRenderAboveTilesChoice$ } from "../../stores/canvas.mjs";
 import { allTerrainShapes$ } from "../../stores/terrain-manager.mjs";
-import { toSceneUnits } from "../../utils/grid-utils.mjs";
+import { getTerrainType, terrainTypes$ } from "../../stores/terrain-types.mjs";
 import { debug } from "../../utils/log.mjs";
-import { prettyFraction } from "../../utils/misc-utils.mjs";
-import { join, Signal } from "../../utils/signal.mjs";
-import { getInvisibleSceneTerrainTypes, getTerrainType, terrainTypes$ } from '../../utils/terrain-types.mjs';
+import { abortableSubscribe } from "../../utils/signal-utils.mjs";
 import { TerrainShapeGraphic } from "./terrain-shape-graphic.mjs";
-
-/**
- * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.
- * Note that the order represents the order that ties are resolved, so in this case the middle will be prefered in ties.
- */
-export const labelPositionAnchors = [0.5, 0.4, 0.6, 0.2, 0.8];
 
 /**
  * Layer for rendering terrain shapes to the canvas.
@@ -24,14 +21,13 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	#shapeGraphics = new Map();
 
 	/** @type {Signal<PIXI.Sprite | null>} */
-	_cursorRadiusMask$ = new Signal(null);
-
-	// Visibility
-	/** @type {Signal<boolean>} */
-	_isEditLayerActive$ = new Signal(false);
+	_cursorRadiusMask$ = signal(null);
 
 	/** @type {Signal<boolean>} */
-	#isHighlightingObjects$ = new Signal(false);
+	_isEditLayerActive$ = signal(false);
+
+	/** @type {Signal<boolean>} */
+	#isHighlightingObjects$ = signal(false);
 
 	/** @type {Map<string, Promise<PIXI.Texture>>} */
 	_terrainTextures = new Map();
@@ -40,9 +36,23 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	#subscriptions = [];
 
 	// TODO: TEMP
-	#maskRadius$ = new Signal(true);
-	#showOnTokenLayer$ = new Signal(true);
+	#maskRadius$ = signal(true);
+
+	#showOnTokenLayer$ = signal(true);
+
 	#cursorRadiusMask;
+
+	/** @type {AbortController} */
+	#abortController;
+
+	#graphicSortLayer$ = computed(() => {
+		// Note that during the v11 -> v12 migration, I made the mistake of getting this setting backwards, so when this
+		// value is TRUE that actually means that the terrain layer should be rendered BELOW the tiles.
+		// The UI labels have been corrected so that users have the expected behaviour, but the name of the flags and
+		// settings have not been changed so that users do not have to re-do their config.
+		const renderBelowTiles = sceneRenderAboveTilesChoice$.value ?? terrainLayerAboveTilesDefault$.value;
+		return renderBelowTiles ? 490 : 510;
+	});
 
 	constructor() {
 		super();
@@ -51,9 +61,9 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		Hooks.on("highlightObjects", this._onHighlightObjects.bind(this));
 	}
 
-	/** @returns {TerrainHeightGraphicsLayer} */
+	/** @returns {TerrainHeightGraphicsLayer | undefined} */
 	static get current() {
-		return canvas.terrainHeightGraphicsLayer;
+		return canvas.terrainHeightToolsGraphicsLayer;
 	}
 
 	get #allShapeGraphics() {
@@ -64,30 +74,41 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 
 	/** @override */
 	_draw() {
-		this._redrawShapes(allTerrainShapes$.value);
+		this.#abortController = new AbortController();
+		const abortSignal = this.#abortController.signal;
 
-		this.#subscriptions.push(
-			join(this._updateShapeMasks.bind(this), this._isEditLayerActive$, this.#isHighlightingObjects$, this.#maskRadius$),
-			join(this._updateShapesVisibility.bind(this), this._isEditLayerActive$, this.#showOnTokenLayer$, sceneControls.activeTool$),
-			allTerrainShapes$.subscribe({ add: this._addShape.bind(this), remove: this._removeShape.bind(this) }),
-			terrainTypes$.subscribe(this._reloadTextures.bind(this), true)
-		);
+		// When terrain types are changed, reload textures and redraw all the shapes
+		abortableSubscribe(terrainTypes$, terrainTypes => {
+			this._reloadTextures(terrainTypes);
+			this._redrawShapes(allTerrainShapes$.value);
+		}, abortSignal);
 
-		this.on("globalpointermove", this._updateTerrainStackViewer);
+		// As shapes are added and removed to the master list, add and remove them from the scene (saves doing a full
+		// redraw of the entire scene when small changes are made)
+		allTerrainShapes$.subscribe({
+			add: this._addShapes.bind(this),
+			remove: this._removeShapes.bind(this)
+		}, { signal: abortSignal });
+
+		// When 'render above tiles' changes, set the sort layer of all graphics
+		abortableSubscribe(this.#graphicSortLayer$, sortLayer => {
+			for (const graphic of this.#allShapeGraphics)
+				graphic.sortLayer = sortLayer;
+			canvas.primary.sortChildren();
+		}, abortSignal);
+
+		this.on("globalpointermove", this._updateCursorPosition);
 	}
 
 	/** @override */
 	_tearDown() {
+		this.#abortController.abort();
 		this._clearShapes();
-		this.#subscriptions.forEach(unsubscribe => unsubscribe());
-		this.#subscriptions = [];
-
-		this.off("globalpointermove", this._updateTerrainStackViewer);
-		this.off("globalpointermove", this._updateCursorMaskPosition);
+		this.off("globalpointermove", this._updateCursorPosition);
 	}
 
-	_updateTerrainStackViewer = event => {
-		// TODO:
+	_updateCursorPosition = event => {
+		cursorWorldPosition$.value = this.toLocal(event.data.global);
 	};
 
 	/**
@@ -103,34 +124,40 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		}
 
 		this._clearShapes();
-
-		for (const { providerId, shapes } of terrainData) {
-			/** @type {TerrainShapeGraphic[]} */
-			const providerGraphics = [];
-			this.#shapeGraphics.set(providerId, providerGraphics);
-
-			for (const shape of shapes) {
-				const terrainType = getTerrainType(shape.terrainTypeId);
-				if (!terrainType || !shape.visible) continue;
-
-				const shapeGraphic = new TerrainShapeGraphic(this, shape, terrainType);
-				providerGraphics.push(shapeGraphic);
-				canvas.primary.addChild(shapeGraphic);
-			}
-		}
-
+		this._addShapes(terrainData);
 		this._updateShapeMasks();
 		this._updateShapesVisibility({ animate: false });
 	}
 
 	/** @param {TerrainShape[]} newShapes */
-	async _addShape(newShapes) {
-		// TODO: check if we need to turn on the cursor mask
+	async _addShapes(newShapes) {
+		for (const shape of newShapes) {
+			if (!getTerrainType(shape.terrainTypeId)) continue;
+
+			let providerGraphics = this.#shapeGraphics.get(shape._providerId);
+			if (!providerGraphics) {
+				providerGraphics = new Map();
+				this.#shapeGraphics.set(shape._providerId, providerGraphics);
+			}
+
+			const shapeGraphic = new TerrainShapeGraphic(this, shape);
+			shapeGraphic.sortLayer = this.#graphicSortLayer$.value;
+			providerGraphics.set(shape, shapeGraphic);
+			canvas.primary.addChild(shapeGraphic);
+		}
 	}
 
 	/** @param {TerrainShape[]} removedShapes */
-	async _removeShape(removedShapes) {
-		// TODO: check if we need to turn off the cursor mask
+	async _removeShapes(removedShapes) {
+		for (const shape of removedShapes) {
+			const providerGraphics = this.#shapeGraphics.get(shape._providerId);
+			const graphic = providerGraphics?.get(shape);
+			if (!graphic) continue;
+
+			graphic.destroy();
+			providerGraphics.delete(shape);
+			canvas.primary.removeChild(graphic);
+		}
 	}
 
 	_clearShapes() {
@@ -141,7 +168,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		this.#shapeGraphics.clear();
 	}
 
-	/** @param {import("../../utils/terrain-types.mjs").TerrainType[]} terrainTypes */
+	/** @param {TerrainType[]} terrainTypes */
 	_reloadTextures(terrainTypes) {
 		this._terrainTextures = new Map(terrainTypes
 			.filter(type => type.fillTexture?.length)
@@ -149,29 +176,12 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	}
 
 	/**
-	 * @param {{ height: number; elevation: number; }} shape
-	 * @param {import("../../utils/terrain-types.mjs").TerrainType} terrainStyle
-	 */
-	static _getLabelText(shape, terrainStyle) {
-		// If the shape has elevation, and the user has provided a different format for elevated terrain, use that.
-		const format = shape.elevation !== 0 && terrainStyle.elevatedTextFormat?.length > 0
-			? terrainStyle.elevatedTextFormat
-			: terrainStyle.textFormat;
-
-		return terrainStyle.usesHeight
-			? format
-				.replace(/\%h\%/g, prettyFraction(toSceneUnits(shape.height)))
-				.replace(/\%e\%/g, prettyFraction(toSceneUnits(shape.elevation)))
-				.replace(/\%t\%/g, prettyFraction(toSceneUnits(shape.height + shape.elevation)))
-			: format;
-	}
-
-	/**
 	 * @param {Object} [options]
 	 * @param {boolean} [options.animate]
 	*/
 	async _updateShapesVisibility({ animate = true } = {}) {
-		const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
+		return;
+		const invisibleTerrainTypes = invisibleTerrainTypes$.value;
 
 		// If the THT editing layer is active (excluding the visibility tool), then we want to show all (and only) THT
 		// shapes. I.E. don't include shapes from other providers.
@@ -193,6 +203,9 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	 * Updates the radius of the mask used to only show the height around the user's cursor.
 	 */
 	_updateShapeMasks() {
+		// TODO:
+		return;
+
 		// If the THT layer is active, or the user is clicking the highlight objects button, then always show the entire
 		// map (radius = 0). Otherwise, use the configured value.
 		let radius = this._isEditLayerActive$.value || this.#isHighlightingObjects$.value
@@ -245,13 +258,11 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	_updateCursorMaskPosition = event => {
 		const pos = this.toLocal(event.data.global);
 		this.#cursorRadiusMask.position.set(pos.x, pos.y);
-	}
+	};
 
 	_onHighlightObjects(active) {
 		// When using the "highlight objects" keybind, if the user has the radius option enabled and we're on the token
 		// layer, show the entire height map
-		if (canvas.activeLayer.name === "TokenLayer") {
-			this.#isHighlightingObjects$.value = active;
-		}
+		this.#isHighlightingObjects$.value = canvas.activeLayer.name === "TokenLayer" && active;
 	}
 }
