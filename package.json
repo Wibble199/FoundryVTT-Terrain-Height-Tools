@@ -7,6 +7,11 @@
 		"test": "node --test test/**/*.test.mjs",
 		"lint": "eslint -c eslint.config.mjs"
 	},
+	"dependencies": {
+		"@lit-labs/preact-signals": "^1.0.3",
+		"@preact/signals-core": "^1.13.0",
+		"lit": "^3.3.2"
+	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.3",
 		"@rollup/plugin-node-resolve": "^16.0.3",
@@ -15,8 +20,5 @@
 		"eslint": "^9.39.3",
 		"rollup": "^2.80.0",
 		"rollup-plugin-sourcemaps": "^0.6.3"
-	},
-	"dependencies": {
-		"@preact/signals-core": "^1.13.0"
 	}
 }

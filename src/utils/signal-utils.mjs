@@ -1,5 +1,5 @@
 /** @import { Signal } from "@preact/signals-core" */
-import { batch, computed, effect, signal } from "@preact/signals-core";
+import { batch, computed, signal } from "@preact/signals-core";
 
 /**
  * @template T
@@ -30,7 +30,7 @@ export function deepSignal(obj) {
 			return signalObj[prop];
 		},
 		set(_, prop, value) {
-			if (prop !== "value") throw new TypeError(`Cannot set property "${String(prop)}" on a deepSignal`);
+			if (prop !== "value") throw new TypeError(`Cannot set property "${prop}" on a deepSignal`);
 			batch(() => {
 				for (const [k, v] of Object.entries(value)) {
 					if (signalObj[k]) signalObj[k].value = v;
@@ -39,34 +39,6 @@ export function deepSignal(obj) {
 			return true;
 		}
 	});
-}
-
-/**
- * Similar to Preact Signal's `effect` function, but takes an `AbortSignal` and cleans up the effect when that signal
- * is aborted.
- * @param {Parameters<effect>[0]} fn
- * @param {AbortSignal} abortSignal
- * @returns A cleanup function for both the effect and the AbortSignal
- */
-export function abortableEffect(fn, abortSignal) {
-	// If signal is already aborted, do nothing
-	if (abortSignal.aborted) return () => {};
-
-	const cleanupEffect = effect(fn);
-
-	let hasCleanedUpEffect = false;
-	const cleanupEffectIfRequired = () => {
-		if (hasCleanedUpEffect) return;
-		hasCleanedUpEffect = true;
-		cleanupEffect();
-	};
-
-	abortSignal.addEventListener("abort", cleanupEffectIfRequired, { once: true });
-
-	return () => {
-		abortSignal.removeEventListener("abort", cleanupEffectIfRequired);
-		cleanupEffectIfRequired();
-	};
 }
 
 /**

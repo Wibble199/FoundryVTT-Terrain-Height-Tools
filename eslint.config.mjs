@@ -5,7 +5,10 @@ import globals from "globals";
 
 export default defineConfig([
 	{
-		files: ["./src/**/*.{js,mjs,cjs}"],
+		files: [
+			"./src/**/*.{js,mjs,cjs}",
+			"./test/**/*.{js,mjs,cjs}",
+		],
 		plugins: {
 			js,
 			"@stylistic/js": stylisticJs
@@ -57,7 +60,7 @@ export default defineConfig([
 			"@stylistic/js/template-tag-spacing": "error",
 			"no-undef": "off",
 			"no-unused-vars": ["warn", { "ignoreRestSiblings": true }],
-			"prefer-const": "warn"
+			"prefer-const": ["warn", { "destructuring": "all" }]
 		}
 	}
 ]);

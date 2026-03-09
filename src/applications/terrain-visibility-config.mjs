@@ -1,11 +1,14 @@
-import { moduleName } from "../consts.mjs";
+import { computed, html } from "@lit-labs/preact-signals";
+import { classMap } from "lit/directives/class-map.js";
+import { styleMap } from "lit/directives/style-map.js";
 import { invisibleTerrainTypes$ } from "../stores/canvas.mjs";
-import { getCssColorsFor, setSceneTerrainTypeVisible, terrainTypes$ } from '../stores/terrain-types.mjs';
-import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
+import { getCssColorsFor, setSceneTerrainTypeVisible, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { abortableSubscribe } from "../utils/signal-utils.mjs";
+import { LitApplicationMixin } from "./lit-application-mixin.mjs";
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2 } = foundry.applications.api;
 
-export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+export class TerrainVisibilityConfig extends LitApplicationMixin(ApplicationV2) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_terrainVisibilityToggle",
@@ -18,15 +21,6 @@ export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplica
 		position: {
 			width: 220,
 			height: 362
-		},
-		actions: {
-			toggleTerrainVisible: TerrainVisibilityConfig.#toggleTerrainVisible
-		}
-	};
-
-	static PARTS = {
-		main: {
-			template: `modules/${moduleName}/templates/terrain-visibility-config.hbs`
 		}
 	};
 
@@ -38,40 +32,30 @@ export class TerrainVisibilityConfig extends withSubscriptions(HandlebarsApplica
 	}
 
 	/** @override */
-	async _prepareContext() {
-		const invisibleTerrainTypes = invisibleTerrainTypes$.value;
-		return {
-			availableTerrains: terrainTypes$.value.map(t => ({
-				id: t.id,
-				name: t.name,
-				visible: !invisibleTerrainTypes.has(t.id),
-				...getCssColorsFor(t) // Hex colors including opacity for preview boxes
-			}))
-		};
+	_renderHTML() {
+		return html`
+			<p class="flex0" style="margin-top: 0; font-size: 0.95em;">
+				${game.i18n.localize("TERRAINHEIGHTTOOLS.ClickToShowHideTerrain")}
+			</p>
+			<ul class="terrain-type-palette">
+				${terrainTypes$.value.map(terrainType => {
+					const { borderColor, background } = getCssColorsFor(terrainType);
+					return html`
+						<li
+							class=${computed(() => classMap({ active: !invisibleTerrainTypes$.value.has(terrainType.id) }))}
+							@click=${() => setSceneTerrainTypeVisible(canvas.scene, terrainType.id)}
+						>
+							<div class="preview-box" style=${styleMap({ borderColor, background })}></div>
+							<label class="terrain-type-name">${terrainType.name}</label>
+						</li>
+					`;
+				})}
+			</ul>
+		`;
 	}
 
-	/** @override */
-	_onRender() {
-		this._unsubscribeFromAll();
-		// TODO:
-		/* this._subscriptions = [
-			fromHook("updateScene", scene => scene.active).subscribe(() => {
-				const invisibleTerrainTypes = getInvisibleSceneTerrainTypes(canvas.scene);
-				this.element.querySelectorAll("[data-terrain-id]").forEach(el => {
-					const isVisible = !invisibleTerrainTypes.has(el.dataset.terrainId);
-					el.classList.toggle("active", isVisible);
-				});
-			})
-		];*/
-	}
-
-	/**
-	 * @this {TerrainVisibilityConfig}
-	 * @param {HTMLElement} target
-	 */
-	static async #toggleTerrainVisible(_event, target) {
-		const { terrainId } = target.dataset;
-		target.classList.toggle("active");
-		await setSceneTerrainTypeVisible(canvas.scene, terrainId);
+	_onFirstRender(...args) {
+		super._onFirstRender(...args);
+		abortableSubscribe(terrainTypes$, () => this.render(), this.closeSignal);
 	}
 }

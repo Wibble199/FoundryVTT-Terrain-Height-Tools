@@ -34,9 +34,13 @@ export function getAllShapes({ providerIds } = {}) {
  * @param {number} y
  * @param {Object} [options]
  * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
+ * @returns {TerrainShape[]}
  */
-export function getShapesAtPoint(x, y, options) {
-	return getShapesByBounds(new PIXI.Rectangle(x, y, 0, 0), options);
+export function getShapesAtPoint(x, y, { providerIds } = {}) {
+	return getShapesByBounds(new PIXI.Rectangle(x, y, 0, 0), {
+		providerIds,
+		collisionTest: ({ t: shape }) => shape.containsPoint(x, y)
+	});
 }
 
 /**
@@ -44,12 +48,13 @@ export function getShapesAtPoint(x, y, options) {
  * @param {PIXI.Rectangle} rect
  * @param {Object} [options]
  * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
+ * @param {(entry: { r: PIXI.Rectangle; t: TerrainShape; }, rect: PIXI.Rectangle) => boolean} [options.collisionTest]
  */
-export function getShapesByBounds(rect, { providerIds } = {}) {
+export function getShapesByBounds(rect, { providerIds, collisionTest } = {}) {
 	const shapes = [];
 	for (const [providerId, { provider }] of terrainProviders) {
 		if (providerIds?.length && !providerIds.includes(providerId)) continue;
-		shapes.push(...provider.quadtree.getObjects(rect));
+		shapes.push(...provider.quadtree.getObjects(rect, { collisionTest }));
 	}
 	return shapes;
 }
@@ -119,7 +124,7 @@ export class TerrainProvider {
 		this.terrainShapes$.subscribe({
 			add: shapes => {
 				for (const shape of shapes)
-					this.quadtree.insert({ r: shape.polygon.boundingRect, t: { shape } });
+					this.quadtree.insert({ r: shape.polygon.boundingRect, t: shape });
 			},
 			remove: shapes => {
 				for (const shape of shapes)
@@ -159,15 +164,30 @@ export class TerrainProvider {
 		this.terrainShapes$.clear();
 	}
 
+	/**
+	 * Hook handler for when the canvas is ready.
+	 * @protected
+	 */
 	_canvasReady() {
 		// When the canvas is ready, update the quadtree as the bounds of the scene may have changed.
+		this.#rebuildQuadtree();
+	}
+
+	/**
+	 * Hook handler for when the canvas is torn down.
+	 * @protected
+	 */
+	_canvasTearDown() {}
+
+	/**
+	 * Clears and rebuilds the quadtree.
+	 */
+	#rebuildQuadtree() {
 		this.quadtree.clear();
 		for (const shape of this.terrainShapes$.value) {
 			this.quadtree.insert({ r: shape.polygon.boundingRect, t: shape });
 		}
 	}
-
-	_canvasTearDown() {}
 
 	destroy() {
 		Hooks.off("canvasReady", this.#canvasReadyHookId);

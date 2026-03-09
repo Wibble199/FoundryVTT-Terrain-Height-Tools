@@ -132,8 +132,8 @@ export function getTerrainColor(terrainType, defaultColor = 0x00FFFF) {
  */
 export function getCssColorsFor(terrainType) {
 	return {
-		textColor: terrainType.textColor + alphaToHex(terrainType.textOpacity),
-		backgroundColor: terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE
+		color: terrainType.textColor + alphaToHex(terrainType.textOpacity),
+		background: terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE
 			? "transparent"
 			: terrainType.fillColor + alphaToHex(terrainType.fillOpacity),
 		borderColor: terrainType.lineType === lineTypes.none || terrainType.lineWidth <= 0
@@ -143,15 +143,6 @@ export function getCssColorsFor(terrainType) {
 			? 0
 			: terrainType.lineWidth
 	};
-}
-
-/**
- * Returns a set of which terrain types are NOT currently visibile on the scene.
- * @param {Scene} scene
- * @returns {Set<string>}
- */
-export function getInvisibleSceneTerrainTypes(scene) {
-	return new Set(scene.getFlag(moduleName, flags.invisibleTerrainTypes) ?? []);
 }
 
 /**

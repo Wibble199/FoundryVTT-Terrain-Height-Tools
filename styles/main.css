@@ -530,6 +530,10 @@ ul.terrain-type-palette li .terrain-type-name {
 	gap: 1rem;
 }
 
+.gap-05rem {
+	gap: 0.5rem;
+}
+
 .cursor-help {
 	cursor: help;
 }

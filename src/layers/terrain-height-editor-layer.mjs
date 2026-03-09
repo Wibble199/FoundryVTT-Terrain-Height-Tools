@@ -206,7 +206,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		// Set highlight colours depending on the tool
 		switch (this._pendingTool) {
 			case tools.paint:
-				this._highlightGraphics._setColorFromTerrainTypeId(paintingConfig$.terrainTypeId$.value);
+				this._highlightGraphics._setColorFromTerrainTypeId(paintingConfig$.terrainTypeId.value);
 				break;
 
 			case tools.erase:
@@ -230,7 +230,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 		switch (tool ?? this._pendingTool) {
 			case tools.paint: {
-				const selectedTerrainId = paintingConfig$.terrainTypeId$.value;
+				const selectedTerrainId = paintingConfig$.terrainTypeId.value;
 				if (!this.#cellIsPending(...cell) && selectedTerrainId) {
 					this._pendingChanges.push(cell);
 					this._highlightGraphics.highlight(...cell);

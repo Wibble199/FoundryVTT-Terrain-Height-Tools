@@ -290,6 +290,13 @@ export class Polygon {
 	}
 
 	/**
+	 * Creates the SVG path string for this polygon.
+	 */
+	toSvgPath() {
+		return this.#vertices.map(({ x, y }, idx) => `${idx === 0 ? "M" : "L"}${x},${y}`).join("") + "Z";
+	}
+
+	/**
 	 * Finds the mid of point of all given vertices.
 	 * @param {{ x: number; y: number; }[]} vertices
 	 */

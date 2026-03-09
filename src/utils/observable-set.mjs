@@ -139,11 +139,11 @@ export class ObservableSet {
 		for (const observer of this.#observers) {
 			observer.change?.(this.#innerSet.values(), newValues, removedValues);
 
-			if (newValues.length > 0)
-				observer.add?.(newValues);
-
 			if (removedValues.length > 0)
 				observer.remove?.(removedValues);
+
+			if (newValues.length > 0)
+				observer.add?.(newValues);
 		}
 	}
 }

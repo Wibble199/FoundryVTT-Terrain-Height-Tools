@@ -3,7 +3,7 @@
 /** @import { Signal } from "@preact/signals-core" */
 import { computed, signal } from "@preact/signals-core";
 import { sceneControls } from "../../config/controls.mjs";
-import { terrainLayerAboveTilesDefault$ } from "../../config/settings.mjs";
+import { showZonesAboveNonZones$, terrainLayerAboveTilesDefault$ } from "../../config/settings.mjs";
 import { heightMapProviderId, tools } from "../../consts.mjs";
 import { cursorWorldPosition$, invisibleTerrainTypes$, sceneRenderAboveTilesChoice$ } from "../../stores/canvas.mjs";
 import { allTerrainShapes$ } from "../../stores/terrain-manager.mjs";
@@ -32,9 +32,6 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	/** @type {Map<string, Promise<PIXI.Texture>>} */
 	_terrainTextures = new Map();
 
-	/** @type {(() => void)[]} */
-	#subscriptions = [];
-
 	// TODO: TEMP
 	#maskRadius$ = signal(true);
 
@@ -43,7 +40,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	#cursorRadiusMask;
 
 	/** @type {AbortController} */
-	#abortController;
+	#tearDownController;
 
 	#graphicSortLayer$ = computed(() => {
 		// Note that during the v11 -> v12 migration, I made the mistake of getting this setting backwards, so when this
@@ -74,35 +71,45 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 
 	/** @override */
 	_draw() {
-		this.#abortController = new AbortController();
-		const abortSignal = this.#abortController.signal;
+		this.#tearDownController = new AbortController();
+		const tearDownSignal = this.#tearDownController.signal;
 
 		// When terrain types are changed, reload textures and redraw all the shapes
 		abortableSubscribe(terrainTypes$, terrainTypes => {
 			this._reloadTextures(terrainTypes);
 			this._redrawShapes(allTerrainShapes$.value);
-		}, abortSignal);
+		}, tearDownSignal);
 
 		// As shapes are added and removed to the master list, add and remove them from the scene (saves doing a full
 		// redraw of the entire scene when small changes are made)
 		allTerrainShapes$.subscribe({
 			add: this._addShapes.bind(this),
 			remove: this._removeShapes.bind(this)
-		}, { signal: abortSignal });
+		}, { signal: tearDownSignal });
 
 		// When 'render above tiles' changes, set the sort layer of all graphics
 		abortableSubscribe(this.#graphicSortLayer$, sortLayer => {
 			for (const graphic of this.#allShapeGraphics)
 				graphic.sortLayer = sortLayer;
 			canvas.primary.sortChildren();
-		}, abortSignal);
+		}, tearDownSignal);
+
+		// When 'show zones above non-zones' changes, set the sort of all graphics
+		abortableSubscribe(showZonesAboveNonZones$, showZonesAboveNonZones => {
+			for (const graphic of this.#allShapeGraphics) {
+				graphic.sort = graphic.terrainType.usesHeight
+					? graphic.shape.top
+					: showZonesAboveNonZones ? Number.MAX_SAFE_INTEGER : -1;
+			}
+			canvas.primary.sortChildren();
+		}, tearDownSignal);
 
 		this.on("globalpointermove", this._updateCursorPosition);
 	}
 
 	/** @override */
 	_tearDown() {
-		this.#abortController.abort();
+		this.#tearDownController.abort();
 		this._clearShapes();
 		this.off("globalpointermove", this._updateCursorPosition);
 	}
@@ -132,7 +139,8 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	/** @param {TerrainShape[]} newShapes */
 	async _addShapes(newShapes) {
 		for (const shape of newShapes) {
-			if (!getTerrainType(shape.terrainTypeId)) continue;
+			const terrainType = getTerrainType(shape.terrainTypeId);
+			if (!terrainType) continue;
 
 			let providerGraphics = this.#shapeGraphics.get(shape._providerId);
 			if (!providerGraphics) {
@@ -142,6 +150,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 
 			const shapeGraphic = new TerrainShapeGraphic(this, shape);
 			shapeGraphic.sortLayer = this.#graphicSortLayer$.value;
+			shapeGraphic.sort = (terrainType.usesHeight ? 1 : 0) * (showZonesAboveNonZones$.value ? -1 : 0);
 			providerGraphics.set(shape, shapeGraphic);
 			canvas.primary.addChild(shapeGraphic);
 		}
@@ -154,7 +163,6 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 			const graphic = providerGraphics?.get(shape);
 			if (!graphic) continue;
 
-			graphic.destroy();
 			providerGraphics.delete(shape);
 			canvas.primary.removeChild(graphic);
 		}
@@ -162,7 +170,6 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 
 	_clearShapes() {
 		for (const graphic of this.#allShapeGraphics) {
-			graphic.destroy();
 			canvas.primary.removeChild(graphic);
 		}
 		this.#shapeGraphics.clear();

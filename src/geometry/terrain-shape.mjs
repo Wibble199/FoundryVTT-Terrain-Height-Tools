@@ -87,6 +87,31 @@ export class TerrainShape {
 	}
 
 	/**
+	 * @param {number} x
+	 * @param {number} y
+	 * @param {Object} [options]
+	 * @param {boolean} [options.containsOnEdge]
+	 */
+	containsPoint(x, y, { containsOnEdge = true } = {}) {
+		return this.polygon.containsPoint(x, y, { containsOnEdge })
+			&& this.holes.every(h => !h.containsPoint(x, y, { containsOnEdge: !containsOnEdge }));
+	}
+
+	/**
+	 * Generates an SVG path for this shape.
+	 * @param {Object} [options]
+	 * @param {number} [options.padding]
+	 */
+	toSvg({ padding = 2 } = {}) {
+		const { x1: x, y1: y, w, h } = this.polygon.boundingBox;
+
+		return {
+			path: this.polygon.toSvgPath() + " " + this.holes.map(h => h.toSvgPath()).join(" "),
+			viewBox: `${x - padding} ${y - padding} ${w + (padding * 2)} ${h + (padding * 2)}`
+		};
+	}
+
+	/**
 	 * Determines intersections of a ray from p1 to p2 for this shape.
 	 * @param {{ x: number; y: number; h: number; }} p1 The first point, where `x` and `y` are pixel coordinates.
 	 * @param {{ x: number; y: number; h: number; }} p2 The second point, where `x` and `y` are pixel coordinates.
@@ -127,7 +152,7 @@ export class TerrainShape {
 		const { x: x1, y: y1, h: h1, t: t1 } = usesHeight ? clampPoint(0) : p1;
 		const { x: x2, y: y2, h: h2, t: t2 } = usesHeight ? clampPoint(1) : p2;
 
-		const lerpLosHeight = (/** @type {number} */ t) => (h2 - h1) * t + h1;
+		const lerpLosHeight = (/** @type {number} */ t) => ((h2 - h1) * t) + h1;
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
 		const inverseTestRay = testRay.inverse();
 
@@ -191,12 +216,13 @@ export class TerrainShape {
 					x.distanceSquared < Number.EPSILON * Number.EPSILON);
 
 			switch (p1LiesOnEdges.length) {
-				case 0:
+				case 0: {
 					isInside = this.polygon.containsPoint(x1, y1, { containsOnEdge: false })
 						&& !this.holes.some(h => h.containsPoint(x1, y1, { containsOnEdge: true }));
 					break;
+				}
 
-				case 1:
+				case 1: {
 					// (Rename t to u because elsewhere we use t as the relative distance along the ray and u as the
 					// relative distance along an edge, which is what we have here)
 					const { edge, poly, t: u } = p1LiesOnEdges[0];
@@ -214,12 +240,14 @@ export class TerrainShape {
 						isInside = a > 0 && a < Math.PI; // Do not count 0 or PI as inside because that means it's parallel
 					}
 					break;
+				}
 
-				case 2:
+				case 2: {
 					isInside = testRay.isBetween(p1LiesOnEdges[0].edge, p1LiesOnEdges[1].edge);
 					break;
+				}
 
-				case 4:
+				case 4: {
 					// In the case of a 4-way intersection, loop over all the edges and see if the ray passes between
 					// the relevant adjacent edge. This does mean we could end up testing all the edges twice (since the
 					// relevant edge should already be in the array), but the code to try pair them up would be clunky,
@@ -235,8 +263,9 @@ export class TerrainShape {
 					});
 
 					break;
+				}
 
-				default:
+				default: {
 					if (p1LiesOnEdges.length % 2 !== 0) {
 						warn(`Error when performing line of sight calculation: the line of sight ray starts at ${p1LiesOnEdges.length} vertices of a single shape, but expected 0, 1, or an even number. This case is not supported and will likely give incorrect line of sight calculation results.`);
 						break;
@@ -251,6 +280,7 @@ export class TerrainShape {
 							.every(([e1, e2]) => testRay.isBetween(e1, e2)));
 
 					break;
+				}
 			}
 		}
 

@@ -185,7 +185,7 @@ export function renderToolSpecificApplications(controls) {
 	renderToolSpecificApplication(
 		controls.activeControl === moduleName && controls.activeTool === tools.convert,
 		sceneControls.shapeConversionConfig,
-		() => sceneControls.shapeConversionConfig = shapeConversionConifg()
+		() => sceneControls.shapeConversionConfig = new ShapeConversionConfig()
 	);
 }
 

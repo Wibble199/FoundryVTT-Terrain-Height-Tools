@@ -4,11 +4,11 @@ import { registerSceneControls, renderToolSpecificApplications, sceneControls } 
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { addAboveTilesToSceneConfig, registerSettings } from "./config/settings.mjs";
 import { moduleName, socketFuncs, socketName } from "./consts.mjs";
-import { handleTokenElevationChange, handleTokenPreCreation } from "./hooks/token-elevation.mjs";
+import * as autoTokenElevation from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
 import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
-import { onUpdateScene } from "./stores/canvas.mjs";
+import { onCanvasReady, onCanvasTearDown, onUpdateScene } from "./stores/canvas.mjs";
 import { loadTerrainTypes } from "./stores/terrain-types.mjs";
 import { log } from "./utils/log.mjs";
 
@@ -17,11 +17,14 @@ Hooks.once("ready", ready);
 Hooks.on("getSceneControlButtons", registerSceneControls);
 Hooks.on("renderSceneControls", renderToolSpecificApplications);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
-Hooks.on("preCreateToken", handleTokenPreCreation);
-Hooks.on("preUpdateToken", handleTokenElevationChange);
-Hooks.on("refreshToken", token => LineOfSightRulerLayer.current?._onTokenRefresh(token));
+Hooks.on("refreshToken", token => LineOfSightRulerLayer.current?._onTokenRefresh(token)); // TODO: is this needed?
 
 Hooks.on("updateScene", onUpdateScene);
+Hooks.on("canvasReady", onCanvasReady);
+Hooks.on("canvasTearDown", onCanvasTearDown);
+
+Hooks.on("preCreateToken", autoTokenElevation.handleTokenPreCreation);
+Hooks.on("preUpdateToken", autoTokenElevation.handleTokenElevationChange);
 
 Object.defineProperty(globalThis, "terrainHeightTools", {
 	value: {
@@ -47,17 +50,6 @@ function init() {
 	CONFIG.Canvas.layers.terrainHeightLosRulerLayer = { group: "interface", layerClass: LineOfSightRulerLayer };
 
 	if (game.modules.get("lib-wrapper")?.active) initLibWrapper();
-
-	Handlebars.registerHelper({
-		add(...values) {
-			values.pop();
-			return values.reduce((a, b) => a + b);
-		},
-		multiply(...values) {
-			values.pop();
-			return values.reduce((a, b) => a * b);
-		}
-	});
 }
 
 function ready() {
@@ -89,7 +81,7 @@ function initLibWrapper() {
 	// called) we also need to override the `can` method to allow players to click tokens they don't own when using the
 	// token LoS tool. Feels dirty, but hey, whatever works, right?
 	libWrapper.register(moduleName, "Token.prototype._onClickLeft", function(wrapped, ...args) {
-		if (sceneControls.tokenLineOfSightConfig?._isSelecting) {
+		if (sceneControls.tokenLineOfSightConfig?._isSelectingToken$.value) {
 			sceneControls.tokenLineOfSightConfig._onSelectToken(this);
 			return;
 		}

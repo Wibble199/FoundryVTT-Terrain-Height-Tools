@@ -1,12 +1,19 @@
-import { moduleName } from "../consts.mjs";
+import { html } from "@lit-labs/preact-signals";
+import { computed } from "@preact/signals-core";
+import { classMap } from "lit/directives/class-map.js";
+import { styleMap } from "lit/directives/style-map.js";
 import { eraseConfig$ } from "../stores/drawing.mjs";
 import { getCssColorsFor, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
-import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
+import { abortableSubscribe } from "../utils/signal-utils.mjs";
+import { LitApplicationMixin } from "./lit-application-mixin.mjs";
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2 } = foundry.applications.api;
 
-export class TerrainErasePalette extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+/** @type {(k: string) => string} */
+const l = k => game.i18n.localize(k);
+
+export class TerrainErasePalette extends LitApplicationMixin(ApplicationV2) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_terrainErasePalette",
@@ -20,18 +27,6 @@ export class TerrainErasePalette extends withSubscriptions(HandlebarsApplication
 		position: {
 			width: 220,
 			height: 385
-		},
-		actions: {
-			selectTerrain: TerrainErasePalette.#selectTerrain,
-			selectAll: TerrainErasePalette.#selectAll,
-			selectNone: TerrainErasePalette.#selectNone,
-			selectInverse: TerrainErasePalette.#selectInverse
-		}
-	};
-
-	static PARTS = {
-		main: {
-			template: `modules/${moduleName}/templates/terrain-erase-palette.hbs`
 		}
 	};
 
@@ -43,95 +38,106 @@ export class TerrainErasePalette extends withSubscriptions(HandlebarsApplication
 	}
 
 	/** @override */
-	async _prepareContext() {
-		return {
-			availableTerrains: terrainTypes$.value.map(t => ({
-				id: t.id,
-				name: t.name,
+	_renderHTML() {
+		return html`
+			<p class="flex0" style="margin-top: 0;">${l("TERRAINHEIGHTTOOLS.TerrainTypesToErase")}</p>
+			<ul class="terrain-type-palette">
+				${terrainTypes$.value.map(terrainType => {
+					const { borderColor, background } = getCssColorsFor(terrainType);
+					return html`
+						<li
+							class=${computed(() => classMap({ active: !eraseConfig$.excludedTerrainTypeIds.value.includes(terrainType.id) }))}
+							@click=${() => this.#selectTerrain(terrainType.id)}
+						>
+							<div class="preview-box" style=${styleMap({ borderColor, background })}></div>
+							<label class="terrain-type-name">${terrainType.name}</label>
+						</li>
+					`;
+				})}
+			</ul>
 
-				// Hex colors including opacity for preview boxes:
-				...getCssColorsFor(t)
-			}))
-		};
+			<div class="flex0" style="text-align: right;">
+				<a data-tooltip=${l("SelectAll")} @click=${TerrainErasePalette.#selectAll}>
+					<i class="fas fa-circle"></i>
+				</a>
+				<a data-tooltip=${l("SelectNone")} @click=${TerrainErasePalette.#selectNone}>
+					<i class="far fa-circle"></i>
+				</a>
+				<a data-tooltip=${l("InvertSelection")} @click=${TerrainErasePalette.#selectInverse}>
+					<i class="fas fa-circle-half-stroke"></i>
+				</a>
+			</div>
+
+			<hr/>
+
+			<div class="flex0">
+				<div class="tht-form-group flexrow">
+					<label class="flex1">
+						${l("TERRAINHEIGHTTOOLS.Top")}
+						<i class="fa fa-question-circle tht-form-group-hint" data-tooltip=${l("TERRAINHEIGHTTOOLS.EraseTop.Hint")}></i>
+					</label>
+					<input
+						type="number"
+						class="flex1 erase-range-input"
+						name="top"
+						placeholder="+ &#xf534;"
+						.min=${computed(() => toSceneUnits(eraseConfig$.bottom.value))}
+						.value=${computed(() => toSceneUnits(eraseConfig$.top.value))}
+						@input=${e => eraseConfig$.top.value = fromSceneUnits(this.#getInputValue(e))}
+						@blur=${TerrainErasePalette.#onTopBlur}
+					>
+				</div>
+
+				<div class="tht-form-group flexrow">
+					<label class="flex1">
+						${l("TERRAINHEIGHTTOOLS.Bottom")}
+						<i class="fa fa-question-circle tht-form-group-hint" data-tooltip=${l("TERRAINHEIGHTTOOLS.EraseBottom.Hint")}></i>
+					</label>
+					<input
+						type="number"
+						class="flex1 erase-range-input"
+						name="bottom"
+						min="0"
+						placeholder="- &#xf534;"
+						.max=${computed(() => toSceneUnits(eraseConfig$.top.value))}
+						.value=${computed(() => toSceneUnits(eraseConfig$.bottom.value))}
+						@input=${e => eraseConfig$.bottom.value = fromSceneUnits(this.#getInputValue(e))}
+						@blur=${TerrainErasePalette.#onBottomBlur}
+					>
+				</div>
+			</div>
+		`;
 	}
 
 	/** @override */
-	_onRender() {
-		this._unsubscribeFromAll();
-		this._subscriptions = [
-			eraseConfig$.excludedTerrainTypeIds$.subscribe(excludedTerrainTypeIds => {
-				this.element.querySelectorAll("[data-terrain-id]").forEach(el => {
-					const isExcluded = excludedTerrainTypeIds.includes(el.dataset.terrainId);
-					el.classList.toggle("active", !isExcluded);
-				});
-			}, true),
-
-			eraseConfig$.bottom$.subscribe(bottom => {
-				this.element.querySelector("[name='bottom']").value = toSceneUnits(bottom);
-				this.element.querySelector("[name='top']").min = toSceneUnits(bottom) ?? 0;
-			}, true),
-
-			eraseConfig$.top$.subscribe(top => {
-				this.element.querySelector("[name='top']").value = toSceneUnits(top);
-				this.element.querySelector("[name='bottom']").max = toSceneUnits(top);
-			}, true)
-		];
-
-		// On input change, update the relevant Signal
-		this.element.querySelector("[name='bottom']").addEventListener("input", evt =>
-			eraseConfig$.bottom$.value = fromSceneUnits(this.#getInputValue(evt)));
-
-		this.element.querySelector("[name='top']").addEventListener("input", evt =>
-			eraseConfig$.top$.value = fromSceneUnits(this.#getInputValue(evt)));
-
-		// On blur, ensure that the value is below/above the other value and then set the value of the input to the
-		// Signal, so that if it was left as an invalid number it resets and shows the correct value again.
-		this.element.querySelector("[name='bottom']").addEventListener("blur", evt => {
-			let { bottom, top } = eraseConfig$.value;
-			if (typeof bottom === "number" && typeof top === "number" && bottom > top)
-				bottom = eraseConfig$.bottom$.value = top;
-
-			evt.currentTarget.value = toSceneUnits(bottom);
-		});
-
-		this.element.querySelector("[name='top']").addEventListener("blur", evt => {
-			let { bottom, top } = eraseConfig$.value;
-			if (typeof bottom === "number" && typeof top === "number" && top < bottom)
-				top = eraseConfig$.top$.value = bottom;
-
-			evt.currentTarget.value = toSceneUnits(top);
-		});
+	_onFirstRender(...args) {
+		super._onFirstRender(...args);
+		abortableSubscribe(terrainTypes$, () => this.render(), this.closeSignal);
 	}
 
 	/**
-	 * @this {TerrainErasePalette}
-	 * @param {HTMLElement} target
+	 * @param {string} terrainTypeId
 	 */
-	static #selectTerrain(_event, target) {
-		const { terrainId } = target.dataset;
+	#selectTerrain(terrainTypeId) {
+		const excludedTerrainTypeIds = eraseConfig$.excludedTerrainTypeIds.value;
 
-		const excludedTerrainTypeIds = eraseConfig$.excludedTerrainTypeIds$.value;
-
-		eraseConfig$.excludedTerrainTypeIds$.value = excludedTerrainTypeIds.includes(terrainId)
-			? excludedTerrainTypeIds.filter(id => id !== terrainId)
-			: [...excludedTerrainTypeIds, terrainId];
+		eraseConfig$.excludedTerrainTypeIds.value = excludedTerrainTypeIds.includes(terrainTypeId)
+			? excludedTerrainTypeIds.filter(id => id !== terrainTypeId)
+			: [...excludedTerrainTypeIds, terrainTypeId];
 	}
 
-	/** @this {TerrainErasePalette} */
 	static #selectAll() {
-		eraseConfig$.excludedTerrainTypeIds$.value = [];
+		eraseConfig$.excludedTerrainTypeIds.value = [];
 	}
 
-	/** @this {TerrainErasePalette} */
 	static #selectNone() {
-		eraseConfig$.excludedTerrainTypeIds$.value = terrainTypes$.value.map(t => t.id);
+		eraseConfig$.excludedTerrainTypeIds.value = terrainTypes$.value.map(t => t.id);
 	}
 
-	/** @this {TerrainErasePalette} */
 	static #selectInverse() {
-		const currentlySelected = new Set(eraseConfig$.excludedTerrainTypeIds$.value);
+		const currentlySelected = new Set(eraseConfig$.excludedTerrainTypeIds.value);
 		const allTerrainTypes = terrainTypes$.value.map(t => t.id);
-		eraseConfig$.excludedTerrainTypeIds$.value = allTerrainTypes.filter(t => !currentlySelected.has(t));
+		eraseConfig$.excludedTerrainTypeIds.value = allTerrainTypes.filter(t => !currentlySelected.has(t));
 	}
 
 	/**
@@ -142,5 +148,27 @@ export class TerrainErasePalette extends withSubscriptions(HandlebarsApplication
 		if (["", null, undefined].includes(event.currentTarget.value)) return null;
 		const value = +event.currentTarget.value;
 		return Math.max(isNaN(value) ? 0 : value, 0);
+	}
+
+	/** @param {InputEvent} evt */
+	static #onTopBlur(evt) {
+		// On blur, ensure that the value is below/above the other value and then set the value of the input to the
+		// Signal, so that if it was left as an invalid number it resets and shows the correct value again.
+		let { bottom, top } = eraseConfig$.value;
+		if (typeof bottom === "number" && typeof top === "number" && top < bottom)
+			top = eraseConfig$.top.value = bottom;
+
+		evt.target.value = toSceneUnits(top);
+	}
+
+	/** @param {InputEvent} evt */
+	static #onBottomBlur(evt) {
+		// On blur, ensure that the value is below/above the other value and then set the value of the input to the
+		// Signal, so that if it was left as an invalid number it resets and shows the correct value again.
+		let { bottom, top } = eraseConfig$.value;
+		if (typeof bottom === "number" && typeof top === "number" && bottom > top)
+			bottom = eraseConfig$.bottom.value = top;
+
+		evt.target.value = toSceneUnits(bottom);
 	}
 }

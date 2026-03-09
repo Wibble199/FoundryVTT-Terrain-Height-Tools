@@ -37,7 +37,7 @@ describe("TerrainShape::calculateLineOfSight()", () => {
 		elevation: 5,
 		height: 1,
 		cells: []
-	})
+	});
 
 	it("should produce no intersection when the ray does not pass through the shape in the XY plane", () => {
 		const intersections = rectangle.getIntersections({ x: 20, y: 51, h: 3 }, { x: 100, y: 80, h: 3 }, true);
@@ -191,7 +191,7 @@ describe("TerrainShape::calculateLineOfSight()", () => {
 		}]);
 	});
 
-	it("should produce expected intersection when the ray enters through a side, then ")
+	// it("should produce expected intersection when the ray enters through a side, then ")
 
 	// TODO: add additional test cases for when the test ray perfectly meets an edge at the top or bottom of the shape (including meeting an edge of a hole at top or bottom)
 

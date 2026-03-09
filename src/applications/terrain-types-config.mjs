@@ -127,7 +127,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 		/** @type {(TerrainType & { isZone: boolean; })[]} */
 		const terrainTypes = Object.entries(foundry.utils.expandObject(formData.object))
 			.sort((a, b) => a[0] - b[0])
-			.map(([_, value]) => value);
+			.map(([, value]) => value);
 
 		// Since the "Uses height?" option was changed to "Is zone?" we need to invert the checkbox.
 		// We don't create a new property for this because we don't want to mess with peoples' existing configs.

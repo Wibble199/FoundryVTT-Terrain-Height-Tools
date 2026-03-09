@@ -181,7 +181,7 @@ describe("ObservableSet", () => {
 			assert.equal(change.mock.callCount(), 0);
 			assert.equal(add.mock.callCount(), 0);
 			assert.equal(remove.mock.callCount(), 0);
-		})
+		});
 	});
 
 	describe("subscribe()", () => {
@@ -200,7 +200,7 @@ describe("ObservableSet", () => {
 
 			set.add(10);
 			assert.equal(observer.change.mock.callCount(), 0);
-		})
+		});
 	});
 
 	afterEach(() => {

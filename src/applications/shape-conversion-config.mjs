@@ -1,10 +1,16 @@
-import { moduleName, wallHeightModuleName } from "../consts.mjs";
+import { html } from "@lit-labs/preact-signals";
+import { computed } from "@preact/signals-core";
+import { when } from "lit/directives/when.js";
+import { wallHeightModuleName } from "../consts.mjs";
 import { convertConfig$ } from "../stores/drawing.mjs";
-import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
+import { LitApplicationMixin } from "./lit-application-mixin.mjs";
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2 } = foundry.applications.api;
 
-export class ShapeConversionConfig extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+/** @type {(k: string) => string} */
+const l = k => game.i18n.localize(k);
+
+export class ShapeConversionConfig extends LitApplicationMixin(ApplicationV2) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_shapeConversionConfig",
@@ -18,12 +24,6 @@ export class ShapeConversionConfig extends withSubscriptions(HandlebarsApplicati
 		}
 	};
 
-	static PARTS = {
-		main: {
-			template: `modules/${moduleName}/templates/shape-conversion-config.hbs`
-		}
-	};
-
 	/** @override */
 	async _renderFrame(options) {
 		const frame = await super._renderFrame(options);
@@ -32,38 +32,65 @@ export class ShapeConversionConfig extends withSubscriptions(HandlebarsApplicati
 	}
 
 	/** @override */
-	async _prepareContext() {
-		return {
-			isWallHeightEnabled: game.modules.get(wallHeightModuleName)?.active ?? false
-		};
-	}
+	_renderHTML() {
+		return html`
+			<p style="margin-top: 0; font-size: 0.95em;">${l("TERRAINHEIGHTTOOLS.ShapeConversionHint")}</p>
 
-	/** @override */
-	_onRender() {
-		this._unsubscribeFromAll();
-		this._subscriptions = [
-			convertConfig$.subscribe(v => {
-				this.element.querySelector("[name='toDrawing']").checked = v.toDrawing;
-				this.element.querySelector("[name='toRegion']").checked = v.toRegion;
-				this.element.querySelector("[name='toWalls']").checked = v.toWalls;
-				this.element.querySelector("[name='deleteAfter']").checked = v.deleteAfter;
+			<label class="flexrow align-items-center">
+				<input
+					type="checkbox"
+					name="toDrawing"
+					class="flex0"
+					.checked=${convertConfig$.toDrawing}
+					@input=${e => convertConfig$.toDrawing.value = e.target.checked}
+				>
+				<span>${l("TERRAINHEIGHTTOOLS.ConvertToDrawing")}</span>
+			</label>
 
-				const setWallHeightFlags = this.element.querySelector("[name='setWallHeightFlags']");
-				if (setWallHeightFlags) {
-					setWallHeightFlags.checked = v.setWallHeightFlags;
-					setWallHeightFlags.disabled = !v.toWalls;
-				}
-			}, true)
-		];
+			<label class="flexrow align-items-center">
+				<input
+					type="checkbox"
+					name="toRegion"
+					class="flex0"
+					.checked=${convertConfig$.toRegion}
+					@input=${e => convertConfig$.toRegion.value = e.target.checked}
+				>
+				<span>${l("TERRAINHEIGHTTOOLS.ConvertToRegion")}</span>
+			</label>
 
-		this.element.querySelectorAll("input").forEach(el => el.addEventListener("input", e => {
-			const { name, checked } = e.target;
-			convertConfig$.value = { [name]: checked };
-		}));
+			<label class="flexrow align-items-center">
+				<input
+					type="checkbox"
+					name="toWalls"
+					class="flex0"
+					.checked=${convertConfig$.toWalls}
+					@input=${e => convertConfig$.toWalls.value = e.target.checked}
+				>
+				<span>${l("TERRAINHEIGHTTOOLS.ConvertToWalls")}</span>
+				<button type="button" class="flex0" @click=${() => new WallConversionConfig().render(true)}>
+					<i class="fas fa-cogs" style="margin-right: 0;"></i>
+				</button>
+			</label>
 
-		this.element.querySelector("[data-action='configure-walls']").addEventListener("click", () => {
-			new WallConversionConfig().render(true);
-		});
+			${when(game.modules.get(wallHeightModuleName)?.active, () => html`
+				<label class="flexrow align-items-center" style="padding-left: 1rem">
+					<input
+						type="checkbox"
+						name="setWallHeightFlags"
+						class="flex0"
+						.checked=${convertConfig$.setWallHeightFlags}
+						?disabled=${computed(() => !convertConfig$.toWalls.value)}
+						@input=${e => convertConfig$.setWallHeightFlags.value = e.target.checked}
+					>
+					<span>${l("TERRAINHEIGHTTOOLS.SetWallHeightFlags")}</span>
+				</label>
+			`)}
+
+			<label class="flexrow align-items-center">
+				<input type="checkbox" name="deleteAfter" class="flex0">
+				<span>${l("TERRAINHEIGHTTOOLS.DeleteAfterConversion")}</span>
+			</label>
+		`;
 	}
 }
 
@@ -99,7 +126,7 @@ class WallConversionConfig extends FormApplication {
 		context.source = {
 			_id: null,
 			c: [0, 0, 1, 1],
-			...convertConfig$.wallConfig$.value,
+			...convertConfig$.wallConfig.value,
 			flags: {}
 		};
 		context.p0 = { x: 0, y: 0 };
@@ -142,12 +169,12 @@ class WallConversionConfig extends FormApplication {
 	_updateObject(_event, formData) {
 		const newWallConfig = foundry.utils.expandObject(formData);
 		delete newWallConfig.flags;
-		convertConfig$.wallConfig$.value = newWallConfig;
+		convertConfig$.wallConfig.value = newWallConfig;
 	}
 
 	activateListeners(html) {
 		html.find(".audio-preview").click(this.#onAudioPreview.bind(this));
-		this.#enableDoorOptions(convertConfig$.wallConfig$.door$.value > CONST.WALL_DOOR_TYPES.NONE);
+		this.#enableDoorOptions(convertConfig$.wallConfig.door.value > CONST.WALL_DOOR_TYPES.NONE);
 		this.#toggleThresholdInputVisibility();
 		return super.activateListeners(html);
 	}
@@ -195,5 +222,3 @@ class WallConversionConfig extends FormApplication {
 		}
 	}
 }
-
-window.wallConfig = convertConfig$.wallConfig$;

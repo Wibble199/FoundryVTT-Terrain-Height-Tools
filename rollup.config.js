@@ -9,7 +9,8 @@ export default {
 		file: "dist/module.js",
 		format: "es",
 		sourcemap: !production,
-		inlineDynamicImports: true
+		inlineDynamicImports: true,
+		format: "iife"
 	},
 	plugins: [
 		resolve(),

@@ -6,12 +6,13 @@ import { defaultGroupName, moduleName, settingNames } from "./consts.mjs";
 import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
+import { TerrainProvider } from "./stores/terrain-manager.mjs";
 import { terrainTypes$ } from "./stores/terrain-types.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
 export { registerTerrainProvider, unregisterTerrainProvider } from "./stores/terrain-manager.mjs";
 
-export const classes = { TerrainShape };
+export const classes = { TerrainShape, TerrainProvider };
 
 /**
  * Attempts to find a terrain type with the given name or ID.

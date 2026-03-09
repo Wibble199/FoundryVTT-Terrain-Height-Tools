@@ -6,7 +6,11 @@ import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.
 import { loadTerrainTypes } from "../stores/terrain-types.mjs";
 
 export const showTerrainHeightOnTokenLayer$ = signal(false);
+export const showTerrainStackViewerOnTokenLayer$ = signal(false);
+/** @type {Signal<terrainStackViewerDisplayModes>} */
+export const terrainStackViewerDisplayMode$ = signal();
 export const terrainHeightLayerVisibilityRadius$ = signal(0);
+export const showZonesAboveNonZones$ = signal(false);
 export const useFractionsForLabels$ = signal(true);
 export const smartLabelPlacement$ = signal(true);
 export const terrainLayerAboveTilesDefault$ = signal(true);
@@ -90,7 +94,7 @@ export function registerSettings() {
 		type: Boolean,
 		config: true,
 		default: false
-	});
+	}, showTerrainStackViewerOnTokenLayer$);
 
 	registerSetting(settingNames.terrainStackViewerDisplayMode, {
 		name: "SETTINGS.TerrainStackViewerDisplayMode.Name",
@@ -100,7 +104,7 @@ export function registerSettings() {
 		choices: terrainStackViewerDisplayModes,
 		config: true,
 		default: "auto"
-	});
+	}, terrainStackViewerDisplayMode$);
 
 	registerSetting(settingNames.terrainHeightLayerVisibilityRadius, {
 		name: "SETTINGS.TerrainHeightLayerVisibilityRadius.Name",
@@ -155,9 +159,8 @@ export function registerSettings() {
 		scope: "world",
 		type: Boolean,
 		config: true,
-		default: false,
-		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
-	});
+		default: false
+	}, showZonesAboveNonZones$);
 
 	registerSetting(settingNames.useFractionsForLabels, {
 		name: "SETTINGS.UseFractionsForLabels.Name",

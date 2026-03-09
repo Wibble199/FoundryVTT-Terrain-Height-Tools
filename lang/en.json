@@ -90,6 +90,7 @@
 		"ExportTerrainTypes": "Export JSON",
 		"Height.Name": "Height",
 		"Height.Hint": "The vertical size of terrain",
+		"HoverTerrainToShowDetails": "Hover terrain to show details",
 		"ImportCombine": "Import (Combine with Existing)",
 		"ImportReplace": "Import (Replace Existing)",
 		"ImportTerrainTypes": "Import JSON",

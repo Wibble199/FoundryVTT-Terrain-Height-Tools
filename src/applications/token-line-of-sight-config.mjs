@@ -1,18 +1,31 @@
 /** @import { Signal } from "@preact/signals-core" */
-import { signal } from "@preact/signals-core";
-import { moduleName, tokenRelativeHeights } from "../consts.mjs";
+import { html } from "@lit-labs/preact-signals";
+import { computed, signal } from "@preact/signals-core";
+import { classMap } from "lit/directives/class-map.js";
+import { createRef, ref } from "lit/directives/ref.js";
+import { styleMap } from "lit/directives/style-map.js";
+import { tokenRelativeHeights } from "../consts.mjs";
 import { includeNoHeightTerrain$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
-import { withSubscriptions } from "./with-subscriptions.mixin.mjs";
+import { abortableSubscribe } from "../utils/signal-utils.mjs";
+import { LitApplicationMixin } from "./lit-application-mixin.mjs";
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2 } = foundry.applications.api;
 
-export class TokenLineOfSightConfig extends withSubscriptions(HandlebarsApplicationMixin(ApplicationV2)) {
+/** @type {(k: string) => string} */
+const l = k => game.i18n.localize(k);
+
+export class TokenLineOfSightConfig extends LitApplicationMixin(ApplicationV2) {
 
 	/** @type {Signal<1 | 2 | undefined>} */
 	#selectingToken$ = signal(undefined);
 
+	_isSelectingToken$ = computed(() => typeof this.#selectingToken$.value === "number");
+
 	/** @type {Token | undefined} */
 	#hoveredToken = undefined;
+
+	/** @type {number | undefined} */
+	#hoverTokenHookId;
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_tokenLineOfSightConfig",
@@ -23,24 +36,8 @@ export class TokenLineOfSightConfig extends withSubscriptions(HandlebarsApplicat
 		},
 		position: {
 			width: 300
-		},
-		actions: {
-			selectToken: TokenLineOfSightConfig.#beginSelectToken,
-			setHeight: TokenLineOfSightConfig.#setTokenRelativeHeight,
-			clearToken: TokenLineOfSightConfig.#clearSelectedToken
 		}
 	};
-
-	static PARTS = {
-		main: {
-			template: `modules/${moduleName}/templates/token-line-of-sight-config.hbs`
-		}
-	};
-
-	/** Whether or not the user is currently selecting a token. */
-	get _isSelecting() {
-		return typeof this.#selectingToken$.value === "number";
-	}
 
 	/** @override */
 	async _renderFrame(options) {
@@ -50,143 +47,100 @@ export class TokenLineOfSightConfig extends withSubscriptions(HandlebarsApplicat
 	}
 
 	/** @override */
-	_onRender() {
-		this._unsubscribeFromAll();
+	_renderHTML() {
+		return html`
+			<p style="margin-top: 0">${l("TERRAINHEIGHTTOOLS.TokenLineOfSightConfigHint")}</p>
 
-		this._subscriptions = [
-			// Since there is no hook for selecting a token (and players cannot select tokens they don't own anyways),
-			// we instead listen to the hover hook, and then detect when a mouse down has happened.
-			// Not sure if there's a better way to do this, but it seems to work.
-			// TODO: fromHook("hoverToken").subscribe(this.#onTokenHover),
+			${this.#renderTokenPicker(1, tokenLineOfSightConfig$.token1, tokenLineOfSightConfig$.h1)}
 
-			includeNoHeightTerrain$.subscribe(v =>
-				this.element.querySelector("[name='rulerIncludeNoHeightTerrain']").checked = v, true),
+			${this.#renderTokenPicker(2, tokenLineOfSightConfig$.token2, tokenLineOfSightConfig$.h2)}
 
-			this.#selectingToken$.subscribe(v =>
-				this.element.querySelectorAll(".token-selection-container").forEach(el =>
-					el.classList.toggle("is-selecting-token", v === +el.dataset.tokenIndex)), true),
-
-			tokenLineOfSightConfig$.token1$.subscribe(token =>
-				this.#updateTokenDisplay(token, this.element.querySelector(".token-selection-container[data-token-index='1']")), true),
-
-			tokenLineOfSightConfig$.h1$.subscribe(height =>
-				this.#updateTokenHeightButton(height, this.element.querySelector("[data-token-index='1'] [data-action='setHeight']")), true),
-
-			tokenLineOfSightConfig$.token2$.subscribe(token =>
-				this.#updateTokenDisplay(token, this.element.querySelector(".token-selection-container[data-token-index='2']")), true),
-
-			tokenLineOfSightConfig$.h2$.subscribe(height =>
-				this.#updateTokenHeightButton(height, this.element.querySelector("[data-token-index='2'] [data-action='setHeight']")), true)
-		];
-
-		// Include zones
-		this.element.querySelector("[name='rulerIncludeNoHeightTerrain']").addEventListener("change", e =>
-			includeNoHeightTerrain$.value = e.target.checked ?? false);
+			<label>
+				<input
+					type="checkbox"
+					name="rulerIncludeNoHeightTerrain"
+					.checked=${includeNoHeightTerrain$}
+					@change=${e => includeNoHeightTerrain$.value = e.target.checked}>
+				${l("TERRAINHEIGHTTOOLS.IncludeZones")}
+			</label>
+		`;
 	}
 
 	/**
-	 * @param {Token | undefined} token
-	 * @param {HTMLElement} target The container element whose children to update.
+	 * @param {number} idx
+	 * @param {Signal<Token | undefined>} token$
+	 * @param {Signal<number>} height$
 	 */
-	#updateTokenDisplay(token, target) {
-		target.querySelector(".token-name")
-			.textContent = token?.name ?? game.i18n.localize("TERRAINHEIGHTTOOLS.NoTokenSelected");
+	#renderTokenPicker(idx, token$, height$) {
+		const tokenName$ = computed(() => token$.value?.name ?? l("TERRAINHEIGHTTOOLS.NoTokenSelected"));
+		const tokenImageSrc$ = computed(() => token$.value?.document.texture?.src ?? "");
+		const tokenImageStyle$ = computed(() => styleMap({ visibility: tokenImageSrc$.value ? "visible" : "hidden" }));
 
-		const tokenImage = target.querySelector(".token-image");
-		tokenImage.src = token?.document.texture?.src ?? "";
-		tokenImage.style.visibility = token?.document.texture?.src ? "visible" : "hidden";
-	}
+		const heightButtonRef = createRef();
 
-	/**
-	 * @param {import("../consts.mjs").tokenRelativeHeights} height
-	 * @param {HTMLElement} target The button element whose tooltip and icon to update.
-	 */
-	#updateTokenHeightButton(height, target) {
-		// Update tooltip
-		const tooltipText = game.i18n.format(
+		const heightButtonTooltip$ = computed(() => game.i18n.format(
 			"TERRAINHEIGHTTOOLS.TokenLineOfSightRelativeRayPosition",
-			{ current: game.i18n.localize(tokenRelativeHeights[height]) }
-		);
-		target.dataset.tooltip = tooltipText;
+			{ current: game.i18n.localize(tokenRelativeHeights[height$.value]) }
+		));
 
-		// If the tooltip is currently being shown to the user, we need to re-activate it so that the tooltip updates
-		if (game.tooltip.element === target)
-			game.tooltip.activate(game.tooltip.element);
+		// After rendering the height button, if the tooltip is currently being shown to the user, we need to
+		// re-activate it so that the tooltip updates
+		abortableSubscribe(heightButtonTooltip$, () => Promise.resolve().then(() => {
+			if (game.tooltip.element === heightButtonRef.value)
+				game.tooltip.activate(game.tooltip.element);
+		}, 0), this.closeSignal);
 
-		// Update chevron icon
-		const icon = {
-			[1]: "fa-chevron-up",
-			[0.5]: "fa-minus",
-			[0]: "fa-chevron-down"
-		}[height];
-		target.querySelector("i").className = `fa ${icon}`;
+		const heightButtonIconClass$ = computed(() => ({
+			[1]: "fas fa-chevron-up",
+			[0.5]: "fas fa-minus",
+			[0]: "fas fa-chevron-down"
+		}[height$]));
+
+		return html`
+			<div class=${computed(() => classMap({
+				"token-selection-container": true,
+				"is-selecting-token": this.#selectingToken$.value === idx
+			}))}>
+				<img
+					class="token-image"
+					src=${tokenImageSrc$}
+					style=${tokenImageStyle$}
+				>
+				<span class="token-name">${tokenName$}</span>
+				<a
+					class="token-action"
+					data-tooltip=${l("TERRAINHEIGHTTOOLS.SelectToken")}
+					@click=${() => this.#beginSelectToken(idx)}
+				>
+					<i class="fas fa-bullseye-pointer"></i>
+				</a>
+				<a
+					class="token-action"
+					data-tooltip=${heightButtonTooltip$}
+					@click=${() => height$.value = (height$.value + 0.5) % 1.5}
+					${ref(heightButtonRef)}
+				>
+					<i class=${heightButtonIconClass$} style="width:20px"></i>
+				</a>
+				<a
+					class="token-action"
+					data-tooltip=${l("TERRAINHEIGHTTOOLS.ClearSelectedToken")}
+					@click=${() => this.#clearSelectedToken(token$)}
+				>
+					<i class="fas fa-xmark"></i>
+				</a>
+			</div>
+		`;
 	}
 
-	/**
-	 * @this {TokenLineOfSightConfig}
-	 * @param {HTMLElement} target
-	 */
-	static #beginSelectToken(_event, target) {
-		const tokenIndex = +target.closest("[data-token-index]").dataset.tokenIndex;
-		this.#selectingToken$.value = this.#selectingToken$.value === tokenIndex ? undefined : tokenIndex;
-
-		if (this.#selectingToken$.value)
-			ui.notifications.info(game.i18n.localize("TERRAINHEIGHTTOOLS.TokenLineOfSightSelectTokenHint"));
+	/** @override */
+	_onFirstRender(...args) {
+		super._onFirstRender(...args);
+		this.#hoverTokenHookId = this.onHook("hoverToken", (...args) => this.#onTokenHover(...args));
 	}
-
-	// Called via libWrapper on Token.prototype._onClickLeft
-	/**
-	 * @param {Token} token
-	 */
-	_onSelectToken(token) {
-		if (!this._isSelecting) return;
-
-		const tokenIndex = this.#selectingToken$.value;
-		const otherToken = tokenLineOfSightConfig$[`token${tokenIndex === 1 ? 2 : 1}$`].value;
-
-		if (otherToken === token) {
-			ui.notifications.error(game.i18n.localize("TERRAINHEIGHTTOOLS.SameTokenSelected"));
-			return;
-		}
-
-		tokenLineOfSightConfig$[`token${tokenIndex}$`].value = token;
-		this.#selectingToken$.value = undefined;
-	}
-
-	/**
-	 * @this {TokenLineOfSightConfig}
-	 * @param {HTMLElement} target
-	 */
-	static #setTokenRelativeHeight(_event, target) {
-		const tokenIndex = target.closest("[data-token-index]").dataset.tokenIndex;
-		const signal = tokenLineOfSightConfig$[`h${tokenIndex}$`];
-
-		signal.value = {
-			[1]: 0.5,
-			[0.5]: 0,
-			[0]: 1
-		}[signal.value] ?? 1;
-	}
-
-	/**
-	 * @this {TokenLineOfSightConfig}
-	 * @param {HTMLElement} target
-	 */
-	static #clearSelectedToken(_event, target) {
-		const tokenIndex = +target.closest("[data-token-index]").dataset.tokenIndex;
-		tokenLineOfSightConfig$[`token${tokenIndex}$`].value = undefined;
-		this.#selectingToken$.value = undefined;
-	}
-
-	#onTokenHover = (token, isHovered) => {
-		if (isHovered) this.#hoveredToken = token;
-		else if (this.#hoveredToken === token) this.#hoveredToken = undefined;
-	};
 
 	/** @override */
 	close(options) {
-		Hooks.off("hoverToken", this.#onTokenHover);
-
 		// Clear the selection and the ruler on close
 		tokenLineOfSightConfig$.value = {
 			token1: undefined,
@@ -196,8 +150,45 @@ export class TokenLineOfSightConfig extends withSubscriptions(HandlebarsApplicat
 		// If waiting for user to select a token, stop
 		this.#selectingToken$.value = undefined;
 
-		this._unsubscribeFromAll();
+		Hooks.off("hoverToken", this.#hoverTokenHookId);
 
 		return super.close(options);
+	}
+
+	/** @param {number} tokenIndex */
+	#beginSelectToken(tokenIndex) {
+		this.#selectingToken$.value = this.#selectingToken$.value === tokenIndex ? undefined : tokenIndex;
+
+		if (this.#selectingToken$.value)
+			ui.notifications.info(game.i18n.localize("TERRAINHEIGHTTOOLS.TokenLineOfSightSelectTokenHint"));
+	}
+
+	// Called via libWrapper on Token.prototype._onClickLeft
+	/** @param {Token} token */
+	_onSelectToken(token) {
+		if (typeof this.#selectingToken$.value !== "number") return;
+
+		const [selectingToken$, otherToken$] = this.#selectingToken$.value === 1
+			? [tokenLineOfSightConfig$.token1, tokenLineOfSightConfig$.token2]
+			: [tokenLineOfSightConfig$.token2, tokenLineOfSightConfig$.token1];
+
+		if (otherToken$.value === token) {
+			ui.notifications.error(game.i18n.localize("TERRAINHEIGHTTOOLS.SameTokenSelected"));
+			return;
+		}
+
+		selectingToken$.value = token;
+		this.#selectingToken$.value = undefined;
+	}
+
+	/** @param {Signal<Token | undefined>} token$ */
+	#clearSelectedToken(token$) {
+		token$.value = undefined;
+		this.#selectingToken$.value = undefined;
+	}
+
+	#onTokenHover(token, isHovered) {
+		if (isHovered) this.#hoveredToken = token;
+		else if (this.#hoveredToken === token) this.#hoveredToken = undefined;
 	}
 }

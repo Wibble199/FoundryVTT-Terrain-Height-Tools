@@ -8,7 +8,7 @@ import { sceneControls } from "./controls.mjs";
 const keybindingListeners = new Map();
 
 /** @type {Record<keybindings, Signal<boolean>} */
-export const keyPressedSignals = Object.fromEntries(
+export const keyPressed$ = Object.fromEntries(
 	Object.values(keybindings).map(k => [k, signal(false)])
 );
 
@@ -53,18 +53,17 @@ export function registerKeybindings() {
 	/**
 	 * @param {keybindings} keybindingName
 	 * @param {*} config
-	 * @param {}
 	 */
 	function registerKeybinding(keybindingName, config) {
 		game.keybindings.register(moduleName, keybindingName, {
 			...config,
 			onDown: e => {
-				keyPressedSignals[keybindingName].value = true;
+				keyPressed$[keybindingName].value = true;
 				keybindingListeners.get(keybindingName)?.forEach(handler => handler(e));
 				config.onDown?.(e);
 			},
 			onUp: e => {
-				keyPressedSignals[keybindingName].value = false;
+				keyPressed$[keybindingName].value = false;
 				keybindingListeners.get(keybindingName)?.forEach(handler => handler(e));
 				config.onUp?.(e);
 			}
