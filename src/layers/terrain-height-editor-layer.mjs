@@ -92,10 +92,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 		this._heightMap = new HeightMap(canvas.scene);
 		registerTerrainProvider(heightMapProviderId, this._heightMap);
-
-		// TODO:
-		/* this.#subscriptions.push(this._hoveredCell$.subscribe(({ row, col }) =>
-			globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col)));*/
 	}
 
 	/** @override */
@@ -140,21 +136,11 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		// If only the terrain type visiblity settings have changed, just do a visibility update. Otherwise do a full
 		// redraw.
 		if (delta.flags?.[moduleName]?.[flags.invisibleTerrainTypes]) {
-			await TerrainHeightGraphicsLayer.current._updateShapesVisibility();
+			// TODO:
+			// await TerrainHeightGraphicsLayer.current.#updateShapesVisibility();
 		} else {
 			this._heightMap.reload();
 		}
-	}
-
-	// ---- //
-	// Data //
-	// ---- //
-	async _updateGraphics() {
-		// TODO: terrain stack viewer
-		/*const { row, col } = this._hoveredCell$.value;
-		globalThis.terrainHeightTools.ui.terrainStackViewer._terrain$.value = this._heightMap.get(row, col);*/
-
-		// await this._graphics?.update(this._heightMap);
 	}
 
 	// -------------------- //
@@ -241,8 +227,8 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 			case tools.fill: {
 				this._pendingTool = undefined;
 
-				const { terrainTypeId, height, elevation, floodMode } = this.#paintingConfig;
-				await this._heightMap.fillCells(cell, terrainTypeId, height, elevation, { mode: floodMode });
+				const { selectedTerrainId, height, elevation, floodMode } = this.#paintingConfig;
+				await this._heightMap.fillCells(cell, selectedTerrainId, height, elevation, { mode: floodMode });
 				break;
 			}
 

@@ -11,11 +11,14 @@ import { ObservableSet } from "../utils/observable-set.mjs";
 /** @type {Map<string, TerrainProviderMeta>} */
 const terrainProviders = new Map();
 
-/** @type {ObservableSet<TerrainShape>} */
+/**
+ * Master observable collection of all shapes that are on the canvas.
+ * @type {ObservableSet<TerrainShape>}
+ */
 export const allTerrainShapes$ = new ObservableSet();
 
 /**
- * Gets all shapes on the canvas.
+ * Gets a snapshot of all shapes currently on the canvas.
  * @param {Object} [options]
  * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
  * @returns {TerrainShape[]}
@@ -49,6 +52,7 @@ export function getShapesAtPoint(x, y, { providerIds } = {}) {
  * @param {Object} [options]
  * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
  * @param {(entry: { r: PIXI.Rectangle; t: TerrainShape; }, rect: PIXI.Rectangle) => boolean} [options.collisionTest]
+ * @returns {TerrainShape[]}
  */
 export function getShapesByBounds(rect, { providerIds, collisionTest } = {}) {
 	const shapes = [];
@@ -70,6 +74,7 @@ export function registerTerrainProvider(providerId, provider) {
 	if (terrainProviders.has(providerId))
 		throw new Error("A TerrainProvider with this ID has already been registered.");
 
+	// Start monitoring this provider for new/removed shapes and sync the allTerrainShapes$ master collection
 	const cleanup = provider.terrainShapes$.subscribe({
 		add: newShapes => {
 			for (const shape of newShapes)
@@ -81,8 +86,12 @@ export function registerTerrainProvider(providerId, provider) {
 		}
 	});
 
+	// Set the provider ID of current shapes, and add all current shapes to the master collection
+	for (const shape of provider.terrainShapes$.value)
+		shape._providerId = providerId;
 	allTerrainShapes$.add(...provider.terrainShapes$.value);
 
+	// Register this provider
 	terrainProviders.set(providerId, { id: providerId, provider, cleanup });
 }
 

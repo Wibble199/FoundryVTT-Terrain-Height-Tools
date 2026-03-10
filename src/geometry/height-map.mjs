@@ -15,7 +15,6 @@ const maxHistoryItems = 10;
 
 /**
  * Manages height map data for a scene, providing read/update functionality.
- * @implements {TerrainProvider}
  */
 export class HeightMap extends TerrainProvider {
 

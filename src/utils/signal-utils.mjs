@@ -1,5 +1,5 @@
 /** @import { Signal } from "@preact/signals-core" */
-import { batch, computed, signal } from "@preact/signals-core";
+import { batch, computed, effect, signal } from "@preact/signals-core";
 
 /**
  * @template T
@@ -42,7 +42,7 @@ export function deepSignal(obj) {
 }
 
 /**
- * Similar to Preact Signal's `effect().subscribe` method, but allows for unsubscribing when an AbortSignal aborts.
+ * Similar to Preact Signal's `signal().subscribe` method, but allows for unsubscribing when an AbortSignal aborts.
  * @template T
  * @param {Signal<T>} signal
  * @param {(value: T) => void} fn
@@ -67,5 +67,32 @@ export function abortableSubscribe(signal, fn, abortSignal) {
 	return () => {
 		abortSignal.removeEventListener("abort", unsubscribeIfRequired);
 		unsubscribeIfRequired();
+	};
+}
+
+/**
+ * Similar to Preact Signal's `effect()` method, but allows for unsubscribing when an AbortSignal aborts.
+ * @param {() => void} fn
+ * @param {AbortSignal} abortSignal
+ * @returns A cleanup function for both cleaning up the effect and cleaning up the AbortSignal
+ */
+export function abortableEffect(fn, abortSignal) {
+	// If signal is already aborted, do nothing
+	if (abortSignal.aborted) return () => {};
+
+	const cleanup = effect(fn);
+
+	let hasCleanedUp = false;
+	const cleanupIfRequired = () => {
+		if (hasCleanedUp) return;
+		hasCleanedUp = true;
+		cleanup();
+	};
+
+	abortSignal.addEventListener("abort", cleanupIfRequired, { once: true });
+
+	return () => {
+		abortSignal.removeEventListener("abort", cleanupIfRequired);
+		cleanupIfRequired();
 	};
 }

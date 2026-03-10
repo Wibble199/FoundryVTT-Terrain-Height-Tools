@@ -4,11 +4,11 @@ import { sceneControls } from "../config/controls.mjs";
 import { moduleDrawingGroupName, moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
-import { allTerrainShapes$ } from "../stores/terrain-manager.mjs";
+import { getShapesByBounds } from "../stores/terrain-manager.mjs";
 import { getTerrainColor, terrainTypeMap$ } from "../stores/terrain-types.mjs";
 import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
 import { isPoint3d, prettyFraction } from "../utils/misc-utils.mjs";
-import { drawDashedPath } from "../utils/pixi-utils.mjs";
+import { drawDashedPath, rectangleFromP1P2 } from "../utils/pixi-utils.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "../utils/token-utils.mjs";
 
 /**
@@ -49,7 +49,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	constructor() {
 		super();
-		// TODO: this.eventMode = "static";
+		this.eventMode = "static";
 
 		tokenLineOfSightConfig$.value = {
 			h1: game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight),
@@ -57,7 +57,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		};
 
 		// Ensure rulers are deleted when a user quits
-		Hooks.on("userConnected", user => this._clearLineOfSightRays({ userId: user.id, clearForOthers: false }));
+		Hooks.on("userConnected", user => this._clearLineOfSightRays({ userId: user.id, group: moduleDrawingGroupName, clearForOthers: false }));
 
 		// When any of the drag values are changed, update the ruler
 		effect(() => {
@@ -68,12 +68,12 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 					{ group: moduleDrawingGroupName, drawForOthers: true }
 				);
 			} else {
-				this._clearLineOfSightRays({ clearForOthers: true });
+				this._clearLineOfSightRays({ group: moduleDrawingGroupName, clearForOthers: true });
 			}
 		});
 
 		// When the start height is changed, update the ghost indicator
-		lineOfSightRulerConfig$.subscribe(({ h1 }) => {
+		lineOfSightRulerConfig$.h1.subscribe(h1 => {
 			if (this.#lineStartIndicator)
 				this.#lineStartIndicator.height = h1;
 		});
@@ -88,10 +88,13 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		});
 
 		// Only enable events when the ruler layer is active, otherwise it interferes with other standard layers
-		// TODO: is this needed?
-		/* join((activeControl, activeTool) => {
-			this.eventMode = activeControl === "token" && activeTool === tools.lineOfSight ? "static" : "none";
-		}, sceneControls.activeControl$, sceneControls.activeTool$); */
+		effect(() => {
+			this.hitArea =
+				sceneControls.activeControl$.value === "token" &&
+				sceneControls.activeTool$.value === tools.lineOfSight
+					? canvas.dimensions.rect
+					: PIXI.Rectangle.EMPTY;
+		});
 
 		// Only show the height indicator when the tool is active AND the user has not begun dragging a ruler out
 		effect(() => {
@@ -105,20 +108,21 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		return canvas.terrainHeightLosRulerLayer;
 	}
 
+	get zIndex() {
+		return 900; // Above token layer, below control layers
+	}
+
 	get #isToolSelected() {
 		return sceneControls.activeTool$.value === tools.lineOfSight;
 	}
 
 	get #isDraggingRuler() {
-		return lineOfSightRulerConfig$.p1$.value !== undefined;
+		return lineOfSightRulerConfig$.p1.value !== undefined;
 	}
 
 	/** @override */
 	async _draw() {
 		if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
-
-		//this.hitArea = canvas.dimensions.rect; ??
-		this.zIndex = 900; // Above token layer, below control layers
 
 		this.#setupEventListeners("on");
 
@@ -221,7 +225,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 				{ a: token1, ah: h1, b: token2, bh: h2, includeNoHeightTerrain: includeNoHeightTerrain$ }
 			], { group: moduleDrawingGroupName, drawForOthers: true });
 		} else {
-			this._clearLineOfSightRays({ clearForOthers: true });
+			this._clearLineOfSightRays({ group: moduleDrawingGroupName, clearForOthers: true });
 		}
 	}
 
@@ -259,15 +263,15 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 				token = game.user.character.system.active_mech?.value?.getActiveTokens()?.[0];
 
 			if (token)
-				tokenLineOfSightConfig$.token1$.value = token;
+				tokenLineOfSightConfig$.token1.value = token;
 		}
 
 		// For the secondary token, prefer the targeted token
 		if (game.settings.get(moduleName, settingNames.tokenLosToolPreselectToken2)) {
 			const token = game.user.targets.first();
 
-			if (token && tokenLineOfSightConfig$.token1$.value !== token) // do not allow same token as primary token (e.g. if user targets own token)
-				tokenLineOfSightConfig$.token2$.value = token;
+			if (token && tokenLineOfSightConfig$.token1.value !== token) // do not allow same token as primary token (e.g. if user targets own token)
+				tokenLineOfSightConfig$.token2.value = token;
 		}
 	}
 
@@ -313,8 +317,6 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	#onMouseMove = event => {
 		if (!this.#isToolSelected) return;
 
-		if (!this.#isToolSelected) return;
-
 		// Get the drag position, which may include snapping
 		const [x, y] = this.#getDragPosition(event);
 
@@ -324,8 +326,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		}
 
 		// If the user has started dragging a measurement, update the endpoint
-		if (this.#isDraggingRuler && (lineOfSightRulerConfig$.p2$.value.x !== x || lineOfSightRulerConfig$.p2$.value.y !== y)) {
-			lineOfSightRulerConfig$.p2$.value = { x, y };
+		if (this.#isDraggingRuler && (lineOfSightRulerConfig$.p2.value.x !== x || lineOfSightRulerConfig$.p2.value.y !== y)) {
+			lineOfSightRulerConfig$.p2.value = { x, y };
 		}
 	};
 
@@ -388,9 +390,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 		// If the user is currently dragging the ruler, then we want to change the end height otherwise the start height
 		if (this.#isDraggingRuler) {
-			lineOfSightRulerConfig$.h2$.value = change(lineOfSightRulerConfig$.h2$.value ?? lineOfSightRulerConfig$.h1$.value);
+			lineOfSightRulerConfig$.h2.value = change(lineOfSightRulerConfig$.h2.value ?? lineOfSightRulerConfig$.h1.value);
 		} else {
-			lineOfSightRulerConfig$.h1$.value = change(lineOfSightRulerConfig$.h1$.value);
+			lineOfSightRulerConfig$.h1.value = change(lineOfSightRulerConfig$.h1.value);
 		}
 	}
 }
@@ -584,7 +586,7 @@ class LineOfSightRuler extends PIXI.Container {
 
 	_recalculateLos() {
 		const intersectionRegions = TerrainShape.calculateLineOfSight(
-			[...allTerrainShapes$.value],
+			getShapesByBounds(rectangleFromP1P2(this.#p1, this.#p2)),
 			this.#p1, this.#p2,
 			{ includeNoHeightTerrain: this.#includeNoHeightTerrain }
 		);
@@ -629,7 +631,7 @@ class LineOfSightRuler extends PIXI.Container {
 			} else {
 				const distinctTerrainTypeIds = [...new Set(region.shapes.map(s => s.terrainTypeId))];
 				const dashSize = 4;
-				const gapSize = dashSize * 2 * distinctTerrainTypeIds.length - dashSize; // gap size needs to account for the other terrain's dots
+				const gapSize = (dashSize * 2 * distinctTerrainTypeIds.length) - dashSize; // gap size needs to account for the other terrain's dots
 				for (let i = 0; i < distinctTerrainTypeIds.length; i++) {
 					setTerrainColor(distinctTerrainTypeIds[i]);
 					drawDashedPath(this.#line, [region.start, region.end], { dashSize, gapSize, offset: dashSize * 2 * i });

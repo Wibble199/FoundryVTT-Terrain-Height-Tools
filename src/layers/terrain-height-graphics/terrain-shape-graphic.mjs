@@ -42,6 +42,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	*/
 	constructor(parent, shape) {
 		super();
+		this.sortableChildren = true;
 
 		this.#parent = parent;
 		this.#graphicId = foundry.utils.randomID();
@@ -49,7 +50,8 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		this.shape = shape;
 		this.terrainType = getTerrainType(shape.terrainTypeId);
 
-		this.#redraw();
+		this._redrawLabel();
+		this._redrawShape();
 	}
 
 	/**
@@ -76,10 +78,6 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		return terrainTypes$.value.findIndex(t => t.id === this.shape.terrainTypeId);
 	}
 
-	get _canHaveMask() {
-		return !this.terrainType.isAlwaysVisible;
-	}
-
 	/**
 	 * @param {boolean} visible
 	 * @param {boolean} animate
@@ -95,15 +93,13 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		], { name, duration: animate ? 250 : 1 });
 	}
 
-	_setMask(mask) {
-		this.mask = this._canHaveMask ? mask : null;
+	async _redrawShape() {
+		if (this.#graphics) this.removeChild(this.#graphics);
+		this.#graphics = this.addChild(await this.#drawGraphics());
 	}
 
-	async #redraw() {
-		if (this.#graphics) this.removeChild(this.#graphics);
+	async _redrawLabel() {
 		if (this.#label) this.removeChild(this.#label);
-
-		this.#graphics = this.addChild(await this.#drawGraphics());
 		this.#label = this.addChild(this.#createLabel());
 	}
 
@@ -210,6 +206,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 
 		// Create the label - with this we can get the width and height
 		const label = new PreciseText(text, textStyle);
+		label.zIndex = 1;
 		label.anchor.set(0.5);
 
 		/** Sets the position of the label so that it's center is at the given positions. */

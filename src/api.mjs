@@ -6,8 +6,9 @@ import { defaultGroupName, moduleName, settingNames } from "./consts.mjs";
 import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
-import { TerrainProvider } from "./stores/terrain-manager.mjs";
+import { getShapesByBounds, TerrainProvider } from "./stores/terrain-manager.mjs";
 import { terrainTypes$ } from "./stores/terrain-types.mjs";
+import { rectangleFromP1P2 } from "./utils/pixi-utils.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
 export { registerTerrainProvider, unregisterTerrainProvider } from "./stores/terrain-manager.mjs";
@@ -109,16 +110,15 @@ export function eraseCells(cells) {
  * specified terrain providers.
  * @returns {FlattenedLineOfSightIntersectionRegion[]}
  */
-// TODO:
-/* export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+export function calculateLineOfSight(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
 	return TerrainShape.flattenLineOfSightIntersectionRegions(
 		TerrainShape.calculateLineOfSight(
-			getShapesByTerrainProviderIds(terrainProviderIds),
+			getShapesByBounds(rectangleFromP1P2(p1, p2), { providerIds: terrainProviderIds }),
 			p1, p2,
 			{ includeNoHeightTerrain }
 		)
 	);
-}*/
+}
 
 /**
  * Calculates the line of sight between the two given pixel coordinate points and heights.
@@ -132,14 +132,13 @@ export function eraseCells(cells) {
  * specified terrain providers.
  * @returns {{ shape: TerrainShape; regions: LineOfSightIntersectionRegion[]; }[]}
  */
-// TODO:
-/* export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
+export function calculateLineOfSightByShape(p1, p2, { includeNoHeightTerrain, terrainProviderIds } = {}) {
 	return TerrainShape.calculateLineOfSight(
-		getShapesByTerrainProviderIds(terrainProviderIds),
+		getShapesByBounds(rectangleFromP1P2(p1, p2), { providerIds: terrainProviderIds }),
 		p1, p2,
 		{ includeNoHeightTerrain }
 	);
-}*/
+}
 
 /**
  * Calculates the start and end points of line of right rays between two tokens. One from the left-most point of token1

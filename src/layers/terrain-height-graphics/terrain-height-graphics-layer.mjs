@@ -1,15 +1,15 @@
 /** @import { TerrainShape } from "../../geometry/terrain-shape.mjs"; */
 /** @import { TerrainType } from "../../stores/terrain-types.mjs" */
 /** @import { Signal } from "@preact/signals-core" */
-import { computed, signal } from "@preact/signals-core";
+import { computed, signal, untracked } from "@preact/signals-core";
 import { sceneControls } from "../../config/controls.mjs";
-import { showZonesAboveNonZones$, terrainLayerAboveTilesDefault$ } from "../../config/settings.mjs";
+import { showTerrainHeightOnTokenLayer$, showZonesAboveNonZones$, terrainHeightLayerVisibilityRadius$, terrainLayerAboveTilesDefault$, useFractionsForLabels$ } from "../../config/settings.mjs";
 import { heightMapProviderId, tools } from "../../consts.mjs";
 import { cursorWorldPosition$, invisibleTerrainTypes$, sceneRenderAboveTilesChoice$ } from "../../stores/canvas.mjs";
 import { allTerrainShapes$ } from "../../stores/terrain-manager.mjs";
 import { getTerrainType, terrainTypes$ } from "../../stores/terrain-types.mjs";
 import { debug } from "../../utils/log.mjs";
-import { abortableSubscribe } from "../../utils/signal-utils.mjs";
+import { abortableEffect, abortableSubscribe } from "../../utils/signal-utils.mjs";
 import { TerrainShapeGraphic } from "./terrain-shape-graphic.mjs";
 
 /**
@@ -32,11 +32,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	/** @type {Map<string, Promise<PIXI.Texture>>} */
 	_terrainTextures = new Map();
 
-	// TODO: TEMP
-	#maskRadius$ = signal(true);
-
-	#showOnTokenLayer$ = signal(true);
-
+	/** @type {PIXI.Sprite | undefined} */
 	#cursorRadiusMask;
 
 	/** @type {AbortController} */
@@ -60,7 +56,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 
 	/** @returns {TerrainHeightGraphicsLayer | undefined} */
 	static get current() {
-		return canvas.terrainHeightToolsGraphicsLayer;
+		return canvas.terrainHeightGraphicsLayer;
 	}
 
 	get #allShapeGraphics() {
@@ -87,14 +83,23 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 			remove: this._removeShapes.bind(this)
 		}, { signal: tearDownSignal });
 
-		// When 'render above tiles' changes, set the sort layer of all graphics
+		// When a dependency of the shape visibility calculation changes, update the shape visibility.
+		abortableEffect(() => this._updateShapesVisibility({ animate: true }), tearDownSignal);
+
+		// When the mask radius changes, update the mask radius
+		abortableEffect(() => this._updateMaskSprite(), tearDownSignal);
+
+		// When a dependency of the mask visibility changes (is edit layer active, highlight objects), update mask
+		abortableEffect(() => this._updateShapeMasks(), tearDownSignal);
+
+		// When 'render above tiles' changes (scene or global setting), set the sort layer of all graphics
 		abortableSubscribe(this.#graphicSortLayer$, sortLayer => {
 			for (const graphic of this.#allShapeGraphics)
 				graphic.sortLayer = sortLayer;
 			canvas.primary.sortChildren();
 		}, tearDownSignal);
 
-		// When 'show zones above non-zones' changes, set the sort of all graphics
+		// When 'show zones above non-zones' setting changes, set the sort of all graphics
 		abortableSubscribe(showZonesAboveNonZones$, showZonesAboveNonZones => {
 			for (const graphic of this.#allShapeGraphics) {
 				graphic.sort = graphic.terrainType.usesHeight
@@ -104,18 +109,26 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 			canvas.primary.sortChildren();
 		}, tearDownSignal);
 
-		this.on("globalpointermove", this._updateCursorPosition);
+		// When 'use fractions' setting is changed, re-do the labels
+		abortableSubscribe(useFractionsForLabels$, () => {
+			for (const graphic of this.#allShapeGraphics)
+				graphic._redrawLabel();
+		}, tearDownSignal);
+
+		this.on("globalpointermove", this._onGlobalPointerMove);
 	}
 
 	/** @override */
 	_tearDown() {
 		this.#tearDownController.abort();
 		this._clearShapes();
-		this.off("globalpointermove", this._updateCursorPosition);
+		this.off("globalpointermove", this._onGlobalPointerMove);
 	}
 
-	_updateCursorPosition = event => {
-		cursorWorldPosition$.value = this.toLocal(event.data.global);
+	_onGlobalPointerMove = event => {
+		const pos = this.toLocal(event.data.global);
+		cursorWorldPosition$.value = pos;
+		this.#cursorRadiusMask?.position.set(pos.x, pos.y);
 	};
 
 	/**
@@ -126,18 +139,16 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		// If there are no shapes on the map, just clear it and return
 		if (terrainData.length === 0) {
 			this._clearShapes();
-			this._updateShapeMasks();
 			return;
 		}
 
 		this._clearShapes();
 		this._addShapes(terrainData);
-		this._updateShapeMasks();
-		this._updateShapesVisibility({ animate: false });
 	}
 
 	/** @param {TerrainShape[]} newShapes */
 	async _addShapes(newShapes) {
+		const newShapeGraphics = [];
 		for (const shape of newShapes) {
 			const terrainType = getTerrainType(shape.terrainTypeId);
 			if (!terrainType) continue;
@@ -153,7 +164,11 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 			shapeGraphic.sort = (terrainType.usesHeight ? 1 : 0) * (showZonesAboveNonZones$.value ? -1 : 0);
 			providerGraphics.set(shape, shapeGraphic);
 			canvas.primary.addChild(shapeGraphic);
+			newShapeGraphics.push(shapeGraphic);
 		}
+
+		this._updateShapeMasks({ shapes: newShapeGraphics });
+		this._updateShapesVisibility({ shapes: newShapeGraphics, animate: false });
 	}
 
 	/** @param {TerrainShape[]} removedShapes */
@@ -184,53 +199,65 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 
 	/**
 	 * @param {Object} [options]
+	 * @param {TerrainShapeGraphic[]} [options.shapes] If provided, only updates these shapes
 	 * @param {boolean} [options.animate]
 	*/
-	async _updateShapesVisibility({ animate = true } = {}) {
-		return;
-		const invisibleTerrainTypes = invisibleTerrainTypes$.value;
-
+	async _updateShapesVisibility({ shapes, animate = true } = {}) {
 		// If the THT editing layer is active (excluding the visibility tool), then we want to show all (and only) THT
 		// shapes. I.E. don't include shapes from other providers.
-		const showAllAndOnlyThtShapes = this._isEditLayerActive$.value && sceneControls.activeTool$.value !== tools.terrainVisibility;
+		const showAllAndOnlyThtShapes = this._isEditLayerActive$.value
+			&& sceneControls.activeTool$.value !== tools.terrainVisibility;
 
-		await Promise.all([...this.#shapeGraphics].flatMap(([providerId, graphics]) => graphics.map(s => s._setVisible(
+		await Promise.all((shapes ?? [...this.#allShapeGraphics]).map(s => s._setVisible(
 			showAllAndOnlyThtShapes
-				? providerId === heightMapProviderId
+				// If only showing THT shapes, can just check the shape's provider ID
+				? s.shape._providerId === heightMapProviderId
 
-				// Shapes should be visible if THT is turned on for other layers or the terrain type is always visible
-				// AND that terrain type is not hidden on this scene
-				: (this.#showOnTokenLayer$.value || s._terrainType.isAlwaysVisible) &&
-				!invisibleTerrainTypes.has(s._terrainType.id),
+				// Otherwise, shapes should be visible if (THT is turned on for other layers or the terrain type is
+				// always visible) AND that terrain type is not hidden on this scene
+				: (showTerrainHeightOnTokenLayer$.value || s.terrainType.isAlwaysVisible)
+				&& !invisibleTerrainTypes$.value.has(s.terrainType.id),
 			animate
-		))));
+		)));
 	}
 
 	/**
-	 * Updates the radius of the mask used to only show the height around the user's cursor.
+	 * Updates the mask on the shape graphics.
+	 * @param {Object} [options]
+	 * @param {TerrainShapeGraphic[]} [options.shapes] If provided, only updates the mask on these shapes
 	 */
-	_updateShapeMasks() {
-		// TODO:
-		return;
+	_updateShapeMasks({ shapes } = {}) {
+		for (const shape of shapes ?? this.#allShapeGraphics) {
+			const hasMask = !shape.terrainType.isAlwaysVisible
+				&& !this._isEditLayerActive$.value
+				&& !this.#isHighlightingObjects$.value;
+			shape.mask = hasMask ? this.#cursorRadiusMask : null;
+		}
+	}
 
+	/**
+	 * Updates the radius of the mask sprite applied to shapes.
+	 */
+	_updateMaskSprite() {
 		// If the THT layer is active, or the user is clicking the highlight objects button, then always show the entire
 		// map (radius = 0). Otherwise, use the configured value.
-		let radius = this._isEditLayerActive$.value || this.#isHighlightingObjects$.value
-			? 0
-			: this.#maskRadius$.value;
+		let radius = terrainHeightLayerVisibilityRadius$.value;
 
 		debug(`Updating terrain height layer graphics mask size to ${radius}`);
 
-		// Remove previous mask
-		this.#allShapeGraphics.forEach(shape => shape._setMask(null));
-		if (this.#cursorRadiusMask) canvas.primary.removeChild(this.#cursorRadiusMask);
-		this.off("globalpointermove", this._updateCursorMaskPosition);
+		// If there was a previous mask sprint, remove it as the mask from all shapes and remove it from the canvas
+		if (this.#cursorRadiusMask) {
+			for (const shape of this.#allShapeGraphics)
+				shape.mask = null;
+
+			canvas.primary.removeChild(this.#cursorRadiusMask);
+		}
 
 		// Stop here if not applying a new mask. We are not applying a mask if:
 		// - The radius is 0, i.e. no mask
 		// - If there are no shapes; if there are no shapes to apply the mask to, it will appear as an actual white
 		//   circle on the canvas.
-		if (radius <= 0 || !this.#allShapeGraphics.some(s => s._canHaveMask)) return;
+		if (radius <= 0) return;
 
 		// Create a radial gradient texture
 		radius *= canvas.grid.size;
@@ -249,23 +276,21 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		const texture = PIXI.Texture.from(canvasElement);
 
 		// Create sprite
+		const initialPos = cursorWorldPosition$.peek();
 		this.#cursorRadiusMask = new PIXI.Sprite(texture);
 		this.#cursorRadiusMask.anchor.set(0.5);
+		this.#cursorRadiusMask.position.set(initialPos.x, initialPos.y);
 		canvas.primary.addChild(this.#cursorRadiusMask);
 
-		// Get current mouse coordinates
-		const pos = canvas.mousePosition;
-		this.#cursorRadiusMask.position.set(pos.x, pos.y);
+		// Define 'renderable' as false always. Renderable controls whether the sprint will actually be drawn to the
+		// screen. We never want this as it's only to be used as a mask.
+		// We use defineProperty to make it effectively read-only because PIXI will update this flag when adding or
+		// removing the sprint as a mask on other shapes and we never want it to accidently be set to true.
+		Object.defineProperty(this.#cursorRadiusMask, "renderable", { get: () => false, set: () => {} });
 
-		// Set mask
-		this.#allShapeGraphics.forEach(shape => shape._setMask(this.#cursorRadiusMask));
-		this.on("globalpointermove", this._updateCursorMaskPosition);
+		// Set mask on shapes
+		untracked(() => this._updateShapeMasks());
 	}
-
-	_updateCursorMaskPosition = event => {
-		const pos = this.toLocal(event.data.global);
-		this.#cursorRadiusMask.position.set(pos.x, pos.y);
-	};
 
 	_onHighlightObjects(active) {
 		// When using the "highlight objects" keybind, if the user has the radius option enabled and we're on the token

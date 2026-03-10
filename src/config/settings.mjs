@@ -2,13 +2,12 @@
 import { signal } from "@preact/signals-core";
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
 import { flags, moduleName, settingNames, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
-import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
 import { loadTerrainTypes } from "../stores/terrain-types.mjs";
 
 export const showTerrainHeightOnTokenLayer$ = signal(false);
 export const showTerrainStackViewerOnTokenLayer$ = signal(false);
 /** @type {Signal<terrainStackViewerDisplayModes>} */
-export const terrainStackViewerDisplayMode$ = signal();
+export const terrainStackViewerDisplayMode$ = signal("auto");
 export const terrainHeightLayerVisibilityRadius$ = signal(0);
 export const showZonesAboveNonZones$ = signal(false);
 export const useFractionsForLabels$ = signal(true);
@@ -168,8 +167,7 @@ export function registerSettings() {
 		scope: "world",
 		type: Boolean,
 		config: true,
-		default: true,
-		onChange: () => TerrainHeightEditorLayer.current?._updateGraphics()
+		default: true
 	}, useFractionsForLabels$);
 
 	registerSetting(settingNames.smartLabelPlacement, {
