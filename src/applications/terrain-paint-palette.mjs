@@ -127,7 +127,7 @@ export class TerrainPaintPalette extends LitApplicationMixin(ApplicationV2) {
 					<div class="tht-form-group flexrow max-content-width margin-x-auto">
 						${Object.keys(terrainPaintMode).map(mode => {
 							const modePascal = mode[0].toUpperCase() + mode.substring(1);
-							html`
+							return html`
 								<div
 									class="tht-radio-button"
 									data-tooltip=${l(`TERRAINHEIGHTTOOLS.PaintMode.${modePascal}.Hint`)}
