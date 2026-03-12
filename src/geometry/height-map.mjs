@@ -1,14 +1,9 @@
 /** @import { terrainPaintMode as TerrainPaintMode, terrainFillMode as TerrainFillMode } from "../consts.mjs" */
-/** @import { HeightMapDataV1, HeightMapDataV1Terrain } from "../utils/height-map-migrations.mjs" */
+/** @import { HeightMapDataV3, HeightMapDataV1Terrain } from "../utils/height-map-migrations.mjs" */
 import { flags, moduleName } from "../consts.mjs";
 import { TerrainProvider } from "../stores/terrain-manager.mjs";
 import { terrainTypeMap$, terrainTypes$ } from "../stores/terrain-types.mjs";
-import { groupBy } from "../utils/array-utils.mjs";
-import { getGridCellPolygon } from "../utils/grid-utils.mjs";
 import { DATA_VERSION, migrateData } from "../utils/height-map-migrations.mjs";
-import { debug, error } from "../utils/log.mjs";
-import { OrderedSet } from "../utils/misc-utils.mjs";
-import { Polygon } from "./polygon.mjs";
 import { TerrainShape } from "./terrain-shape.mjs";
 
 const maxHistoryItems = 10;
@@ -18,28 +13,34 @@ const maxHistoryItems = 10;
  */
 export class HeightMap extends TerrainProvider {
 
-	/** @type {HeightMapDataV1["data"]} */
+	/** @type {HeightMapDataV3["data"]} */
 	data;
 
-	/** @type {Partial<HeightMapDataV1>[]} */
-	_history = [];
-
-	/** @param {Scene} */
+	/** @param {Scene} scene */
 	constructor(scene) {
 		super();
 
-		/** @type {Scene} */
 		this.scene = scene;
-		this.reload();
+		this._reloadData();
+	}
+
+	/** @override */
+	_updateScene(delta) {
+		// If the current scene's height data has changed, reload the map
+		if (delta.flags?.[moduleName]?.[flags.heightData])
+			this._reloadData();
+
+		super._updateScene(delta);
 	}
 
 	/**
 	 * Reloads the data from the scene.
 	 */
-	reload() {
-		const flagData = this.scene.getFlag(moduleName, flags.heightData);
-		this.data = Object.fromEntries(migrateData(flagData).data ?? []);
-		this.#recalculateShapes();
+	_reloadData() {
+		const mapDataRaw = this.scene.getFlag(moduleName, flags.heightData);
+		const mapData = migrateData(mapDataRaw, canvas.grid).data;
+
+		this.setShapes(mapData.shapes.map(shape => new TerrainShape(shape)));
 	}
 
 	/**
@@ -147,7 +148,7 @@ export class HeightMap extends TerrainProvider {
 		if (Object.keys(history).length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
-			this.#recalculateShapes();
+			// this.#recalculateShapes();
 		}
 
 		return history.length > 0;
@@ -222,7 +223,7 @@ export class HeightMap extends TerrainProvider {
 
 		this.#pushHistory(history);
 		await this.#saveChanges();
-		this.#recalculateShapes();
+		// this.#recalculateShapes();
 	}
 
 	/**
@@ -274,7 +275,7 @@ export class HeightMap extends TerrainProvider {
 		if (Object.keys(history).length > 0) {
 			this.#pushHistory(history);
 			await this.#saveChanges();
-			this.#recalculateShapes();
+			// this.#recalculateShapes();
 		}
 
 		return history.length > 0;
@@ -411,193 +412,6 @@ export class HeightMap extends TerrainProvider {
 		data.push({ terrainTypeId, elevation: elevationMerged, height: topMerged - elevationMerged });
 		return true;
 	}
-
-
-	// -------- //
-	// Geometry //
-	// -------- //
-	#recalculateShapes() {
-		this.deleteAllShapes();
-
-		// Gridless scenes not supported
-		if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) {
-			return;
-		}
-
-		const t1 = performance.now();
-
-		const dataByTerrainDetails = groupBy(
-			Object.entries(this.data).flatMap(([cell, terrains]) => terrains.map(t => ({ cell, position: decodeCellKey(cell), ...t }))),
-			x => `${x.terrainTypeId}|${x.height}|${x.elevation}`
-		);
-
-		const shapes = [];
-		for (const [, cells] of dataByTerrainDetails) {
-			const { terrainTypeId, height, elevation } = cells[0];
-
-			// For polygon calculation to work, we ensure the cells are sorted so that they process in clockwise order
-			cells.sort(({ position: a }, { position: b }) => a[0] - b[0] || a[1] - b[1]);
-
-			// Get the grid-sized polygons for each cell at this terrain type and height
-			const polygons = cells.map(({ cell, position }) => ({ cell, poly: new Polygon(getGridCellPolygon(...position)) }));
-
-			// Combine connected grid-sized polygons into larger polygons where possible
-			shapes.push(...HeightMap.#combinePolygons(polygons, terrainTypeId, height, elevation));
-		}
-
-		const t2 = performance.now();
-		debug(`Shape calculation took ${t2 - t1}ms`);
-
-		this.addShapes(...shapes);
-	}
-
-	/**
-	 * Given a list of polygons, combines them together into as few polygons as possible.
-	 * @param {{ poly: Polygon; cell: string; }[]} originalPolygons An array of polygons to merge. `cell` is the encoded
-	 * cell key.
-	 * @param {string} terrainTypeId The terrainTypeId value of the given polygons. Only used to populate the metadata.
-	 * @param {number} height The height value of the given polygons. Only used to populate the metadata.
-	 * @param {number} elevation The elevation value of the given polygons. Only used to populate the metadata.
-	 * @returns {TerrainShape[]}
-	 */
-	static #combinePolygons(originalPolygons, terrainTypeId, height, elevation) {
-
-		// Generate a graph of all edges in all the polygons
-		const allEdges = originalPolygons.flatMap(({ poly, cell }) =>
-			poly.edges.map(edge => ({ edge, cell })));
-
-		// Maintain a record of which cells are adjacent (caused by pairs of edges destructing)
-		/** @type {Map<string, Set<string>>} */
-		const connectedCells = new Map();
-
-		const connectCell = (c1, c2) => {
-			const set = connectedCells.get(c1);
-			if (set) set.add(c2);
-			else connectedCells.set(c1, new Set([c2]));
-		};
-
-		// Remove any duplicate edges
-		for (let i = 0; i < allEdges.length; i++) {
-			for (let j = i + 1; j < allEdges.length; j++) {
-				if (allEdges[i].edge.equals(allEdges[j].edge)) {
-					connectCell(allEdges[j].cell, allEdges[i].cell);
-					connectCell(allEdges[i].cell, allEdges[j].cell);
-					allEdges.splice(j, 1);
-					allEdges.splice(i, 1);
-					i--;
-					break;
-				}
-			}
-		}
-
-		// From some start edge, keep finding the next edge that joins it until we are back at the start.
-		// If there are multiple edges starting at a edge's endpoint (e.g. two squares touch by a corner), then
-		// use the one that most clockwise.
-		/** @type {{ polygon: Polygon; cells: Set<string>; }[]} */
-		const combinedPolygons = [];
-		while (allEdges.length) {
-			// Find the next unvisited edge, and follow the edges until we join back up with the first
-			const edges = allEdges.splice(0, 1);
-			while (!edges[0].edge.p1.equals(edges[edges.length - 1].edge.p2)) {
-				// To find the next edge, we find edges that start where the last edge ends.
-				// For hex grids (where a max of 3 edges can meet), there will only ever be 1 other edge here (as if
-				// there were 4 edges, 2 would've overlapped and been removed) so we can just use that edge.
-				// But for square grids, there may be two edges that start here. In that case, we want to find the one
-				// that is next when rotating counter-clockwise.
-				const nextEdgeCandidates = allEdges
-					.map(({ edge }, idx) => ({ edge, idx }))
-					.filter(({ edge }) => edge.p1.equals(edges[edges.length - 1].edge.p2));
-
-				if (nextEdgeCandidates.length === 0)
-					throw new Error("Invalid graph detected. Missing edge.");
-
-				const nextEdgeIndex = nextEdgeCandidates.length === 1
-					? nextEdgeCandidates[0].idx
-					: nextEdgeCandidates
-						.map(({ edge, idx }) => ({ angle: edges[edges.length - 1].edge.angleBetween(edge), idx }))
-						.sort((a, b) => a.angle - b.angle)[0].idx;
-
-				const [nextEdge] = allEdges.splice(nextEdgeIndex, 1);
-				edges.push(nextEdge);
-			}
-
-			// Work out which cells are part of this polygon
-			// We initialise this set with the known cells - but these will only be cells that have at least one edge
-			// that has not been destructed - e.g. in a hex with 2 polygons per side, the central hex would not be in
-			// this list.
-			// We then visit all the cells in this Set, and check to see if they are in the destruction map. If so, add
-			// the cells from inner set to this set. Keep doing that until we've visited all cells (inc. newly added).
-			const polygonCells = new OrderedSet(edges.map(({ cell }) => cell));
-			for (const cell of polygonCells)
-				polygonCells.addRange(connectedCells.get(cell));
-
-			// Add completed polygon to the list
-			combinedPolygons.push({
-				polygon: new Polygon(edges.map(({ edge }) => edge.p1)),
-				cells: new Set(polygonCells)
-			});
-		}
-
-		// To determine if a polygon is a "hole" we need to check whether it is inside another polygon.
-		// Since the polygon vertices are always the same direction, we can use to determine whether it is a hole: if
-		// the points are going clockwise, then it IS NOT a hole, but if they are anti-clockwise then it IS a hole.
-		// For each hole, we need to find which polygon it is a hole in, as the hole must be drawn immediately after.
-		// To find the hole's parent, we search back up the sorted list of polygons in reverse for the first one that
-		// contains it.
-		/** @type {Map<boolean, typeof combinedPolygons>} */
-		const polysAreHolesMap = groupBy(combinedPolygons, ({ polygon }) => !polygon.edges[0].clockwise);
-
-		const solidPolygons = (polysAreHolesMap.get(false) ?? [])
-			.map(({ polygon, cells }) => new TerrainShape({
-				polygon,
-				holes: [],
-				terrainTypeId,
-				height,
-				elevation,
-				cells
-			}));
-
-		const holePolygons = polysAreHolesMap.get(true) ?? [];
-
-		// For each hole, we need to check which non-hole poly it is inside. We gather a list of non-hole polygons that
-		// contains it. If there is only one, we have found which poly it is a hole of. If there are more, we imagine a
-		// horizontal line drawn from the topmost point of the inner polygon (with a little Y offset added so that we
-		// don't have to worry about vertex collisions) to the left and find the first polygon that it intersects.
-		for (const { polygon: holePolygon } of holePolygons) {
-			const containingPolygons = solidPolygons.filter(p => p.polygon.containsPolygon(holePolygon));
-
-			if (containingPolygons.length === 0) {
-				error("Something went wrong calculating which polygon this hole belonged to: No containing polygons found.", { holePolygon, solidPolygons });
-				throw new Error("Could not find a parent polygon for this hole.");
-
-			} else if (containingPolygons.length === 1) {
-				containingPolygons[0].holes.push(holePolygon);
-
-			} else {
-				const testPoint = holePolygon.vertices
-					.find(p => p.y === holePolygon.boundingBox.y1)
-					.offset({ y: canvas.grid.sizeY * 0.05 });
-
-				const intersectsWithEdges = containingPolygons.flatMap(shape => shape.polygon.edges
-					.map(edge => ({
-						intersectsAt: edge.intersectsYAt(testPoint.y),
-						shape
-					}))
-					.filter(x => x.intersectsAt && x.intersectsAt < testPoint.x));
-
-				if (intersectsWithEdges.length === 0) {
-					error("Something went wrong calculating which polygon this hole belonged to: No edges intersected horizontal ray.", { holePolygon, solidPolygons });
-					throw new Error("Could not find a parent polygon for this hole.");
-				}
-
-				intersectsWithEdges.sort((a, b) => b.intersectsAt - a.intersectsAt);
-				intersectsWithEdges[0].shape.holes.push(holePolygon);
-			}
-		}
-
-		return solidPolygons;
-	}
-
 
 	// ------- //
 	// History //

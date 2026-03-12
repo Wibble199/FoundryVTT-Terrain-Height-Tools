@@ -290,6 +290,13 @@ export class Polygon {
 	}
 
 	/**
+	 * Converts this Polygon into a POJO.
+	 */
+	toObject() {
+		return this.#vertices.map(({ x, y }) => ({ x, y }));
+	}
+
+	/**
 	 * Creates the SVG path string for this polygon.
 	 */
 	toSvgPath() {

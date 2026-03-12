@@ -8,7 +8,7 @@ import * as autoTokenElevation from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
 import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
-import { onCanvasReady, onCanvasTearDown, onUpdateScene } from "./stores/canvas.mjs";
+import * as canvasStore from "./stores/canvas.mjs";
 import { loadTerrainTypes } from "./stores/terrain-types.mjs";
 import { log } from "./utils/log.mjs";
 
@@ -19,9 +19,9 @@ Hooks.on("renderSceneControls", renderToolSpecificApplications);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 Hooks.on("refreshToken", token => LineOfSightRulerLayer.current?._onTokenRefresh(token)); // TODO: is this needed?
 
-Hooks.on("updateScene", onUpdateScene);
-Hooks.on("canvasReady", onCanvasReady);
-Hooks.on("canvasTearDown", onCanvasTearDown);
+Hooks.on("updateScene", canvasStore.onUpdateScene);
+Hooks.on("canvasReady", canvasStore.onCanvasReady);
+Hooks.on("canvasTearDown", canvasStore.onCanvasTearDown);
 
 Hooks.on("preCreateToken", autoTokenElevation.handleTokenPreCreation);
 Hooks.on("preUpdateToken", autoTokenElevation.handleTokenElevationChange);

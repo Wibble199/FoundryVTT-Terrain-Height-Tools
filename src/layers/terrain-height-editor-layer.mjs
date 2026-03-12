@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals-core";
 import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-dialog.mjs";
-import { flags, heightMapProviderId, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
+import { heightMapProviderId, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
 import { HeightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
 import { registerTerrainProvider, unregisterTerrainProvider } from "../stores/terrain-manager.mjs";
@@ -47,7 +47,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 	constructor() {
 		super();
-		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
 	}
 
 	/** @return {TerrainHeightEditorLayer | undefined} */
@@ -123,24 +122,11 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		this._highlightGraphics = undefined;
 
 		unregisterTerrainProvider(heightMapProviderId);
+		this._heightMap.destroy();
 		this._heightMap = undefined;
 
 		this.#subscriptions.forEach(unsubscribe => unsubscribe());
 		this.#subscriptions = [];
-	}
-
-	async _onSceneUpdate(scene, delta) {
-		// Do nothing if the updated scene is not the one the user is looking at
-		if (scene.id !== canvas.scene.id) return;
-
-		// If only the terrain type visiblity settings have changed, just do a visibility update. Otherwise do a full
-		// redraw.
-		if (delta.flags?.[moduleName]?.[flags.invisibleTerrainTypes]) {
-			// TODO:
-			// await TerrainHeightGraphicsLayer.current.#updateShapesVisibility();
-		} else {
-			this._heightMap.reload();
-		}
 	}
 
 	// -------------------- //

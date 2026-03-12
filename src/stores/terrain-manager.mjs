@@ -126,9 +126,15 @@ export class TerrainProvider {
 
 	#canvasTearDownHookId;
 
+	#updateSceneHookId;
+
 	constructor() {
 		this.#canvasReadyHookId = Hooks.on("canvasReady", () => this._canvasReady());
 		this.#canvasTearDownHookId = Hooks.on("canvasTearDown", () => this._canvasTearDown());
+		this.#updateSceneHookId = Hooks.on("updateScene", (scene, delta) => {
+			if (scene.id === canvas.scene.id)
+				this._updateScene(delta);
+		});
 
 		this.terrainShapes$.subscribe({
 			add: shapes => {
@@ -183,6 +189,16 @@ export class TerrainProvider {
 	}
 
 	/**
+	 * Hook handler for when the scene is updated.
+	 * @protected
+	 */
+	_updateScene(delta) {
+		// When the scene bounds have changed, rebuild the quad tree
+		if (["width", "height", "padding"].some(p => p in delta))
+			this.#rebuildQuadtree();
+	}
+
+	/**
 	 * Hook handler for when the canvas is torn down.
 	 * @protected
 	 */
@@ -201,6 +217,7 @@ export class TerrainProvider {
 	destroy() {
 		Hooks.off("canvasReady", this.#canvasReadyHookId);
 		Hooks.off("canvasTearDown", this.#canvasTearDownHookId);
+		Hooks.off("updateScene", this.#updateSceneHookId);
 		this.terrainShapes$.unsubscribeAll();
 	}
 }

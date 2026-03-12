@@ -79,6 +79,19 @@ export class TerrainShape {
 	}
 
 	/**
+	 * Converts this TerrainShape instance into a POJO.
+	 */
+	toObject() {
+		return {
+			terrainTypeId: this.terrainTypeId,
+			polygon: this.polygon.toObject(),
+			holes: this.holes.map(h => h.toObject()),
+			height: this.height,
+			elevation: this.elevation
+		};
+	}
+
+	/**
 	 * @param {number} row
 	 * @param {number} col
 	 */
