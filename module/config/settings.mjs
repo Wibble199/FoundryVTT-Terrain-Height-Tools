@@ -80,7 +80,8 @@ export function registerSettings() {
 		config: false,
 		default: true,
 		onChange: value => {
-			TerrainHeightLayer.current._graphics.showOnTokenLayer$.value = value;
+			if (TerrainHeightLayer.current?._graphics)
+				TerrainHeightLayer.current._graphics.showOnTokenLayer$.value = value;
 		}
 	});
 
@@ -112,7 +113,8 @@ export function registerSettings() {
 		config: true,
 		default: 0,
 		onChange: value => {
-			TerrainHeightLayer.current._graphics.maskRadius$.value = value;
+			if (TerrainHeightLayer.current?._graphics)
+				TerrainHeightLayer.current._graphics.maskRadius$.value = value;
 		}
 	});
 

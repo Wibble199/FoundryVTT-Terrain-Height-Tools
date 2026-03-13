@@ -48,7 +48,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	constructor() {
 		super();
-		this.eventMode = "static";
 		Hooks.on("updateScene", this._onSceneUpdate.bind(this));
 	}
 
@@ -83,6 +82,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 	async _draw(options) {
 		super._draw(options);
 
+		// Set the hit area so that the layer can receive mouse events
 		this.hitArea = canvas.dimensions.rect;
 
 		if (this._graphics) {
@@ -111,6 +111,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	/** @override */
 	_activate() {
+		super._activate();
 		// When this layer is activated (via the menu sidebar), always show the height map
 		this._graphics.isLayerActive$.value = true;
 
@@ -120,6 +121,7 @@ export class TerrainHeightLayer extends InteractionLayer {
 
 	/** @override */
 	_deactivate() {
+		super._deactivate();
 		// When this layer is deactivated (via the menu sidebar), hide the height map unless configured to show
 		this._graphics.isLayerActive$.value = false;
 

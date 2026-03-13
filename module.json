@@ -36,7 +36,7 @@
 		]
 	},
 	"socket": true,
-	"url": "https://github.com/Shteb/FoundryVTT-Terrain-Height-Tools-Wall-Half-Baked-V13",
-	"manifest": "https://github.com/Shteb/FoundryVTT-Terrain-Height-Tools-Wall-Half-Baked-V13/releases/latest/download/module.json",
-	"download": "https://github.com/Shteb/FoundryVTT-Terrain-Height-Tools-Wall-Half-Baked-V13/releases/latest/download/release.zip"
+	"url": "https://github.com/Shteb/THT_V13_Port",
+	"manifest": "https://github.com/Shteb/THT_V13_Port/releases/latest/download/module.json",
+	"download": "https://github.com/Shteb/THT_V13_Port/releases/latest/download/release.zip"
 }

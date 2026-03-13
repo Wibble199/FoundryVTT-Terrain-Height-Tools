@@ -49,7 +49,6 @@ export class TerrainHeightGraphics extends PIXI.Container {
 	constructor() {
 		super();
 		this.eventMode = "static";
-		this.interactive = true;
 		this.sortableChildren = true;
 
 		Hooks.on("highlightObjects", this.#onHighlightObjects.bind(this));
