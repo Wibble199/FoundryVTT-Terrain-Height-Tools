@@ -82,9 +82,6 @@ export class TerrainHeightLayer extends InteractionLayer {
 	async _draw(options) {
 		super._draw(options);
 
-		// Set the hit area so that the layer can receive mouse events
-		this.hitArea = canvas.dimensions.rect;
-
 		if (this._graphics) {
 			await this._updateGraphics();
 		} else {
@@ -112,6 +109,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @override */
 	_activate() {
 		super._activate();
+
+		// Set the hit area so that the layer can receive mouse events while active
+		this.hitArea = canvas.dimensions.rect;
+
 		// When this layer is activated (via the menu sidebar), always show the height map
 		this._graphics.isLayerActive$.value = true;
 
@@ -122,6 +123,10 @@ export class TerrainHeightLayer extends InteractionLayer {
 	/** @override */
 	_deactivate() {
 		super._deactivate();
+
+		// Clear the hit area so that the layer does not intercept mouse events for other layers
+		this.hitArea = null;
+
 		// When this layer is deactivated (via the menu sidebar), hide the height map unless configured to show
 		this._graphics.isLayerActive$.value = false;
 
