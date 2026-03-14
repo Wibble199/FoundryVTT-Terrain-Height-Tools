@@ -48,7 +48,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	constructor() {
 		super();
-		this.eventMode = "static";
+		this.eventMode = "none";
 
 		tokenLineOfSightConfig$.value = {
 			h1: game.settings.get(moduleName, settings.defaultTokenLosTokenHeight),
