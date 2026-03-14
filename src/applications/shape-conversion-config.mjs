@@ -87,7 +87,13 @@ export class ShapeConversionConfig extends LitApplicationMixin(ApplicationV2) {
 			`)}
 
 			<label class="flexrow align-items-center">
-				<input type="checkbox" name="deleteAfter" class="flex0">
+				<input
+					type="checkbox"
+					name="deleteAfter"
+					class="flex0"
+					.checked=${convertConfig$.deleteAfter}
+					@input=${e => convertConfig$.deleteAfter.value = e.target.checked}
+				>
 				<span>${l("TERRAINHEIGHTTOOLS.DeleteAfterConversion")}</span>
 			</label>
 		`;

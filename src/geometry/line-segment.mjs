@@ -31,15 +31,6 @@ export class LineSegment {
 		return new LineSegment(new Point(x1, y1), new Point(x2, y2));
 	}
 
-	/** Determines if this line segment is pointing in a clockwise direction. */
-	get clockwise() {
-		// If the p1.x < p2.x, then clockwise
-		// If p1.x ~= p2.x, check if p1.y > p2.y, then clockwise
-		if (Math.abs(this.dx) < 1)
-			return this.p1.y > this.p2.y;
-		return this.p1.x < this.p2.x;
-	}
-
 	get dx() {
 		return this.p2.x - this.p1.x;
 	}

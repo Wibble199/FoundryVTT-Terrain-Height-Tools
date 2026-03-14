@@ -14,7 +14,10 @@ export class Polygon {
 	#centroid = [0, 0];
 
 	/**
-	 * @param {({ x: number; y: number } | Point)[]} [vertices]
+	 * Creates a new polygon out of a collection of { x, y } vertices.
+	 * If the vertices are clockwise the polygon is solid. If the vertices are counter-clockwise the polygon is a hole.
+	 * Alternatively, use `createSolid` or `createHole` which does not care about the winding.
+	 * @param {({ x: number; y: number } | { X: number; Y: number } | Point)[]} [vertices]
 	 */
 	constructor(vertices = undefined) {
 		this.boundingBox = {
@@ -29,6 +32,28 @@ export class Polygon {
 		for (const vertex of vertices ?? []) {
 			this.pushVertex(vertex);
 		}
+	}
+
+	/**
+	 * Creates a polygon as a solid/non-hole (i.e. the vertices are defined clockwise).
+	 * If the given list of vertices are counter-clockwise, they will be reversed.
+	 * @param {({ x: number; y: number } | Point)[] | Polygon} vertices
+	 */
+	static createSolid(vertices) {
+		vertices = vertices instanceof Polygon ? vertices.vertices : vertices;
+		const isClockwise = Polygon.isClockwise(vertices);
+		return new Polygon(isClockwise ? vertices : [...vertices.reverse()]);
+	}
+
+	/**
+	 * Creates a polygon as a hole (i.e. the vertices are defined counter-clockwise).
+	 * If the given list of vertices are clockwise, they will be reversed.
+	 * @param {({ x: number; y: number } | Point)[] | Polygon} vertices
+	 */
+	static createHole(vertices) {
+		vertices = vertices instanceof Polygon ? vertices.vertices : vertices;
+		const isClockwise = Polygon.isClockwise(vertices);
+		return new Polygon(isClockwise ? [...vertices.reverse()] : vertices);
 	}
 
 	/** @type {readonly Point[]} */
@@ -51,14 +76,22 @@ export class Polygon {
 		return new PIXI.Rectangle(this.boundingBox.x1, this.boundingBox.y1, this.boundingBox.w, this.boundingBox.h);
 	}
 
+	get isSolid() {
+		return Polygon.isClockwise(this.#vertices);
+	}
+
+	get isHole() {
+		return !Polygon.isClockwise(this.#vertices);
+	}
+
 	/**
 	 * Pushes a vertex to the end of the polygon.
-	 * @param {number | Point | { x: number; y: number }} x The X coordinate of the point or a Point object to add.
+	 * @param {number | Point | { x: number; y: number } | { X: number; Y: number }} x The X coordinate of the point or a Point object to add.
 	 * @param {number | undefined} y The Y coordinate of the point or undefined.
 	 */
 	pushVertex(x, y = undefined) {
 		const vertex = x instanceof Point ? x
-			: typeof x === "object" ? new Point(x.x, x.y)
+			: typeof x === "object" ? new Point(x.x ?? x.X, x.y ?? x.Y)
 				: new Point(x, y);
 
 		// Check that the point is not identical to the previous, as this would cause a 0 length edge.
@@ -301,6 +334,35 @@ export class Polygon {
 	 */
 	toSvgPath() {
 		return this.#vertices.map(({ x, y }, idx) => `${idx === 0 ? "M" : "L"}${x},${y}`).join("") + "Z";
+	}
+
+	/**
+	 * Creates a ClipperLib.Path for this polygon.
+	 */
+	getClipperPath() {
+		const path = new ClipperLib.Path();
+		for (const vertex of this.#vertices)
+			path.push(new ClipperLib.IntPoint(vertex.x, vertex.y));
+		return path;
+	}
+
+	/**
+	 * Determines whether the given vertices are clockwise or counter-clockwise.
+	 * @param {({ x: number; y: number; } | { X: number; Y: number; })[]} vertices
+	 */
+	static isClockwise(vertices) {
+		// Work out shoelace area. If negative, then counter-clockwise; if positive then clockwise.
+		let area = 0;
+
+		for (let i = 0; i < vertices.length; i++) {
+			const p1 = vertices[i];
+			const p2 = vertices[(i + 1) % vertices.length];
+
+			// Use (x ?? X) so that this can work with THT polygons and ClipperLib paths
+			area += ((p2.x ?? p2.X) - (p1.x ?? p1.X)) * ((p2.y ?? p2.Y) + (p1.y ?? p1.Y));
+		}
+
+		return area < 0;
 	}
 
 	/**

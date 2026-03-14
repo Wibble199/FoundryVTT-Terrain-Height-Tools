@@ -26,6 +26,7 @@ Functions:
 - [`getCell`](#getcell)
 - [~~`getShape`~~](#getshape)
 - [`getShapes`](#getshapes)
+- [`getShapesAtPoint`](#getshapesatpoint)
 - [`getTerrainType`](#getterraintype)
 - [`getTerrainTypes`](#getterraintypes)
 - [`paintCells`](#paintcells)
@@ -59,6 +60,7 @@ Note that this will always return an empty array if the line of sight ray is zer
 |`p2`|`Point3D`|*Required*|The point that the LOS ray should end. The `x` and `y` coordinates are measured in pixels relative to the canvas. `h` is measured in an arbitrary unit, just as the terrains' heights are.|
 |`options`|`Object`|`{}`|Additional options for configuring the calculation.|
 |`options.includeNoHeightTerrain`|`boolean`|`false`|If false, any terrain types that are configured as not using a height are excluded from the calculation. If true, these terrains are included, and their height is treated as if it were infinity.|
+|`options.terrainProviderIds`|`string[]`|`undefined`|If provided, limits the line of sight checks to only shapes from the specified terrain providers.|
 
 ### Returns
 
@@ -121,6 +123,7 @@ Note that this will always return an empty array if the line of sight ray is zer
 |`p2`|`Point3D`|*Required*|The point that the LOS ray should end. The `x` and `y` coordinates are measured in pixels relative to the canvas. `h` is measured in an arbitrary unit, just as the terrains' heights are.|
 |`options`|`Object`|`{}`|Additional options for configuring the calculation.|
 |`options.includeNoHeightTerrain`|`boolean`|`false`|If false, any terrain types that are configured as not using a height are excluded from the calculation. If true, these terrains are included, and their height is treated as if it were infinity.|
+|`options.terrainProviderIds`|`string[]`|`undefined`|If provided, limits the line of sight checks to only shapes from the specified terrain providers.|
 
 ### Returns
 
@@ -396,19 +399,68 @@ This function has been replaced by [`getShapes`](#getshapes).
 
 ![Available Since v0.4.0](https://img.shields.io/badge/Available%20Since-v0.4.0-blue?style=flat-square)
 
-Fetches the height map shapes that exist at a specific cell.
+Gets the terrain shapes at the center of the cell at the given offset grid coordinates.
 
 ### Parameters
 
 |Name|Type|Default|Description|
 |-|-|-|-|
-|`x`|`number`|*Required*|The X coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
-|`y`|`number`|*Required*|The Y coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`i`|`number`|*Required*|The i coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`j`|`number`|*Required*|The j coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`options`|`Object`|`{}`||
+|`options.providerIds`|`string[]`|`undefined`|If provided, limits the returned shapes to only those from the specified terrain providers.|
 
 ### Returns
 
 Either any array containing 0 or more `TerrainShape`s. Each shape represents one region of terrain that exists at that
 cell. The order of the terrain is not guaranteed.
+
+Each `TerrainShape` has the following properties:
+
+|Name|Type|Description|
+|-|-|-|
+|`polygon`|`Polygon`|The polygon that defines the outer perimeter of this shape.|
+|`holes`|`Polygon[]`|An array of polygons that define holes within this shape.|
+|`terrainTypeId`|`string`|The ID of the terrain type in this cell.|
+|`height`|`number`|The height of the terrain in this cell.|
+|`elevation`|`number`|The elevation of the terrain in this cell.|
+
+### Example
+```js
+const shapes = terrainHeightTools.getShapes(2, 3);
+
+if (shapes.length === 0) {
+	console.log("This cell is unpainted.");
+} else {
+	for (const shape of shapes) {
+		const terrainType = terrainHeightTools.getTerrainType({ id: shape.terrainTypeId });
+		console.group(`The edges of this ${terrainType.name} shape are:`);
+		for (const edge of shape.polygon.edges)
+			console.log(edge.toString());
+		console.groupEnd();
+	}
+}
+```
+
+## getShapesAtPoint
+
+![Available Since v0.6.0](https://img.shields.io/badge/Available%20Since-v0.6.0-blue?style=flat-square)
+
+Gets the terrain shapes at the given x,y coordinates.
+
+### Parameters
+
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`x`|`number`|*Required*|The X coordinate of the cell to read.|
+|`y`|`number`|*Required*|The Y coordinate of the cell to read.|
+|`options`|`Object`|`{}`||
+|`options.providerIds`|`string[]`|`undefined`|If provided, limits the returned shapes to only those from the specified terrain providers.|
+
+### Returns
+
+Either any array containing 0 or more `TerrainShape`s. Each shape represents one region of terrain that exists at that
+point. The order of the shapes is not guaranteed.
 
 Each `TerrainShape` has the following properties:
 

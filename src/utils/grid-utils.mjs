@@ -432,7 +432,7 @@ export function polygonsFromGridCells(cells, grid) {
 	// To find the hole's parent, we search back up the sorted list of polygons in reverse for the first one that
 	// contains it.
 	/** @type {Map<boolean, typeof combinedPolygons>} */
-	const polysAreHolesMap = groupBy(combinedPolygons, polygon => !polygon.edges[0].clockwise);
+	const polysAreHolesMap = groupBy(combinedPolygons, polygon => polygon.isHole);
 
 	/** @type {{ polygon: Polygon; holes: Polygon[]; }[]} */
 	const solidPolygons = (polysAreHolesMap.get(false) ?? []).map(polygon => ({ polygon, holes: [] }));

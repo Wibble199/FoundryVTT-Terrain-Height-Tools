@@ -1,4 +1,4 @@
-/** @import { TerrainShape } from "../geometry/terrain-shape.mjs"; */
+import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { ObservableSet } from "../utils/observable-set.mjs";
 
 /**
@@ -58,7 +58,7 @@ export function getShapesByBounds(rect, { providerIds, collisionTest } = {}) {
 	const shapes = [];
 	for (const [providerId, { provider }] of terrainProviders) {
 		if (providerIds?.length && !providerIds.includes(providerId)) continue;
-		shapes.push(...provider.quadtree.getObjects(rect, { collisionTest }));
+		shapes.push(...provider.getShapes(rect, { collisionTest }));
 	}
 	return shapes;
 }
@@ -150,26 +150,40 @@ export class TerrainProvider {
 
 	/**
 	 * Adds a terrain shape to the provider.
-	 * @param {...TerrainShape} shapes
+	 * @param {...(TerrainShape | TerrainShape[])} shapes
+	 * @returns true if any of the given values were added to the set, or false if they all already exist.
 	 */
 	addShapes(...shapes) {
-		this.terrainShapes$.add(...shapes);
+		shapes = shapes?.flat?.(1);
+		if (shapes?.some?.(shape => !(shape instanceof TerrainShape)) !== false)
+			throw new Error("Expect shapes parameters to be of type TerrainShape");
+
+		return this.terrainShapes$.add(...shapes);
 	}
 
 	/**
 	 * Overwrites all the current shapes with the new given shapes.
-	 * @param {TerrainShape[]} shapes
+	 * @param {...(TerrainShape | TerrainShape[])} shapes
 	 */
-	setShapes(shapes) {
+	setShapes(...shapes) {
+		shapes = shapes?.flat?.(1);
+		if (shapes?.some?.(shape => !(shape instanceof TerrainShape)) !== false)
+			throw new Error("Expect shapes parameters to be of type TerrainShape");
+
 		this.terrainShapes$.value = shapes;
 	}
 
 	/**
 	 * Removes a terrain shape from the provider.
-	 * @param {...TerrainShape} shapes
+	 * @param {...(TerrainShape | TerrainShape[])} shapes
+	 * @returns true if any of the values have been removed from the set, or false if all values did not exist.
 	 */
 	deleteShapes(...shapes) {
-		this.terrainShapes$.delete(...shapes);
+		shapes = shapes?.flat?.(1);
+		if (shapes?.some?.(shape => !(shape instanceof TerrainShape)) !== false)
+			throw new Error("Expect shapes parameters to be of type TerrainShape");
+
+		return this.terrainShapes$.delete(...shapes);
 	}
 
 	/**
@@ -212,6 +226,17 @@ export class TerrainProvider {
 		for (const shape of this.terrainShapes$.value) {
 			this.quadtree.insert({ r: shape.polygon.boundingRect, t: shape });
 		}
+	}
+
+	/**
+	 * A correctly-typed wrapper for `quadtree.getObjects`.
+	 * @param {PIXI.Rectangle} rect
+	 * @param {Object} [options]
+	 * @param {(entry: { r: PIXI.Rectangle; t: TerrainShape; }, rect: PIXI.Rectangle) => boolean} [options.collisionTest]
+	 * @returns {Set<TerrainShape>}
+	 */
+	getShapes(rect, { collisionTest } = {}) {
+		return this.quadtree.getObjects(rect, { collisionTest });
 	}
 
 	destroy() {

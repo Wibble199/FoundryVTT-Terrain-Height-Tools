@@ -2,16 +2,20 @@
 // ! Changing these functions should always be done in a backwards-compatible way.
 
 /** @import { FlattenedLineOfSightIntersectionRegion, LineOfSightIntersectionRegion } from "./geometry/terrain-shape.mjs"; */
+/** @import { TerrainType } from "./stores/terrain-types.mjs" */
 import { defaultGroupName, moduleName, settingNames } from "./consts.mjs";
+import { heightMap } from "./geometry/height-map.mjs";
 import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
-import { getShapesByBounds, TerrainProvider } from "./stores/terrain-manager.mjs";
+import { getShapesAtPoint as getShapesAtPointImpl, getShapesByBounds, TerrainProvider } from "./stores/terrain-manager.mjs";
 import { terrainTypes$ } from "./stores/terrain-types.mjs";
 import { rectangleFromP1P2 } from "./utils/pixi-utils.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "./utils/token-utils.mjs";
 
 export { registerTerrainProvider, unregisterTerrainProvider } from "./stores/terrain-manager.mjs";
+
+export { heightMapProviderId, moduleName } from "./consts.mjs";
 
 export const classes = { TerrainShape, TerrainProvider };
 
@@ -20,7 +24,7 @@ export const classes = { TerrainShape, TerrainProvider };
  * @param {Object} shapes The terrain to search for.
  * @param {string} shapes.id The ID of the terrain type to find. Either this or `name` must be provided.
  * @param {string} shapes.name The name of the terrain type to find. Either this or `id` must be provided.
- * @returns {Readonly<import("./stores/terrain-types.mjs").TerrainType> | undefined}
+ * @returns {Readonly<TerrainType> | undefined}
  */
 export function getTerrainType(terrain) {
 	if (!terrain?.id?.length && !terrain?.name?.length)
@@ -31,14 +35,14 @@ export function getTerrainType(terrain) {
 
 /**
  * Gets an array of all terrain types that have been configured in the system.
- * @returns {readonly Readonly<import("./stores/terrain-types.mjs").TerrainType>[]}
+ * @returns {readonly Readonly<TerrainType>[]}
  */
 export function getTerrainTypes() {
 	return terrainTypes$.value;
 }
 
 /**
- * Gets the terrain data at the given grid coordinates.
+ * Gets the THT height map terrain data at the given grid coordinates.
  * @param {number} x
  * @param {number} y
  * @returns {{ terrainTypeId: string; height: number; elevation: number; }[]}
@@ -48,13 +52,30 @@ export function getCell(x, y) {
 }
 
 /**
- * Gets the terrain shapes at the given grid coordinates.
+ * Gets the terrain shapes at the center of the cell at the given offset grid coordinates.
+ * @param {number} i
+ * @param {number} j
+ * @param {Object} [options]
+ * @param {string[]} [options.providerIds] If provided, limits the returned shapes to only those from the specified
+ * terrain providers.
+ * @returns {TerrainShape[]}
+ */
+export function getShapes(i, j, { providerIds } = {}) {
+	const { x, y } = canvas.grid.getCenterPoint({ i, j });
+	return getShapesAtPointImpl(x, y, { providerIds });
+}
+
+/**
+ * Gets the terrain shapes at the given x,y coordinates.
  * @param {number} x
  * @param {number} y
- * @param {import("./geometry/height-map.mjs").TerrainShape | undefined}
+ * @param {Object} [options]
+ * @param {string[]} [options.providerIds] If provided, limits the returned shapes to only those from the specified
+ * terrain providers.
+ * @returns {TerrainShape[]}
  */
-export function getShapes(x, y) {
-	return TerrainHeightEditorLayer.current?._heightMap.getShapes(y, x);
+export function getShapesAtPoint(x, y, { providerIds } = {}) {
+	return getShapesAtPointImpl(x, y, { providerIds });
 }
 
 /**
@@ -82,7 +103,7 @@ export function paintCells(cells, terrain, { mode = "totalReplace" } = {}) {
 	if (terrainType.usesHeight && typeof terrain.height !== "number")
 		throw new Error(`Terrain "${terrainType.name}' requires a height, but one was not provided.`);
 
-	return TerrainHeightEditorLayer.current?._heightMap.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
+	return heightMap.paintCells(cells, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
 }
 
 /**
@@ -95,7 +116,7 @@ export function eraseCells(cells) {
 		throw new Error("Expected `cells` to be an array of arrays.");
 	if (cells.length === 0) return;
 
-	return TerrainHeightEditorLayer.current?._heightMap.eraseCells(cells);
+	return heightMap.eraseCells(cells);
 }
 
 /**

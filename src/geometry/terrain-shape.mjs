@@ -2,7 +2,6 @@ import { terrainTypeMap$, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { error, warn } from "../utils/log.mjs";
 import { roundTo } from "../utils/misc-utils.mjs";
-import { encodeCellKey } from "./height-map.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from "./polygon.mjs";
 
@@ -52,21 +51,24 @@ export class TerrainShape {
 	 * @param {string} data.terrainTypeId
 	 * @param {InputPolygon} data.polygon The polygon that makes up the perimeter of this shape.
 	 * @param {InputPolygon[]} [data.holes] Other additional polygons that make holes in this shape.
-	 * @param {number} data.height
-	 * @param {number} [data.elevation]
-	 * @param {Iterable<string>} [data.cells] A Set of all cells that this TerrainShape consists of, stored as 'row.col'
-	 * This is only required for the internal HeightMap implementation. External providers do not need to populate this.
+	 * @param {number} [data.height] The height of the terrain shape. Either this or `top` should be provided.
+	 * @param {number} [data.elevation] The distance the shape is off the ground.
+	 * @param {number} [data.top] The top of the terrain shape. Either this or `height` should be provided.
+	 * @param {number} [data.bottom] The bottom of the terrain shape. An alias for elevation.
 	 * @param {boolean} [data.visible] Whether the shape should be drawn to the canvas or not.
 	 */
-	constructor({ terrainTypeId, polygon, holes = [], height, elevation = 0, cells = [], visible = true }) {
-		if (typeof height !== "number" || height < 0) throw new Error("Invalid height. Must be 0 or larger.");
+	constructor({ terrainTypeId, polygon, holes = [], height, elevation, top, bottom, visible = true }) {
+		elevation ??= bottom ?? 0;
+		if (top === undefined && height === undefined) throw new Error("Invalid height. `height` or `top` must be provided.");
+		if (height !== undefined && height < 0) throw new Error("Invalid height. Must be 0 or larger.");
+		if (top !== undefined && top <= elevation) throw new Error("Invalid height. Top must be higher than elevation/bottom.");
+		if (height !== undefined && top !== undefined && top !== height + elevation) throw new Error("Invalid height. Top and height do not reconcile.");
 
 		this.terrainTypeId = terrainTypeId;
-		this.polygon = polygon instanceof Polygon ? polygon : new Polygon(polygon);
-		this.holes = holes.map(hole => hole instanceof Polygon ? hole : new Polygon(hole));
-		this.height = height;
+		this.polygon = Polygon.createSolid(polygon);
+		this.holes = holes.map(hole => Polygon.createHole(hole));
+		this.height = height ?? (top - elevation);
 		this.elevation = elevation;
-		this.cells = new Set(cells);
 		this.visible = visible;
 	}
 
@@ -92,11 +94,13 @@ export class TerrainShape {
 	}
 
 	/**
-	 * @param {number} row
-	 * @param {number} col
+	 * Creates a ClipperLib.Paths array for this shape.
 	 */
-	containsCell(row, col) {
-		return this.cells.has(encodeCellKey(row, col));
+	getClipperPath() {
+		return [
+			this.polygon.getClipperPath(),
+			...this.holes.map(h => h.getClipperPath())
+		];
 	}
 
 	/**
@@ -492,8 +496,8 @@ export class TerrainShape {
 		// values back into full ray `t` values
 		if (t1 !== 0 || t2 !== 1)
 			for (const region of regions) {
-				region.start.t = t1 + region.start.t * (t2 - t1);
-				region.end.t = t1 + region.end.t * (t2 - t1);
+				region.start.t = t1 + (region.start.t * (t2 - t1));
+				region.end.t = t1 + (region.end.t * (t2 - t1));
 			}
 
 		return regions;

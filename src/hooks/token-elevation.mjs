@@ -1,5 +1,5 @@
 import { moduleName, settingNames } from "../consts.mjs";
-import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
+import { heightMap } from "../geometry/height-map.mjs";
 import { getTerrainType } from "../stores/terrain-types.mjs";
 import { getSpacesUnderToken, toSceneUnits } from "../utils/grid-utils.mjs";
 
@@ -54,7 +54,6 @@ export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) 
  * @param {{ x: number; y: number; }} [position]
  */
 function getHighestTerrainUnderToken(tokenDocument, position) {
-	const hm = TerrainHeightEditorLayer.current?._heightMap;
 
 	// If a position has been provided, use that position. Otherwise, use the token's position.
 	const { x, y } = position ?? tokenDocument;
@@ -64,15 +63,14 @@ function getHighestTerrainUnderToken(tokenDocument, position) {
 	let highest = 0;
 
 	for (const space of getSpacesUnderToken(x, y, width, height, gridType, gridSize, hexagonalShape)) {
-		const { i, j } = canvas.grid.getOffset(space);
-		const terrains = hm.get(i, j);
-		if (!(terrains?.length > 0)) continue; // no terrain at this cell
+		const shapes = heightMap.getShapesAtPoint(space.x, space.y);
+		if (!(shapes?.length > 0)) continue; // no terrain at this cell
 
-		for (const terrain of terrains) {
-			const terrainType = getTerrainType(terrain.terrainTypeId);
-			if (!terrainType.usesHeight || !terrainType.isSolid) continue; // zone or non solid, ignore it
+		for (const shape of shapes) {
+			const terrainType = getTerrainType(shape.terrainTypeId);
+			if (!terrainType?.usesHeight || !terrainType.isSolid) continue; // zone or non solid, ignore it
 
-			highest = Math.max(highest, terrain.elevation + terrain.height);
+			highest = Math.max(highest, shape.top);
 		}
 	}
 

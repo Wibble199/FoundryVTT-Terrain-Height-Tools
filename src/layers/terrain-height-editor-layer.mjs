@@ -1,9 +1,8 @@
 import { signal } from "@preact/signals-core";
 import { TerrainShapeChoiceDialog } from "../applications/terrain-shape-choice-dialog.mjs";
-import { heightMapProviderId, moduleName, tools, wallHeightModuleName } from "../consts.mjs";
-import { HeightMap } from "../geometry/height-map.mjs";
+import { moduleName, tools, wallHeightModuleName } from "../consts.mjs";
+import { heightMap } from "../geometry/height-map.mjs";
 import { convertConfig$, eraseConfig$, paintingConfig$ } from "../stores/drawing.mjs";
-import { registerTerrainProvider, unregisterTerrainProvider } from "../stores/terrain-manager.mjs";
 import { getTerrainType } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { GridHighlightGraphics } from "./grid-highlight-graphics.mjs";
@@ -15,9 +14,6 @@ import { getLabelText } from "./terrain-height-graphics/terrain-shape-graphic.mj
  * E.G. shows overlay previews and handles click events for painting/clearing.
  */
 export class TerrainHeightEditorLayer extends InteractionLayer {
-
-	/** @type {HeightMap | undefined} */
-	_heightMap;
 
 	/**
 	 * The sole purpose of this PIXI object is to allow other THT layers listen for events that they might not ordinarily
@@ -88,9 +84,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 		this._highlightGraphics = new GridHighlightGraphics();
 		canvas.interface.addChild(this._highlightGraphics);
-
-		this._heightMap = new HeightMap(canvas.scene);
-		registerTerrainProvider(heightMapProviderId, this._heightMap);
 	}
 
 	/** @override */
@@ -120,10 +113,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 		this._highlightGraphics?.parent.removeChild(this._highlightGraphics);
 		this._highlightGraphics = undefined;
-
-		unregisterTerrainProvider(heightMapProviderId);
-		this._heightMap.destroy();
-		this._heightMap = undefined;
 
 		this.#subscriptions.forEach(unsubscribe => unsubscribe());
 		this.#subscriptions = [];
@@ -214,14 +203,14 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 				this._pendingTool = undefined;
 
 				const { selectedTerrainId, height, elevation, floodMode } = this.#paintingConfig;
-				await this._heightMap.fillCells(cell, selectedTerrainId, height, elevation, { mode: floodMode });
+				await heightMap.fillCells(cell, selectedTerrainId, height, elevation, { mode: floodMode });
 				break;
 			}
 
 			case tools.pipette: {
 				this._pendingTool = undefined;
 
-				const shape = await this.#getSingleShape(...cell, {
+				const shape = await this.#getSingleShape(x, y, {
 					hint: "TERRAINHEIGHTTOOLS.SelectAShapeCopyHint",
 					submitLabel: "TERRAINHEIGHTTOOLS.CopySelectedShapeConfiguration",
 					submitIcon: "fas fa-eye-dropper"
@@ -253,14 +242,14 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 			case tools.eraseShape: {
 				this._pendingTool = undefined;
 
-				const shape = await this.#getSingleShape(...cell, {
+				const shape = await this.#getSingleShape(x, y, {
 					hint: "TERRAINHEIGHTTOOLS.SelectAShapeEraseHint",
 					submitLabel: "TERRAINHEIGHTTOOLS.EraseSelectedShape",
 					submitIcon: "fas fa-eraser"
 				});
 
 				if (shape)
-					await this._heightMap.eraseShape(shape);
+					await heightMap.eraseShape(shape);
 
 				break;
 			}
@@ -268,7 +257,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 			case tools.convert: {
 				this._pendingTool = undefined;
 
-				const shape = await this.#getSingleShape(...cell, {
+				const shape = await this.#getSingleShape(x, y, {
 					hint: "TERRAINHEIGHTTOOLS.SelectAShapeConvertHint",
 					submitLabel: "TERRAINHEIGHTTOOLS.ConvertSelectedShape",
 					submitIcon: "fas fa-arrow-turn-right"
@@ -304,13 +293,13 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 			case tools.paint: {
 				const { selectedTerrainId, selectedHeight, selectedElevation, mode } = this.#paintingConfig;
 				if (selectedTerrainId)
-					await this._heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { mode });
+					await heightMap.paintCells(pendingChanges, selectedTerrainId, selectedHeight, selectedElevation, { mode });
 				break;
 			}
 
 			case tools.erase: {
 				const { excludedTerrainTypeIds: excludingTerrainTypeIds, bottom, top } = eraseConfig$.value;
-				await this._heightMap.eraseCells(pendingChanges, { excludingTerrainTypeIds, bottom, top });
+				await heightMap.eraseCells(pendingChanges, { excludingTerrainTypeIds, bottom, top });
 				break;
 			}
 		}
@@ -319,27 +308,27 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	}
 
 	async clear() {
-		await this._heightMap.clear();
+		await heightMap.clear();
 	}
 
 	get canUndo() {
-		return this._heightMap._history.length > 0;
+		return heightMap._history.length > 0;
 	}
 
 	async undo() {
-		return await this._heightMap.undo();
+		return await heightMap.undo();
 	}
 
 	/**
-	 * Returns a shape that is at the given row/col position.
+	 * Returns a shape that is at the given x/y position.
 	 * If there are multiple at this location, opens a dialog to ask the user which one to select.
 	 * If there are none, returns `undefined`.
-	 * @param {number} row
-	 * @param {number} col
+	 * @param {number} x
+	 * @param {number} y
 	 * @param {Parameters<typeof TerrainShapeChoiceDialog["show"]>[1]} [dialogOptions]
 	 */
-	async #getSingleShape(row, col, dialogOptions = {}) {
-		const shapes = this._heightMap.getShapes(row, col);
+	async #getSingleShape(x, y, dialogOptions = {}) {
+		const shapes = heightMap.getShapesAtPoint(x, y);
 		switch (shapes.length) {
 			case 0: return undefined;
 			case 1: return shapes[0];
@@ -476,6 +465,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		}
 
 		if (deleteAfter)
-			await this._heightMap.eraseShape(shape);
+			await heightMap.eraseShape(shape);
 	}
 }
