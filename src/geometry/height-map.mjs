@@ -67,7 +67,7 @@ export class HeightMap extends TerrainProvider {
 	// -------------- //
 	/**
 	 * Paints a region onto the heightmap, creating a new shape or combining existing shapes where relevant.
-	 * @param {{ polygon: { x: number; y: number; }[]; holes?: { x: number; y: number; }[][]; }} region
+	 * @param {{ polygon: ({ x: number; y: number; } | { X: number; Y: number; })[]; holes?: ({ x: number; y: number; } | { X: number; Y: number; })[][]; }} region
 	 * @param {string} terrainTypeId The ID of the terrain type to paint.
 	 * @param {number} height The height of the terrain to paint.
 	 * @param {number} elevation The elevation of the terrain to paint.
@@ -173,7 +173,7 @@ export class HeightMap extends TerrainProvider {
 
 	/**
 	 * Erases a region from the heightmap, removing and breaking apart existing shapes where relevant.
-	 * @param {{ polygon: { x: number; y: number; }[]; holes?: { x: number; y: number; }[][]; }} region
+	 * @param {{ polygon: ({ x: number; y: number; } | { X: number; Y: number; })[]; holes?: ({ x: number; y: number; } | { X: number; Y: number; })[][]; }} region
 	 * @param {Object} [options]
 	 * @param {string[]} [options.onlyTerrainTypeIds] A list of terrain type IDs to remove.
 	 * @param {string[]} [options.excludingTerrainTypeIds] A list of terrain type IDs NOT to remove.

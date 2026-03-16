@@ -85,7 +85,7 @@ export class LineSegment {
 
 		// Adjust to handle cases where the angles are near different extremes
 		if (diff > Math.PI)
-			diff = Math.PI * 2 - diff;
+			diff = (Math.PI * 2) - diff;
 
 		// Adjust to handle cases where the angles are in opposite directions
 		if (diff > Math.PI / 2)
@@ -106,10 +106,10 @@ export class LineSegment {
 	 */
 	findClosestPointOnLineTo(x, y) {
 		const { dx, dy, p1: { x: x1, y: y1 } } = this;
-		const t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+		const t = (((x - x1) * dx) + ((y - y1) * dy)) / ((dx * dx) + (dy * dy));
 		const { x: closestX, y: closestY } = this.lerp(t);
 		const distanceSquared = Math.pow(x - closestX, 2) + Math.pow(y - closestY, 2);
-		const crossProduct = (x - x1) * dy - (y - y1) * dx;
+		const crossProduct = ((x - x1) * dy) - ((y - y1) * dx);
 		return { t, point: { x: closestX, y: closestY }, distanceSquared, side: Math.sign(crossProduct) };
 	}
 
@@ -135,7 +135,7 @@ export class LineSegment {
 			return this.p1.y;
 
 		// For other values, line is diagonal, so work out where it would meet the X
-		return this.p1.y + (x - this.p1.x) * slope;
+		return this.p1.y + ((x - this.p1.x) * slope);
 	}
 
 	/**
@@ -160,7 +160,7 @@ export class LineSegment {
 			return this.p1.x;
 
 		// For other values, line is diagonal, so work out where it would meet the Y
-		return this.p1.x + (y - this.p1.y) / slope;
+		return this.p1.x + ((y - this.p1.y) / slope);
 	}
 
 	/**
@@ -195,16 +195,16 @@ export class LineSegment {
 		// `t` is how far along `this` line the intersection point is at: 0 means that the intersection is at p1, 1 means
 		// that the intersection is at p2, a value between 0-1 means it lies on the line, <0 or >1 means it lies out of the
 		// line. `u` is the same, but for the `other` line.
-		const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-		const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
-		const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+		const denom = ((x1 - x2) * (y3 - y4)) - ((y1 - y2) * (x3 - x4));
+		const t = (((x1 - x3) * (y3 - y4)) - ((y1 - y3) * (x3 - x4))) / denom;
+		const u = -(((x1 - x2) * (y1 - y3)) - ((y1 - y2) * (x1 - x3))) / denom;
 
 		// If the intersection point lies outside of either line, then there is no intersection
 		if (!ignoreLength && (t < -Number.EPSILON || t > 1 + Number.EPSILON || u < -Number.EPSILON || u > 1 + Number.EPSILON)) return undefined;
 
 		return {
-			x: x1 + t * (x2 - x1),
-			y: y1 + t * (y2 - y1),
+			x: x1 + (t * (x2 - x1)),
+			y: y1 + (t * (y2 - y1)),
 			t: ignoreLength ? t : Math.max(Math.min(t, 1), 0),
 			u: ignoreLength ? u : Math.max(Math.min(u, 1), 0)
 		};
@@ -229,8 +229,8 @@ export class LineSegment {
 	 */
 	static lerp(x1, y1, x2, y2, t) {
 		return {
-			x: (x2 - x1) * t + x1,
-			y: (y2 - y1) * t + y1
+			x: ((x2 - x1) * t) + x1,
+			y: ((y2 - y1) * t) + y1
 		};
 	}
 

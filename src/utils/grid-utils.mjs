@@ -1,6 +1,6 @@
 import { Polygon } from "../geometry/polygon.mjs";
 import { groupBy } from "./array-utils.mjs";
-import { error } from "./log.mjs";
+import { error, warn } from "./log.mjs";
 import { cacheReturn, OrderedSet } from "./misc-utils.mjs";
 
 /** The side length of a hexagon with a grid size of 1 (apothem of 0.5). */
@@ -340,7 +340,15 @@ export function getSpacesUnderToken(x, y, width, height, gridType, gridSize, hex
  * @param {BaseGrid} grid Grid to use to determine cell shape and dimensions.
  */
 export function polygonsFromGridCells(cells, grid) {
-	if (grid.type === CONST.GRID_TYPES.GRIDLESS) throw new Error("Gridless not supported");
+	if ((cells.length ?? 0) === 0) return [];
+
+	if (!grid || grid.type === CONST.GRID_TYPES.GRIDLESS) {
+		// It's possible to end up here if changing scene properties when a migration is required. E.G. a user does
+		// v2 data on a gridded scene, then changes the scene to gridless (which does not remove the data), then a 2->3
+		// migration is done on that bad data.
+		warn("Attempted to call `polygonsFromGridCells` on a gridless grid. This operation is not supported.");
+		return [];
+	}
 
 	// For polygon calculation to work, we ensure the cells are sorted so that they process in clockwise order
 	cells.sort((a, b) => a[0] - b[0] || a[1] - b[1]);

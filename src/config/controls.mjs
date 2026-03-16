@@ -6,9 +6,9 @@ import { TerrainErasePalette } from "../applications/terrain-erase-palette.mjs";
 import { TerrainPaintPalette } from "../applications/terrain-paint-palette.mjs";
 import { TerrainVisibilityConfig } from "../applications/terrain-visibility-config.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
-import { moduleName, settingNames, tools } from "../consts.mjs";
+import { moduleName, settingNames, terrainHeightEditorControlName, tools } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
-import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor-layer.mjs";
+import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 
 export const sceneControls = {
 	/** @type {Signal<string>} */
@@ -44,8 +44,7 @@ export const sceneControls = {
  * @param {SceneControl[]} controls
  */
 export function registerSceneControls(controls) {
-	// Don't show the controls on gridless scenes as they are not supported
-	if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
+	const isGridless = canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS;
 
 	// Add a LOS ruler and toggle map button in the token controls
 	controls.find(grp => grp.name === "token").tools.push(
@@ -74,26 +73,36 @@ export function registerSceneControls(controls) {
 
 	// Menu for editing the terrain
 	controls.push({
-		name: moduleName,
+		name: terrainHeightEditorControlName,
 		title: game.i18n.localize("CONTROLS.GroupTerrainHeightTools"),
 		icon: "fas fa-chart-simple",
-		layer: "terrainHeightLayer",
-		activeTool: tools.paint,
+		layer: "terrainHeightEditorLayer",
+		activeTool: tools.paintCells,
 		visible: game.user.isGM,
 		tools: [
-			{
-				name: tools.paint,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaint"),
+			!isGridless && {
+				name: tools.paintCells,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaintCells"),
 				icon: "fas fa-paintbrush"
 			},
 			{
+				name: tools.paintPolygon,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaintPolygon"),
+				icon: "fas fa-paintbrush"
+			},
+			/* {
 				name: tools.fill,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsFill"),
 				icon: "fas fa-fill-drip"
+			}, */
+			!isGridless && {
+				name: tools.eraseCells,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsEraseCells"),
+				icon: "fas fa-eraser"
 			},
 			{
-				name: tools.erase,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErase"),
+				name: tools.erasePolygon,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErasePolygon"),
 				icon: "fas fa-eraser"
 			},
 			{
@@ -131,7 +140,7 @@ export function registerSceneControls(controls) {
 				},
 				button: true
 			}
-		]
+		].filter(Boolean)
 	});
 }
 
@@ -148,14 +157,14 @@ export function renderToolSpecificApplications(controls) {
 
 	// Show the palette if either the paint or fill tools are selected
 	renderToolSpecificApplication(
-		controls.activeControl === moduleName && [tools.paint, tools.fill].includes(controls.activeTool),
+		controls.activeControl === terrainHeightEditorControlName && [tools.paintCells, tools.paintPolygon, tools.fill].includes(controls.activeTool),
 		sceneControls.terrainPaintPalette,
 		() => sceneControls.terrainPaintPalette = new TerrainPaintPalette()
 	);
 
 	// Show the eraser config if the eraser tool is selected
 	renderToolSpecificApplication(
-		controls.activeControl === moduleName && controls.activeTool === tools.erase,
+		controls.activeControl === terrainHeightEditorControlName && [tools.eraseCells, tools.erasePolygon].includes(controls.activeTool),
 		sceneControls.terrainErasePalette,
 		() => sceneControls.terrainErasePalette = new TerrainErasePalette()
 	);
@@ -176,14 +185,14 @@ export function renderToolSpecificApplications(controls) {
 
 	// Show the visibility config if the visibility tool is selected
 	renderToolSpecificApplication(
-		controls.activeControl === moduleName && controls.activeTool === tools.terrainVisibility,
+		controls.activeControl === terrainHeightEditorControlName && controls.activeTool === tools.terrainVisibility,
 		sceneControls.terrainVisibilityConfig,
 		() => sceneControls.terrainVisibilityConfig = new TerrainVisibilityConfig()
 	);
 
 	// Show the conversion config if the convert tool is selected
 	renderToolSpecificApplication(
-		controls.activeControl === moduleName && controls.activeTool === tools.convert,
+		controls.activeControl === terrainHeightEditorControlName && controls.activeTool === tools.convert,
 		sceneControls.shapeConversionConfig,
 		() => sceneControls.shapeConversionConfig = new ShapeConversionConfig()
 	);

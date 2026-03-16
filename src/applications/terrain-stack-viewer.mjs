@@ -7,7 +7,7 @@ import { when } from "lit/directives/when.js";
 import { sceneControls } from "../config/controls.mjs";
 import { keyPressed$ } from "../config/keybindings.mjs";
 import { showTerrainStackViewerOnTokenLayer$, terrainStackViewerDisplayMode$ } from "../config/settings.mjs";
-import { keybindings, moduleName } from "../consts.mjs";
+import { keybindings, moduleName, terrainHeightEditorControlName } from "../consts.mjs";
 import { canvasReady$, cursorWorldPosition$ } from "../stores/canvas.mjs";
 import { getShapesAtPoint } from "../stores/terrain-manager.mjs";
 import { getCssColorsFor, getTerrainType } from "../stores/terrain-types.mjs";
@@ -54,7 +54,7 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 	//   show the toolbox on the token layer turned on.
 	#isVisible$ = computed(() =>
 		keyPressed$[keybindings.showTerrainStack].value ||
-		sceneControls.activeControl$.value === moduleName ||
+		sceneControls.activeControl$.value === terrainHeightEditorControlName ||
 		(
 			sceneControls.activeControl$.value === "token" &&
 			showTerrainStackViewerOnTokenLayer$.value &&

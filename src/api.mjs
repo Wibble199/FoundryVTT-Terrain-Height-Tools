@@ -7,7 +7,7 @@ import { defaultGroupName, moduleName, settingNames } from "./consts.mjs";
 import { heightMap } from "./geometry/height-map.mjs";
 import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
-import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
+import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 import { getShapesAtPoint as getShapesAtPointImpl, getShapesByBounds, TerrainProvider } from "./stores/terrain-manager.mjs";
 import { terrainTypes$ } from "./stores/terrain-types.mjs";
 import { rectangleFromP1P2 } from "./utils/pixi-utils.mjs";

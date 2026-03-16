@@ -30,7 +30,18 @@ export class Polygon {
 		};
 
 		for (const vertex of vertices ?? []) {
-			this.pushVertex(vertex);
+			this.#pushVertex(vertex);
+		}
+
+		// Self-intersecting polygons are harder to deal with, so prevent them from being created
+		for (let i = 0; i < this.#edges.length - 2; i++) {
+			// Use i + 2 because adjacent edges will intersect at their joining point, which is expected
+			for (let j = i + 2; j < this.#edges.length; j++) {
+				if (i === 0 && j === this.#edges.length - 1) continue; // skip adjacent
+				if (this.#edges[i].intersectsAt(this.#edges[j]) !== undefined) {
+					throw new Error("Self-intersecting polygons are not supported. Use ClipperLib.Clipper.SimplifyPolygon to simplify first.");
+				}
+			}
 		}
 	}
 
@@ -89,7 +100,7 @@ export class Polygon {
 	 * @param {number | Point | { x: number; y: number } | { X: number; Y: number }} x The X coordinate of the point or a Point object to add.
 	 * @param {number | undefined} y The Y coordinate of the point or undefined.
 	 */
-	pushVertex(x, y = undefined) {
+	#pushVertex(x, y = undefined) {
 		const vertex = x instanceof Point ? x
 			: typeof x === "object" ? new Point(x.x ?? x.X, x.y ?? x.Y)
 				: new Point(x, y);

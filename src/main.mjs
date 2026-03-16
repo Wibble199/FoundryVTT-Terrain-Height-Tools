@@ -7,7 +7,7 @@ import { heightMapProviderId, moduleName, socketFuncs, socketName } from "./cons
 import { heightMap } from "./geometry/height-map.mjs";
 import * as autoTokenElevation from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
-import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor-layer.mjs";
+import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
 import * as canvasStore from "./stores/canvas.mjs";
 import { registerTerrainProvider } from "./stores/terrain-manager.mjs";
@@ -49,7 +49,7 @@ function init() {
 
 	registerTerrainProvider(heightMapProviderId, heightMap);
 
-	CONFIG.Canvas.layers.terrainHeightLayer = { group: "interface", layerClass: TerrainHeightEditorLayer };
+	CONFIG.Canvas.layers.terrainHeightEditorLayer = { group: "interface", layerClass: TerrainHeightEditorLayer };
 	CONFIG.Canvas.layers.terrainHeightGraphicsLayer = { group: "interface", layerClass: TerrainHeightGraphicsLayer };
 	CONFIG.Canvas.layers.terrainHeightLosRulerLayer = { group: "interface", layerClass: LineOfSightRulerLayer };
 

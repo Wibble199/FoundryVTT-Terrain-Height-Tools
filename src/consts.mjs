@@ -13,11 +13,15 @@ export const heightMapProviderId = `${moduleName}.heightMap`;
 
 export const terrainUpdatedHook = `${moduleName}.terrainUpdated`;
 
+export const terrainHeightEditorControlName = "terrain-height-tools-editor";
+
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
-	paint: "paint",
+	paintCells: "paintCells",
+	paintPolygon: "paintPolygon",
 	fill: "fill",
-	erase: "erase",
+	eraseCells: "eraseCells",
+	erasePolygon: "erasePolygon",
 	eraseShape: "eraseShape",
 	pipette: "pipette",
 	lineOfSight: "terrainHeightToolsLineOfSight",

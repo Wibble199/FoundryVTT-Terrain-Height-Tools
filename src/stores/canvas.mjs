@@ -13,6 +13,9 @@ export const invisibleTerrainTypes$ = signal(new Set());
 /** @type {Signal<boolean | null>} */
 export const sceneRenderAboveTilesChoice$ = signal(null);
 
+/** Whether the THT height map editor layer is currently active. */
+export const isEditLayerActive$ = signal(false);
+
 export function onUpdateScene(scene) {
 	// A scene other than the one the current user is on was updated
 	if (scene.id !== canvas.scene.id) return;

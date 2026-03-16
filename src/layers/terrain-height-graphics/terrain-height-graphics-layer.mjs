@@ -4,7 +4,7 @@
 import { computed, signal, untracked } from "@preact/signals-core";
 import { sceneControls } from "../../config/controls.mjs";
 import { showTerrainHeightOnTokenLayer$, showZonesAboveNonZones$, terrainHeightLayerVisibilityRadius$, terrainLayerAboveTilesDefault$, useFractionsForLabels$ } from "../../config/settings.mjs";
-import { heightMapProviderId, tools } from "../../consts.mjs";
+import { heightMapProviderId, terrainHeightEditorControlName, tools } from "../../consts.mjs";
 import { cursorWorldPosition$, invisibleTerrainTypes$, sceneRenderAboveTilesChoice$ } from "../../stores/canvas.mjs";
 import { allTerrainShapes$ } from "../../stores/terrain-manager.mjs";
 import { getTerrainType, terrainTypes$ } from "../../stores/terrain-types.mjs";
@@ -24,7 +24,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	_cursorRadiusMask$ = signal(null);
 
 	/** @type {Signal<boolean>} */
-	_isEditLayerActive$ = signal(false);
+	#isEditLayerActive$ = computed(() => sceneControls.activeControl$.value === terrainHeightEditorControlName);
 
 	/** @type {Signal<boolean>} */
 	#isHighlightingObjects$ = signal(false);
@@ -205,8 +205,12 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	async _updateShapesVisibility({ shapes, animate = true } = {}) {
 		// If the THT editing layer is active (excluding the visibility tool), then we want to show all (and only) THT
 		// shapes. I.E. don't include shapes from other providers.
-		const showAllAndOnlyThtShapes = this._isEditLayerActive$.value
+		const showAllAndOnlyThtShapes = this.#isEditLayerActive$.value
 			&& sceneControls.activeTool$.value !== tools.terrainVisibility;
+
+		// Read these signals outside the loop to ensure they are still tracked, even if no shapes are on the scene
+		const showTerrainHeightOnTokenLayer = showTerrainHeightOnTokenLayer$.value;
+		const invisibleTerrainTypes = invisibleTerrainTypes$.value;
 
 		await Promise.all((shapes ?? [...this.#allShapeGraphics]).map(s => s._setVisible(
 			showAllAndOnlyThtShapes
@@ -215,8 +219,8 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 
 				// Otherwise, shapes should be visible if (THT is turned on for other layers or the terrain type is
 				// always visible) AND that terrain type is not hidden on this scene
-				: (showTerrainHeightOnTokenLayer$.value || s.terrainType.isAlwaysVisible)
-				&& !invisibleTerrainTypes$.value.has(s.terrainType.id),
+				: (showTerrainHeightOnTokenLayer || s.terrainType.isAlwaysVisible)
+				&& !invisibleTerrainTypes.has(s.terrainType.id),
 			animate
 		)));
 	}
@@ -229,7 +233,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	_updateShapeMasks({ shapes } = {}) {
 		for (const shape of shapes ?? this.#allShapeGraphics) {
 			const hasMask = !shape.terrainType.isAlwaysVisible
-				&& !this._isEditLayerActive$.value
+				&& !this.#isEditLayerActive$.value
 				&& !this.#isHighlightingObjects$.value;
 			shape.mask = hasMask ? this.#cursorRadiusMask : null;
 		}

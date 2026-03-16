@@ -115,11 +115,11 @@ export function getTerrainType(terrainTypeId) {
  */
 export function getTerrainColor(terrainType, defaultColor = 0x00FFFF) {
 	// If the terrain type has a fill colour, use that
-	if (terrainType.fillOpacity > 0 && terrainType.fillType !== CONST.DRAWING_FILL_TYPES.NONE)
+	if (terrainType?.fillOpacity > 0 && terrainType.fillType !== CONST.DRAWING_FILL_TYPES.NONE)
 		return Color.from(terrainType.fillColor);
 
 	// If the terrain type does not have a fill colour but has a border colour, use that
-	if (terrainType.lineWidth > 0 && terrainType.lineOpacity > 0)
+	if (terrainType?.lineWidth > 0 && terrainType.lineOpacity > 0)
 		return Color.from(terrainType.lineColor);
 
 	// Otherwise use a default
