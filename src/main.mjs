@@ -1,6 +1,7 @@
 import * as api from "./api.mjs";
 import { TerrainStackViewer } from "./applications/terrain-stack-viewer.mjs";
-import { registerSceneControls, renderToolSpecificApplications, sceneControls } from "./config/controls.mjs";
+import { TokenLineOfSightConfig } from "./applications/token-line-of-sight-config.mjs";
+import { registerSceneControls } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { addAboveTilesToSceneConfig, registerSettings } from "./config/settings.mjs";
 import { heightMapProviderId, moduleName, socketFuncs, socketName } from "./consts.mjs";
@@ -10,6 +11,7 @@ import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
 import * as canvasStore from "./stores/canvas.mjs";
+import { updateActiveControlTool } from "./stores/scene-controls.mjs";
 import { registerTerrainProvider } from "./stores/terrain-manager.mjs";
 import { loadTerrainTypes } from "./stores/terrain-types.mjs";
 import { log } from "./utils/log.mjs";
@@ -17,7 +19,7 @@ import { log } from "./utils/log.mjs";
 Hooks.once("init", init);
 Hooks.once("ready", ready);
 Hooks.on("getSceneControlButtons", registerSceneControls);
-Hooks.on("renderSceneControls", renderToolSpecificApplications);
+Hooks.on("renderSceneControls", updateActiveControlTool);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
 Hooks.on("refreshToken", token => LineOfSightRulerLayer.current?._onTokenRefresh(token)); // TODO: is this needed?
 
@@ -85,15 +87,15 @@ function initLibWrapper() {
 	// called) we also need to override the `can` method to allow players to click tokens they don't own when using the
 	// token LoS tool. Feels dirty, but hey, whatever works, right?
 	libWrapper.register(moduleName, "Token.prototype._onClickLeft", function(wrapped, ...args) {
-		if (sceneControls.tokenLineOfSightConfig?._isSelectingToken$.value) {
-			sceneControls.tokenLineOfSightConfig._onSelectToken(this);
+		if (TokenLineOfSightConfig.current?._isSelectingToken$.value) {
+			TokenLineOfSightConfig.current._onSelectToken(this);
 			return;
 		}
 		wrapped(...args);
 	}, libWrapper.MIXED);
 
 	libWrapper.register(moduleName, "MouseInteractionManager.prototype.can", function(wrapped, action, event) {
-		if (action === "clickLeft" && sceneControls.tokenLineOfSightConfig?._isSelecting)
+		if (action === "clickLeft" && TokenLineOfSightConfig.current?._isSelecting)
 			return true;
 		return wrapped(action, event);
 	}, libWrapper.MIXED);

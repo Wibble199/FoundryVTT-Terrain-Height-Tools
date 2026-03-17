@@ -1,43 +1,9 @@
-/** @import { Signal } from "@preact/signals-core" */
-import { signal } from "@preact/signals-core";
-import { LineOfSightRulerConfig } from "../applications/line-of-sight-ruler-config.mjs";
-import { ShapeConversionConfig } from "../applications/shape-conversion-config.mjs";
-import { TerrainErasePalette } from "../applications/terrain-erase-palette.mjs";
-import { TerrainPaintPalette } from "../applications/terrain-paint-palette.mjs";
-import { TerrainVisibilityConfig } from "../applications/terrain-visibility-config.mjs";
-import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settingNames, terrainHeightEditorControlName, tools } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor/terrain-height-editor-layer.mjs";
+import { showTerrainHeightOnTokenLayer$ } from "./settings.mjs";
 
-export const sceneControls = {
-	/** @type {Signal<string>} */
-	activeControl$: signal(),
-
-	/** @type {Signal<string>} */
-	activeTool$: signal(),
-
-	/** @type {SceneControlTool | undefined} */
-	terrainHeightToolsLayerToggleControlButton: undefined,
-
-	/** @type {TerrainPaintPalette | undefined} */
-	terrainPaintPalette: undefined,
-
-	/** @type {TerrainErasePalette | undefined} */
-	terrainErasePalette: undefined,
-
-	/** @type {LineOfSightRulerConfig | undefined} */
-	lineOfSightRulerConfig: undefined,
-
-	/** @type {TokenLineOfSightConfig | undefined} */
-	tokenLineOfSightConfig: undefined,
-
-	/** @type {TerrainVisibilityConfig | undefined} */
-	terrainVisibilityConfig: undefined,
-
-	/** @type {ShapeConversionConfig | undefined} */
-	shapeConversionConfig: undefined
-};
+const terrainHeightLayerToggleButtonName = "terrainHeightLayerToggle";
 
 /**
  * Registers the scene menu controls.
@@ -61,8 +27,8 @@ export function registerSceneControls(controls) {
 				LineOfSightRulerLayer.current?._autoSelectTokenLosTargets();
 			}
 		},
-		sceneControls.terrainHeightToolsLayerToggleControlButton = {
-			name: "terrainHeightLayerToggle",
+		{
+			name: terrainHeightLayerToggleButtonName,
 			title: game.i18n.localize("CONTROLS.TerrainHeightToolsLayerToggle"),
 			icon: "fas fa-chart-simple",
 			onClick: isActive => game.settings.set(moduleName, settingNames.showTerrainHeightOnTokenLayer, isActive),
@@ -144,86 +110,14 @@ export function registerSceneControls(controls) {
 	});
 }
 
-/**
- * Renders certain applications when certain tools are selected:
- * - Terrain/height palette when the paint/fill tool is selected.
- * - Line of sight config when the line of sight ruler tool is selected.
- * @param {SceneControls} controls
- */
-export function renderToolSpecificApplications(controls) {
-	// Update the signals to allow notifying other parts of the module more easily
-	sceneControls.activeControl$.value = controls.activeControl;
-	sceneControls.activeTool$.value = controls.activeTool;
+// When the 'show terrain height on token layer' setting changes, update the button's active state
+showTerrainHeightOnTokenLayer$.subscribe(isActive => {
+	const toggleButton = ui.controls
+		?.controls?.find(x => x.name == "token")
+		?.tools.find(x => x.name == terrainHeightLayerToggleButtonName);
 
-	// Show the palette if either the paint or fill tools are selected
-	renderToolSpecificApplication(
-		controls.activeControl === terrainHeightEditorControlName && [tools.paintCells, tools.paintPolygon, tools.fill].includes(controls.activeTool),
-		sceneControls.terrainPaintPalette,
-		() => sceneControls.terrainPaintPalette = new TerrainPaintPalette()
-	);
-
-	// Show the eraser config if the eraser tool is selected
-	renderToolSpecificApplication(
-		controls.activeControl === terrainHeightEditorControlName && [tools.eraseCells, tools.erasePolygon].includes(controls.activeTool),
-		sceneControls.terrainErasePalette,
-		() => sceneControls.terrainErasePalette = new TerrainErasePalette()
-	);
-
-	// Show the line of sight ruler config if the line of sight ruler is selected
-	renderToolSpecificApplication(
-		controls.activeControl === "token" && controls.activeTool === tools.lineOfSight,
-		sceneControls.lineOfSightRulerConfig,
-		() => sceneControls.lineOfSightRulerConfig = new LineOfSightRulerConfig()
-	);
-
-	// Show the token line of sight config if that tool is selected
-	renderToolSpecificApplication(
-		controls.activeControl === "token" && controls.activeTool === tools.tokenLineOfSight,
-		sceneControls.tokenLineOfSightConfig,
-		() => sceneControls.tokenLineOfSightConfig = new TokenLineOfSightConfig()
-	);
-
-	// Show the visibility config if the visibility tool is selected
-	renderToolSpecificApplication(
-		controls.activeControl === terrainHeightEditorControlName && controls.activeTool === tools.terrainVisibility,
-		sceneControls.terrainVisibilityConfig,
-		() => sceneControls.terrainVisibilityConfig = new TerrainVisibilityConfig()
-	);
-
-	// Show the conversion config if the convert tool is selected
-	renderToolSpecificApplication(
-		controls.activeControl === terrainHeightEditorControlName && controls.activeTool === tools.convert,
-		sceneControls.shapeConversionConfig,
-		() => sceneControls.shapeConversionConfig = new ShapeConversionConfig()
-	);
-}
-
-/**
- * @param {boolean} condition Whether or not to show the tool.
- * @param {Application} application Which application to render/update.
- * @param {() => Application} factory How to construct the application if it has not been created yet.
- */
-function renderToolSpecificApplication(condition, application, factory) {
-	if (!condition && application?.rendered) {
-		// If we shouldn't show the application, close it if it's already open
-		application?.close();
-
-	} else if (condition && !application) {
-		// If we should show the application, but haven't constructed one yet, do so now
-		application = factory();
-		application.render(true);
-
-		// Only position it once so that if the user moves it, we keep it in the same place
-		Hooks.once(`render${application.constructor.name}`, () => {
-			const left = ui.sidebar?.element[0].getBoundingClientRect()?.left;
-			application.setPosition({
-				top: 5,
-				left: left - application.constructor.DEFAULT_OPTIONS.position.width - 7
-			});
-		});
-
-	} else if (condition) {
-		// If we should show the application, and it's constructed (but maybe not shown), show it/re-render it
-		application.render(true);
+	if (toggleButton) {
+		toggleButton.active = isActive;
+		ui.controls.render();
 	}
-}
+});

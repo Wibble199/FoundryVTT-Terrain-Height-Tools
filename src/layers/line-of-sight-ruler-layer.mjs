@@ -1,9 +1,9 @@
 /** @import { FlattenedLineOfSightIntersectionRegion } from "../geometry/terrain-shape.mjs" */
 import { effect } from "@preact/signals-core";
-import { sceneControls } from "../config/controls.mjs";
 import { moduleDrawingGroupName, moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
+import { activeControl$, activeTool$ } from "../stores/scene-controls.mjs";
 import { getShapesByBounds } from "../stores/terrain-manager.mjs";
 import { getTerrainColor, terrainTypeMap$ } from "../stores/terrain-types.mjs";
 import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
@@ -90,8 +90,8 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		// Only enable events when the ruler layer is active, otherwise it interferes with other standard layers
 		effect(() => {
 			this.hitArea =
-				sceneControls.activeControl$.value === "token" &&
-				sceneControls.activeTool$.value === tools.lineOfSight
+				activeControl$.value === "token" &&
+				activeTool$.value === tools.lineOfSight
 					? canvas.dimensions.rect
 					: PIXI.Rectangle.EMPTY;
 		});
@@ -113,7 +113,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	}
 
 	get #isToolSelected() {
-		return sceneControls.activeTool$.value === tools.lineOfSight;
+		return activeTool$.value === tools.lineOfSight;
 	}
 
 	get #isDraggingRuler() {

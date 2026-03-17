@@ -1,4 +1,5 @@
 /** @import { TerrainShape } from "../../../geometry/terrain-shape.mjs"; */
+import { ShapeConversionConfig } from "../../../applications/shape-conversion-config.mjs";
 import { wallHeightModuleName } from "../../../consts.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
 import { convertConfig$ } from "../../../stores/drawing.mjs";
@@ -11,6 +12,8 @@ import { AbstractShapeEditorTool } from "./abstract/abstract-shape-editor-tool.m
  * Tool that allows a user to convert an existing shape into drawing/walls/region.
  */
 export class ConvertShapeEditorTool extends AbstractShapeEditorTool {
+
+	static APPLICATION_TYPE = ShapeConversionConfig;
 
 	static hint = "TERRAINHEIGHTTOOLS.SelectAShapeConvertHint";
 

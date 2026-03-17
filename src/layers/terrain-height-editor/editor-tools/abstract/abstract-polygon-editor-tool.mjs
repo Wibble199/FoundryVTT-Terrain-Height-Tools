@@ -101,6 +101,7 @@ export class AbstractPolygonEditorTool extends AbstractEditorTool {
 
 	/** @override */
 	_cleanup() {
+		super._cleanup();
 		canvas.interface.removeChild(this.#graphics);
 	}
 

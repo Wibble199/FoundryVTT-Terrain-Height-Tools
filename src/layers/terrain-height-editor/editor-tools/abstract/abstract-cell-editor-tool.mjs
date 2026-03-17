@@ -37,6 +37,7 @@ export class AbstractCellEditorTool extends AbstractEditorTool {
 	}
 
 	_cleanup() {
+		super._cleanup();
 		this.#clearCells();
 		canvas.interface.removeChild(this.#graphics);
 	}

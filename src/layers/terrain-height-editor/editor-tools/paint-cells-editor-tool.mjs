@@ -1,3 +1,4 @@
+import { TerrainPaintPalette } from "../../../applications/terrain-paint-palette.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
 import { paintingConfig$ } from "../../../stores/drawing.mjs";
 import { getTerrainColor, getTerrainType } from "../../../stores/terrain-types.mjs";
@@ -7,6 +8,8 @@ import { AbstractCellEditorTool } from "./abstract/abstract-cell-editor-tool.mjs
  * Tool that allows the user to paint regions of cells with the configured terrain type/height/elevation.
  */
 export class PaintCellsEditorTool extends AbstractCellEditorTool {
+
+	static APPLICATION_TYPE = TerrainPaintPalette;
 
 	/** @override */
 	_configureHighlight(g) {

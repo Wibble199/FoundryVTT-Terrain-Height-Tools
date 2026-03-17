@@ -2,7 +2,6 @@
 import { signal } from "@preact/signals-core";
 import { keybindings, moduleName, settingNames } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
-import { sceneControls } from "./controls.mjs";
 
 /** @type {Map<string, Set<(e: KeyboardEventContext) => void>>} */
 const keybindingListeners = new Map();
@@ -38,15 +37,7 @@ export function registerKeybindings() {
 		name: "KEYBINDINGS.ToggleTerrainHeightMapOnTokenLayer",
 		onDown: () => {
 			const isActive = !game.settings.get(moduleName, settingNames.showTerrainHeightOnTokenLayer);
-
-			// Update setting (which will trigger the layer update)
 			game.settings.set(moduleName, settingNames.showTerrainHeightOnTokenLayer, isActive);
-
-			// Update the controls UI status
-			if (ui.controls) {
-				sceneControls.terrainHeightToolsLayerToggleControlButton.active = isActive;
-				ui.controls.render();
-			}
 		}
 	});
 

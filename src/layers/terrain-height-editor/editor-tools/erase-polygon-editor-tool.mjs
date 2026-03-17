@@ -1,3 +1,4 @@
+import { TerrainPaintPalette } from "../../../applications/terrain-paint-palette.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
 import { eraseConfig$ } from "../../../stores/drawing.mjs";
 import { AbstractPolygonEditorTool } from "./abstract/abstract-polygon-editor-tool.mjs";
@@ -6,6 +7,8 @@ import { AbstractPolygonEditorTool } from "./abstract/abstract-polygon-editor-to
  * Tool for allowing the user to erase an arbitrary polygon from the canvas.
  */
 export class ErasePolygonEditorTool extends AbstractPolygonEditorTool {
+
+	static APPLICATION_TYPE = TerrainPaintPalette;
 
 	/** @override */
 	_configurePreviewLine(g) {

@@ -39,6 +39,14 @@ export class TokenLineOfSightConfig extends LitApplicationMixin(ApplicationV2) {
 		}
 	};
 
+	/** @type {TokenLineOfSightConfig | undefined} */
+	static current;
+
+	constructor(...args) {
+		super(...args);
+		current = this;
+	}
+
 	/** @override */
 	async _renderFrame(options) {
 		const frame = await super._renderFrame(options);

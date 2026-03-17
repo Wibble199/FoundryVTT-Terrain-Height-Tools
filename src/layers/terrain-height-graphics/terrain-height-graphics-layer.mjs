@@ -2,10 +2,10 @@
 /** @import { TerrainType } from "../../stores/terrain-types.mjs" */
 /** @import { Signal } from "@preact/signals-core" */
 import { computed, signal, untracked } from "@preact/signals-core";
-import { sceneControls } from "../../config/controls.mjs";
 import { showTerrainHeightOnTokenLayer$, showZonesAboveNonZones$, terrainHeightLayerVisibilityRadius$, terrainLayerAboveTilesDefault$, useFractionsForLabels$ } from "../../config/settings.mjs";
 import { heightMapProviderId, terrainHeightEditorControlName, tools } from "../../consts.mjs";
 import { cursorWorldPosition$, invisibleTerrainTypes$, sceneRenderAboveTilesChoice$ } from "../../stores/canvas.mjs";
+import { activeControl$, activeTool$ } from "../../stores/scene-controls.mjs";
 import { allTerrainShapes$ } from "../../stores/terrain-manager.mjs";
 import { getTerrainType, terrainTypes$ } from "../../stores/terrain-types.mjs";
 import { debug } from "../../utils/log.mjs";
@@ -24,7 +24,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	_cursorRadiusMask$ = signal(null);
 
 	/** @type {Signal<boolean>} */
-	#isEditLayerActive$ = computed(() => sceneControls.activeControl$.value === terrainHeightEditorControlName);
+	#isEditLayerActive$ = computed(() => activeControl$.value === terrainHeightEditorControlName);
 
 	/** @type {Signal<boolean>} */
 	#isHighlightingObjects$ = signal(false);
@@ -206,7 +206,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		// If the THT editing layer is active (excluding the visibility tool), then we want to show all (and only) THT
 		// shapes. I.E. don't include shapes from other providers.
 		const showAllAndOnlyThtShapes = this.#isEditLayerActive$.value
-			&& sceneControls.activeTool$.value !== tools.terrainVisibility;
+			&& activeTool$.value !== tools.terrainVisibility;
 
 		// Read these signals outside the loop to ensure they are still tracked, even if no shapes are on the scene
 		const showTerrainHeightOnTokenLayer = showTerrainHeightOnTokenLayer$.value;

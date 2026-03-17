@@ -1,3 +1,4 @@
+import { TerrainPaintPalette } from "../../../applications/terrain-paint-palette.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
 import { paintingConfig$ } from "../../../stores/drawing.mjs";
 import { getTerrainType, terrainTypeMap$ } from "../../../stores/terrain-types.mjs";
@@ -7,6 +8,8 @@ import { AbstractPolygonEditorTool } from "./abstract/abstract-polygon-editor-to
  * Tool for allowing the user to paint an arbitrary polygon on the canvas.
  */
 export class PaintPolygonEditorTool extends AbstractPolygonEditorTool {
+
+	static APPLICATION_TYPE = TerrainPaintPalette;
 
 	/** @override */
 	_canDraw() {

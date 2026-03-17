@@ -1,6 +1,6 @@
-import { sceneControls } from "../../config/controls.mjs";
 import { terrainHeightEditorControlName, tools } from "../../consts.mjs";
 import { heightMap } from "../../geometry/height-map.mjs";
+import { activeControl$, activeTool$ } from "../../stores/scene-controls.mjs";
 import { abortableEffect } from "../../utils/signal-utils.mjs";
 import { ConvertShapeEditorTool } from "./editor-tools/convert-shape-editor-tool.mjs";
 import { EraseCellsEditorTool } from "./editor-tools/erase-cells-editor-tool.mjs";
@@ -9,6 +9,7 @@ import { EraseShapeEditorTool } from "./editor-tools/erase-shape-editor-tool.mjs
 import { PaintCellsEditorTool } from "./editor-tools/paint-cells-editor-tool.mjs";
 import { PaintPolygonEditorTool } from "./editor-tools/paint-polygon-editor-tool.mjs";
 import { PipetteEditorTool } from "./editor-tools/pipette-editor-tool.mjs";
+import { TerrainVisibilityEditorTool } from "./editor-tools/terrain-visibility-editor-tool.mjs";
 
 /**
  * Layer for handling interaction with the terrain height data.
@@ -25,7 +26,8 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		// [tools.fill]: NYI
 		[tools.paintCells]: PaintCellsEditorTool,
 		[tools.paintPolygon]: PaintPolygonEditorTool,
-		[tools.pipette]: PipetteEditorTool
+		[tools.pipette]: PipetteEditorTool,
+		[tools.terrainVisibility]: TerrainVisibilityEditorTool
 	};
 
 	/** @type {import("./tools/abstract/abstract-editor-tool.mjs").AbstractEditorTool | null} */
@@ -63,8 +65,8 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 		// Load the relevant tool class when the selected tool changes
 		abortableEffect(() => {
-			if (sceneControls.activeControl$.value === terrainHeightEditorControlName) {
-				const selectedToolClass = TerrainHeightEditorLayer.#tools[sceneControls.activeTool$.value];
+			if (activeControl$.value === terrainHeightEditorControlName) {
+				const selectedToolClass = TerrainHeightEditorLayer.#tools[activeTool$.value];
 				if (selectedToolClass && this.#selectedTool instanceof selectedToolClass) return;
 				this.#selectedTool?._cleanup();
 				this.#selectedTool = selectedToolClass ? new selectedToolClass() : null;

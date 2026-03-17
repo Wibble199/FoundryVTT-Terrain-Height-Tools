@@ -4,11 +4,11 @@ import { computed, effect } from "@preact/signals-core";
 import { html, svg } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
-import { sceneControls } from "../config/controls.mjs";
 import { keyPressed$ } from "../config/keybindings.mjs";
 import { showTerrainStackViewerOnTokenLayer$, terrainStackViewerDisplayMode$ } from "../config/settings.mjs";
 import { keybindings, moduleName, terrainHeightEditorControlName } from "../consts.mjs";
 import { canvasReady$, cursorWorldPosition$ } from "../stores/canvas.mjs";
+import { activeControl$ } from "../stores/scene-controls.mjs";
 import { getShapesAtPoint } from "../stores/terrain-manager.mjs";
 import { getCssColorsFor, getTerrainType } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
@@ -54,9 +54,9 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 	//   show the toolbox on the token layer turned on.
 	#isVisible$ = computed(() =>
 		keyPressed$[keybindings.showTerrainStack].value ||
-		sceneControls.activeControl$.value === terrainHeightEditorControlName ||
+		activeControl$.value === terrainHeightEditorControlName ||
 		(
-			sceneControls.activeControl$.value === "token" &&
+			activeControl$.value === "token" &&
 			showTerrainStackViewerOnTokenLayer$.value &&
 			this.#terrainShapesUnderMouse$.value.length > 0
 		));
