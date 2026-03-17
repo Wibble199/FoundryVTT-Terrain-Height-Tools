@@ -1,4 +1,4 @@
-import { TerrainPaintPalette } from "../../../applications/terrain-paint-palette.mjs";
+import { TerrainErasePalette } from "../../../applications/terrain-erase-palette.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
 import { eraseConfig$ } from "../../../stores/drawing.mjs";
 import { AbstractPolygonEditorTool } from "./abstract/abstract-polygon-editor-tool.mjs";
@@ -8,7 +8,7 @@ import { AbstractPolygonEditorTool } from "./abstract/abstract-polygon-editor-to
  */
 export class ErasePolygonEditorTool extends AbstractPolygonEditorTool {
 
-	static APPLICATION_TYPE = TerrainPaintPalette;
+	static APPLICATION_TYPE = TerrainErasePalette;
 
 	/** @override */
 	_configurePreviewLine(g) {

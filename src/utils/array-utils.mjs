@@ -1,20 +1,41 @@
 /**
  * Groups the given items by a key selector function into a Map, where the key is the group key and the value is an
  * array of items within that group.
- * @template T
- * @template U
- * @param {T[]} items
- * @param {(item: T) => U} func
- * @returns {Map<U, T[]>}
+ * @template TElement
+ * @template TKey
+ * @param {Iterable<TElement>} items
+ * @param {(item: TElement) => TKey} keySelector
+ * @returns {Map<TKey, TElement[]>}
  */
-export function groupBy(items, func) {
+export function groupBy(items, keySelector) {
 	const groups = new Map();
-	items.forEach(item => {
-		const group = func(item);
+	for (const item of items) {
+		const group = keySelector(item);
 		if (!groups.has(group)) groups.set(group, []);
 		groups.get(group).push(item);
-	});
+	}
 	return groups;
+}
+
+/**
+ * Groups the given items by a key selector function into a Map, where the key is the group key and the value is the
+ * result of the `groupSelector` function called on the elements in each group.
+ * @template TElement
+ * @template TKey
+ * @template TGroup
+ * @param {Iterable<TElement>} items
+ * @param {(item: TElement) => TKey} keySelector
+ * @param {(items: TElement[]) => TGroup} groupSelector
+ * @returns {Map<TKey, TGroup[]>}
+ */
+export function groupBy2(items, keySelector, groupSelector) {
+	const groups = new Map();
+	for (const item of items) {
+		const group = keySelector(item);
+		if (!groups.has(group)) groups.set(group, []);
+		groups.get(group).push(item);
+	}
+	return new Map([...groups.entries()].map(([key, items]) => [key, groupSelector(items)]));
 }
 
 /**

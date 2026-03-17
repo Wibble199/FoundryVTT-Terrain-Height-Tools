@@ -3,10 +3,16 @@
 import { flags, moduleName } from "../consts.mjs";
 import { TerrainProvider } from "../stores/terrain-manager.mjs";
 import { getTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { groupBy2 } from "../utils/array-utils.mjs";
 import { polygonsFromGridCells } from "../utils/grid-utils.mjs";
 import { DATA_VERSION, migrateData } from "../utils/height-map-migrations.mjs";
+import { debug } from "../utils/log.mjs";
 import { Polygon } from "./polygon.mjs";
 import { TerrainShape } from "./terrain-shape.mjs";
+
+const { ctDifference, ctIntersection, ctUnion } = ClipperLib.ClipType;
+const { ptClip, ptSubject } = ClipperLib.PolyType;
+const { pftPositive } = ClipperLib.PolyFillType;
 
 const maxHistoryItems = 10;
 
@@ -78,65 +84,162 @@ export class HeightMap extends TerrainProvider {
 	 * - `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.
 	 */
 	async paintRegion({ polygon, holes = [] }, terrainTypeId, height = 0, elevation = 0, { mode = "totalReplace" } = {}) {
+		const terrainType = getTerrainType(terrainTypeId);
+		if (!terrainType) throw new Error(`Invalid terrain type ID '${terrainTypeId}'`);
+
+		const startTimestamp = performance.now();
+
+		const top = elevation + height;
+		const bottom = elevation;
+
 		const outerPolygon = Polygon.createSolid(polygon);
 		const holePolygons = holes.map(h => Polygon.createHole(h));
 
-		// Create the clipper path from the polygons to ensure that the vertices are difined in the correct order
-		// This array will be the result of the Clipper operations for the newly created shape
+		// This arrays will be the result of the Clipper operations for the newly created shapes and their values
 		let newShapePaths = [
-			outerPolygon.getClipperPath(),
-			...holePolygons.map(h => h.getClipperPath())
+			{
+				top,
+				bottom,
+				paths: [
+					// Create clipper path from the polygons to ensure the vertices are defined in the correct order
+					outerPolygon.getClipperPath(),
+					...holePolygons.map(h => h.getClipperPath())
+				]
+			}
 		];
 
-		// Clip each potentially overlapping shape with the new region being painted
-		// We do not need to clip all shapes with each other since they will have already been clipped
-		for (const shape of this.getShapes(outerPolygon.boundingRect)) {
-			const existingShapePath = shape.getClipperPath();
+		const clipper = new ClipperLib.Clipper();
+		clipper.StrictlySimple = true;
 
-			const clipper = new ClipperLib.Clipper();
-			clipper.AddPaths(newShapePaths, ClipperLib.PolyType.ptSubject, true);
-			clipper.AddPaths(existingShapePath, ClipperLib.PolyType.ptClip, true);
+		// STAGE 1: Update the new or existing shapes according to vertical overlaps.
+		switch (true) {
+			// If doing total replace, just clip any existing shapes in the polygon area
+			case mode === "totalReplace": {
+				await this.eraseRegion({ polygon, holes }, { history: false });
+				break;
+			}
 
-			const intersectionResult = [];
-			clipper.Execute(ClipperLib.ClipType.ctIntersection, intersectionResult, ClipperLib.PolyFillType.pftPositive, ClipperLib.PolyFillType.pftPositive);
+			// If doing a destructive merge of a non-zone, remove other non-zones in the polygon area and height range
+			case mode === "destructiveMerge" && terrainType.usesHeight: {
+				const nonZoneTerrainTypeIds = terrainTypes$.value.filter(t => t.usesHeight).map(t => t.id);
+				await this.eraseRegion({ polygon, holes }, { onlyTerrainTypeIds: nonZoneTerrainTypeIds, top, bottom, history: false });
+				break;
+			}
 
-			// If no intersection, then we do not have to worry about changing the original shape so can just skip
-			if (intersectionResult.length === 0) continue;
+			// If doing a destructive merge of a zone, remove other zones in the polygon area
+			case mode === "destructiveMerge" && !terrainType.usesHeight: {
+				const zoneTerrainTypeIds = terrainTypes$.value.filter(t => !t.usesHeight).map(t => t.id);
+				await this.eraseRegion({ polygon, holes }, { onlyTerrainTypeIds: zoneTerrainTypeIds, history: false });
+				break;
+			}
 
-			// New difference existing = parts of the new region that don't overlap
-			const newRegionDifferenceExisting = [];
-			clipper.Execute(ClipperLib.ClipType.ctDifference, newRegionDifferenceExisting, ClipperLib.PolyFillType.pftPositive, ClipperLib.PolyFillType.pftPositive);
+			// If doing an additive merge of a non-zone, need to modify the newShapePaths to carve out areas that are
+			// overlapping existing terrain.
+			case mode === "additiveMerge" && terrainType.usesHeight: {
+				// We don't care about the terrain types of the existing terrain, so just combine the clipper paths of
+				// shapes with identical top/bottom values.
+				/** @type {Map<string, { top: number; bottom: number; paths: ClipperLib.IntPoint[][] }>} */
+				const existingShapePaths = groupBy2(
+					this.getShapes(outerPolygon.boundingRect, {
+						collisionTest: ({ t: shape }) => shape.usesHeight && shape.top > bottom && shape.bottom < top
+					}),
+					shape => `${shape.top}|${shape.bottom}`,
+					shapes => ({ top: shapes[0].top, bottom: shapes[0].bottom, paths: shapes.flatMap(shape => shape.getClipperPath()) })
+				);
 
-			clipper.Clear();
-			clipper.AddPaths(existingShapePath, ClipperLib.PolyType.ptSubject, true);
-			clipper.AddPaths(newShapePaths, ClipperLib.PolyType.ptClip, true);
+				for (const [, existingShape] of existingShapePaths) {
+					// Put the changes into a new array, then replace the entire existing array with the new one.
+					// I.E. this is so we do NOT modify the array as we're iterating over it too.
+					// Also, naming things is hard :(
+					/** @type {typeof newShapePaths} */
+					const newNewShapePaths = [];
 
-			// Existing difference new = unchanged parts of the original shape
-			const existingDifferenceNewRegion = [];
-			clipper.Execute(ClipperLib.ClipType.ctDifference, existingDifferenceNewRegion, ClipperLib.PolyFillType.pftPositive, ClipperLib.PolyFillType.pftPositive);
+					const addNewNewShapePath = (paths, top, bottom) => {
+						const existing = newNewShapePaths.find(p => p.top === top && p.bottom === bottom);
+						if (existing)
+							existing.paths.push(...paths);
+						else
+							newNewShapePaths.push({ paths: Array.from(paths), top, bottom });
+					};
 
-			// DEBUG
-			this.setShapes(
-				HeightMap.#shapesFromClipperResult(intersectionResult).map(({ polygon, holes }) => new TerrainShape({
-					terrainTypeId: terrainTypes$.value[1].id,
-					height: 1,
-					polygon,
-					holes
-				})),
-				HeightMap.#shapesFromClipperResult(newRegionDifferenceExisting).map(({ polygon, holes }) => new TerrainShape({
-					terrainTypeId: terrainTypes$.value[2].id,
-					height: 1,
-					polygon,
-					holes
-				})),
-				HeightMap.#shapesFromClipperResult(existingDifferenceNewRegion).map(({ polygon, holes }) => new TerrainShape({
-					terrainTypeId: terrainTypes$.value[3].id,
-					height: 1,
-					polygon,
-					holes
-				}))
-			);
+					for (const newShapePath of newShapePaths) {
+						clipper.AddPaths(newShapePath.paths, ptSubject, true);
+						clipper.AddPaths(existingShape.paths, ptClip, true);
+
+						// Work out the intersection between the new shape and the existing shape. If the new shape
+						// could fit above or below the existing shape, add those height/elevation ranges to the paths.
+						const intersection = [];
+						clipper.Execute(ctIntersection, intersection, pftPositive, pftPositive);
+
+						if (newShapePath.bottom < existingShape.bottom)
+							addNewNewShapePath(intersection, existingShape.bottom, newShapePath.bottom);
+
+						if (newShapePath.top > existingShape.top)
+							addNewNewShapePath(intersection, newShapePath.top, existingShape.top);
+
+						// Work out the difference - i.e. the part of the new shape untouched by the existing shape, and
+						// add it to the paths at the full height (i.e. this bit hasn't been carved out).
+						const newShapePathOnly = [];
+						clipper.Execute(ctDifference, newShapePathOnly, pftPositive, pftPositive);
+
+						addNewNewShapePath(newShapePathOnly, newShapePath.top, newShapePath.bottom);
+
+						// Reset Clipper for next iteration
+						clipper.Clear();
+					}
+
+					newShapePaths = newNewShapePaths;
+				}
+
+				break;
+			}
+
+			// If doing an additive merge of a zone, don't need to do anything here, just the merge in stage 2 :)
 		}
+
+		// STAGE 2: Merge the new terrain with any adjacent existing terrain of the same type, top, & bottom and add to
+		// the scene
+		for (let { top, bottom, paths } of newShapePaths) {
+			// Figure out if any similar shapes are adjacent, as these might be able to be merged
+			const possibleMergeCandidates = new Set(HeightMap.#shapesFromClipperResult(paths)
+				.flatMap(({ polygon }) => [...this.getShapes(
+					// Increase the size by 1px on each side so we can get shapes which touch but don't overlap
+					new PIXI.Rectangle(
+						polygon.boundingBox.x1 - 1,
+						polygon.boundingBox.y1 - 1,
+						polygon.boundingBox.w + 2,
+						polygon.boundingBox.h + 2
+					),
+					{
+						collisionTest: ({ t: shape }) =>
+							shape.terrainTypeId === terrainTypeId && shape.top === top && shape.bottom === bottom
+					}
+				)]));
+
+			// If there were some potentially mergable shapes, merge (union) them
+			if (possibleMergeCandidates.size > 0) {
+				clipper.AddPaths(paths, ptSubject, true);
+				for (const mergeCandidate of possibleMergeCandidates) {
+					this.deleteShapes(mergeCandidate);
+					clipper.AddPaths(mergeCandidate.getClipperPath(), ptClip, true);
+				}
+
+				paths = [];
+				clipper.Execute(ctUnion, paths, pftPositive, pftPositive);
+				clipper.Clear();
+			}
+
+			// Add the resulting merged shapes
+			this.addShapes(HeightMap.#shapesFromClipperResult(paths).map(({ polygon, holes }) => new TerrainShape({
+				polygon,
+				holes,
+				terrainTypeId,
+				top,
+				bottom
+			})));
+		}
+
+		debug(`paintRegion took ${Math.round(performance.now() - startTimestamp)}ms`);
 	}
 
 	/**
@@ -179,8 +282,9 @@ export class HeightMap extends TerrainProvider {
 	 * @param {string[]} [options.excludingTerrainTypeIds] A list of terrain type IDs NOT to remove.
 	 * @param {number} [options.bottom] The optional lower range to remove terrain from. Does not apply to no-height terrain.
 	 * @param {number} [options.top] Optional upper range to remove terrain from. Does not apply to no-height terrain.
+	 * @param {boolean} [options.history] Whether to track this change in the history tracker.
 	 */
-	async eraseRegion({ polygon, holes = [] }, { onlyTerrainTypeIds, excludingTerrainTypeIds, bottom, top } = {}) {
+	async eraseRegion({ polygon, holes = [] }, { onlyTerrainTypeIds, excludingTerrainTypeIds, bottom, top, history = true } = {}) {
 		bottom ??= -Infinity;
 		top ??= Infinity;
 
@@ -199,7 +303,7 @@ export class HeightMap extends TerrainProvider {
 				onlyTerrainTypeIds?.includes(shape.terrainTypeId) !== false &&
 				excludingTerrainTypeIds?.includes(shape.terrainTypeId) !== true &&
 				(
-					!getTerrainType(shape.terrainTypeId).usesHeight || // terrain is a zone OR
+					!shape.usesHeight || // terrain is a zone OR
 					(shape.top > bottom && shape.bottom < top) // shape exists within the specified removal range
 				)
 		});
@@ -349,15 +453,14 @@ export class HeightMap extends TerrainProvider {
 	 * @param {ClipperLib.IntPoint[][]} result
 	 */
 	static #shapesFromClipperResult(result) {
-		/** @type {{ polygon: Polygon; holes: Polygon[]; }[]} */
-		const polygonsWithHoles = [];
+		const polygons = result.map(vertices => new Polygon(vertices));
 
-		for (const clipperPolygon of result) {
-			if (Polygon.isClockwise(clipperPolygon)) {
-				polygonsWithHoles.push({ polygon: new Polygon(clipperPolygon), holes: [] });
-			} else {
-				polygonsWithHoles.at(-1).holes.push(new Polygon(clipperPolygon));
-			}
+		/** @type {{ polygon: Polygon; holes: Polygon[]; }[]} */
+		const polygonsWithHoles = polygons.filter(p => p.isSolid).map(p => ({ polygon: p, holes: [] }));
+
+		for (const hole of polygons) {
+			if (hole.isHole)
+				polygonsWithHoles.find(({ polygon }) => polygon.containsPolygon(hole)).holes.push(hole);
 		}
 
 		return polygonsWithHoles;

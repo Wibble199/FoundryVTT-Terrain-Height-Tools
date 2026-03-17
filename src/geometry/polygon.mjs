@@ -349,6 +349,7 @@ export class Polygon {
 
 	/**
 	 * Creates a ClipperLib.Path for this polygon.
+	 * @returns {ClipperLib.IntPoint[]}
 	 */
 	getClipperPath() {
 		const path = new ClipperLib.Path();

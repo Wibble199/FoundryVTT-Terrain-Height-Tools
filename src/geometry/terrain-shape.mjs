@@ -1,4 +1,4 @@
-import { terrainTypeMap$, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { getTerrainType, terrainTypeMap$, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { error, warn } from "../utils/log.mjs";
 import { roundTo } from "../utils/misc-utils.mjs";
@@ -61,7 +61,7 @@ export class TerrainShape {
 		elevation ??= bottom ?? 0;
 		if (top === undefined && height === undefined) throw new Error("Invalid height. `height` or `top` must be provided.");
 		if (height !== undefined && height < 0) throw new Error("Invalid height. Must be 0 or larger.");
-		if (top !== undefined && top <= elevation) throw new Error("Invalid height. Top must be higher than elevation/bottom.");
+		if (top !== undefined && top < elevation) throw new Error("Invalid height. Top must be higher than elevation/bottom.");
 		if (height !== undefined && top !== undefined && top !== height + elevation) throw new Error("Invalid height. Top and height do not reconcile.");
 
 		this.terrainTypeId = terrainTypeId;
@@ -70,6 +70,10 @@ export class TerrainShape {
 		this.height = height ?? (top - elevation);
 		this.elevation = elevation;
 		this.visible = visible;
+	}
+
+	get usesHeight() {
+		return getTerrainType(this.terrainTypeId)?.usesHeight ?? false;
 	}
 
 	get top() {
