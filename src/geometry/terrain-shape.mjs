@@ -170,8 +170,8 @@ export class TerrainShape {
 		};
 
 		// Work out the start and end points of the ray within the shape ("trim" off the irrelevant parts of the ray)
-		const { x: x1, y: y1, h: h1, t: t1 } = usesHeight ? clampPoint(0) : p1;
-		const { x: x2, y: y2, h: h2, t: t2 } = usesHeight ? clampPoint(1) : p2;
+		const { x: x1, y: y1, h: h1, t: t1 = 0 } = usesHeight ? clampPoint(0) : p1;
+		const { x: x2, y: y2, h: h2, t: t2 = 1 } = usesHeight ? clampPoint(1) : p2;
 
 		const lerpLosHeight = (/** @type {number} */ t) => ((h2 - h1) * t) + h1;
 		const testRay = LineSegment.fromCoords(x1, y1, x2, y2);
