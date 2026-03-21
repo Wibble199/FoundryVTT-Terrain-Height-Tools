@@ -1,3 +1,4 @@
+/** @import { PointLike } from "./point.mjs" */
 import { distinctBy } from "../utils/array-utils.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Point } from "./point.mjs";
@@ -13,23 +14,29 @@ export class Polygon {
 	/** @type {[number, number]} */
 	#centroid = [0, 0];
 
+	boundingBox = {
+		x1: Infinity, y1: Infinity,
+		x2: -Infinity, y2: -Infinity,
+		get w() { return this.x2 - this.x1; },
+		get h() { return this.y2 - this.y1; },
+		get xMid() { return (this.x1 + this.x2) / 2; },
+		get yMid() { return (this.x1 + this.x2) / 2; }
+	};
+
 	/**
 	 * Creates a new polygon out of a collection of { x, y } vertices.
 	 * If the vertices are clockwise the polygon is solid. If the vertices are counter-clockwise the polygon is a hole.
 	 * Alternatively, use `createSolid` or `createHole` which does not care about the winding.
-	 * @param {({ x: number; y: number } | { X: number; Y: number } | Point)[]} [vertices]
+	 * @param {PointLike[]} vertices
 	 */
-	constructor(vertices = undefined) {
-		this.boundingBox = {
-			x1: Infinity, y1: Infinity,
-			x2: -Infinity, y2: -Infinity,
-			get w() { return this.x2 - this.x1; },
-			get h() { return this.y2 - this.y1; },
-			get xMid() { return (this.x1 + this.x2) / 2; },
-			get yMid() { return (this.x1 + this.x2) / 2; }
-		};
+	constructor(vertices) {
+		if (!Array.isArray(vertices)) throw new Error("Invalid polygon: `vertices` must be an array");
 
-		for (const vertex of vertices ?? []) {
+		// If we have been provided a self-closing polygon, then ignore the last point
+		const verticesAsPoints = vertices.map(Point.from);
+		const isSelfClosing = verticesAsPoints[0].equals(verticesAsPoints.at(-1));
+
+		for (const vertex of isSelfClosing ? verticesAsPoints.slice(0, -1) : verticesAsPoints) {
 			this.#pushVertex(vertex);
 		}
 
@@ -48,7 +55,7 @@ export class Polygon {
 	/**
 	 * Creates a polygon as a solid/non-hole (i.e. the vertices are defined clockwise).
 	 * If the given list of vertices are counter-clockwise, they will be reversed.
-	 * @param {({ x: number; y: number } | Point)[] | Polygon} vertices
+	 * @param {PointLike[] | Polygon} vertices
 	 */
 	static createSolid(vertices) {
 		vertices = vertices instanceof Polygon ? vertices.vertices : vertices;
@@ -59,12 +66,25 @@ export class Polygon {
 	/**
 	 * Creates a polygon as a hole (i.e. the vertices are defined counter-clockwise).
 	 * If the given list of vertices are clockwise, they will be reversed.
-	 * @param {({ x: number; y: number } | Point)[] | Polygon} vertices
+	 * @param {PointLike[] | Polygon} vertices
 	 */
 	static createHole(vertices) {
 		vertices = vertices instanceof Polygon ? vertices.vertices : vertices;
 		const isClockwise = Polygon.isClockwise(vertices);
 		return new Polygon(isClockwise ? [...vertices.reverse()] : vertices);
+	}
+
+	/**
+	 * Creates a Polygon from a GeoJSON ring.
+	 * @param {[number, number][]} input
+	 */
+	static fromGeoJson(input) {
+		if (!Array.isArray(input) || Array.length < 3)
+			throw new Error("Invalid polygon: `input` must be an array with at least 3 vertices");
+
+		// If the input is a closed polygon (last point equals the first), then ignore that last element
+		const isClosed = input[0][0] === input.at(-1)[0] && input[0][1] === input.at(-1)[1];
+		return new Polygon(isClosed ? input.slice(0, -1) : input);
 	}
 
 	/** @type {readonly Point[]} */
@@ -97,13 +117,10 @@ export class Polygon {
 
 	/**
 	 * Pushes a vertex to the end of the polygon.
-	 * @param {number | Point | { x: number; y: number } | { X: number; Y: number }} x The X coordinate of the point or a Point object to add.
-	 * @param {number | undefined} y The Y coordinate of the point or undefined.
+	 * @param {PointLike} xy
 	 */
-	#pushVertex(x, y = undefined) {
-		const vertex = x instanceof Point ? x
-			: typeof x === "object" ? new Point(x.x ?? x.X, x.y ?? x.Y)
-				: new Point(x, y);
+	#pushVertex(xy) {
+		const vertex = Point.from(xy);
 
 		// Check that the point is not identical to the previous, as this would cause a 0 length edge.
 		if (this.#vertices.length > 0 && vertex.equals(this.#vertices[this.#vertices.length - 1], { precision: Number.EPSILON }))
@@ -348,14 +365,11 @@ export class Polygon {
 	}
 
 	/**
-	 * Creates a ClipperLib.Path for this polygon.
-	 * @returns {ClipperLib.IntPoint[]}
+	 * Creates a GeoJSON ring from this.
+	 * @returns {[number, number][]}
 	 */
-	getClipperPath() {
-		const path = new ClipperLib.Path();
-		for (const vertex of this.#vertices)
-			path.push(new ClipperLib.IntPoint(vertex.x, vertex.y));
-		return path;
+	toGeoJsonRing() {
+		return this.#vertices.map(({ x, y }) => [x, y]);
 	}
 
 	/**

@@ -5,7 +5,7 @@ import { roundTo } from "../utils/misc-utils.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Polygon } from "./polygon.mjs";
 
-/** @typedef {Polygon | ({ x: number; y: number; } | import("./point.mjs").Point)[]} InputPolygon */
+/** @typedef {Polygon | ({ x: number; y: number; } | import("./point.mjs").Point | [number, number])[]} InputPolygon */
 
 /**
  * @typedef {object} LineOfSightIntersection
@@ -98,12 +98,12 @@ export class TerrainShape {
 	}
 
 	/**
-	 * Creates a ClipperLib.Paths array for this shape.
+	 * Creates a GeoJSON polygon for this shape.
 	 */
-	getClipperPath() {
+	toGeoJsonPolygon() {
 		return [
-			this.polygon.getClipperPath(),
-			...this.holes.map(h => h.getClipperPath())
+			this.polygon.toGeoJsonRing(),
+			...this.holes.map(h => h.toGeoJsonRing())
 		];
 	}
 

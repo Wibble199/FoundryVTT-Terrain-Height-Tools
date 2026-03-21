@@ -1,7 +1,7 @@
 import { TerrainPaintPalette } from "../../../applications/terrain-paint-palette.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
 import { paintingConfig$ } from "../../../stores/drawing.mjs";
-import { getTerrainColor, getTerrainType } from "../../../stores/terrain-types.mjs";
+import { getTerrainColor, getTerrainType, terrainTypeMap$ } from "../../../stores/terrain-types.mjs";
 import { AbstractCellEditorTool } from "./abstract/abstract-cell-editor-tool.mjs";
 
 /**
@@ -10,6 +10,12 @@ import { AbstractCellEditorTool } from "./abstract/abstract-cell-editor-tool.mjs
 export class PaintCellsEditorTool extends AbstractCellEditorTool {
 
 	static APPLICATION_TYPE = TerrainPaintPalette;
+
+	/** @override */
+	_canDraw() {
+		const terrainTypeId = paintingConfig$.terrainTypeId.value;
+		return terrainTypeId && terrainTypeMap$.value.has(terrainTypeId);
+	}
 
 	/** @override */
 	_configureHighlight(g) {

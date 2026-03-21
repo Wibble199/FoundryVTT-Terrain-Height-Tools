@@ -12,6 +12,8 @@ export class AbstractCellEditorTool extends AbstractEditorTool {
 	/** @type {GridHighlight} */
 	#graphics;
 
+	#isDrawing = false;
+
 	constructor() {
 		super();
 
@@ -20,6 +22,7 @@ export class AbstractCellEditorTool extends AbstractEditorTool {
 
 	/** @override */
 	_onMouseDownLeft(x, y) {
+		this.#isDrawing = this._canDraw();
 		this.#highlightCell(x, y);
 	}
 
@@ -31,6 +34,9 @@ export class AbstractCellEditorTool extends AbstractEditorTool {
 
 	/** @override */
 	_onMouseUpLeft() {
+		if (!this.#isDrawing) return;
+
+		this.#isDrawing = false;
 		const selectedCells = [...this.#pendingCells].map(c => c.split("|").map(Number));
 		this.#clearCells();
 		this._use(selectedCells);
@@ -47,6 +53,8 @@ export class AbstractCellEditorTool extends AbstractEditorTool {
 	 * @param {number} y
 	 */
 	#highlightCell(x, y) {
+		if (!this.#isDrawing) return;
+
 		const { i, j } = canvas.grid.getOffset({ x, y });
 		const cellKey = `${i}|${j}`;
 		if (this.#pendingCells.has(cellKey)) return;
@@ -59,6 +67,14 @@ export class AbstractCellEditorTool extends AbstractEditorTool {
 	#clearCells() {
 		this.#graphics.clear();
 		this.#pendingCells.clear();
+	}
+
+	/**
+	 * Whether it is valid to draw a polygon.
+	 * @protected
+	 */
+	_canDraw() {
+		return true;
 	}
 
 	/**

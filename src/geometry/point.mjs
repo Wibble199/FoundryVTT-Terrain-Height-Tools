@@ -1,3 +1,5 @@
+/** @typedef {Point | { x: number; y: number } | { X: number; Y: number } | [number, number]} PointLike */
+
 /**
  * X and Y coordinates representing a position.
  */
@@ -23,6 +25,25 @@ export class Point {
 
 	get y() {
 		return this.#y;
+	}
+
+	/**
+	 * Constructs a Point from another point, an object with x and y properties, or a pair of numbers.
+	 * @param {PointLike} xy
+	 */
+	static from(xy) {
+		switch (true) {
+			case xy instanceof Point:
+				return new Point(xy.#x, xy.#y);
+			case Array.isArray(xy) && typeof xy[0] === "number" && typeof xy[1] === "number":
+				return new Point(xy[0], xy[1]);
+			case typeof xy === "object" && typeof xy.x === "number" && typeof xy.y === "number":
+				return new Point(xy.x, xy.y);
+			case typeof xy === "object" && typeof xy.X === "number" && typeof xy.Y === "number":
+				return new Point(xy.X, xy.Y);
+			default:
+				throw new Error(`Invalid point. Expected a Point instance, a pair of numbers, or an object with 'x' and 'y' number properties. Got: ${xy}`);
+		}
 	}
 
 	/**
