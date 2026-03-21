@@ -14,7 +14,7 @@ export class TerrainTypesConfig extends HandlebarsApplicationMixin(ApplicationV2
 	constructor() {
 		super();
 
-		this.#terrainTypes = terrainTypes$.value;
+		this.#terrainTypes = [...terrainTypes$.value];
 		this.#selectedTerrainTypeId = this.#terrainTypes[0]?.id ?? "";
 	}
 
