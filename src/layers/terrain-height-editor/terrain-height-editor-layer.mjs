@@ -150,7 +150,7 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	}
 
 	get canUndo() {
-		return heightMap._history.length > 0;
+		return heightMap.canUndo;
 	}
 
 	async undo() {
