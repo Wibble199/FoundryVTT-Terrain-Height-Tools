@@ -6,14 +6,15 @@ import { eraseConfig$ } from "../stores/drawing.mjs";
 import { getCssColorsFor, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
+import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
 
 /** @type {(k: string) => string} */
 const l = k => game.i18n.localize(k);
 
-export class TerrainErasePalette extends LitApplicationMixin(ApplicationV2) {
+export class TerrainErasePalette extends ThtApplicationPositionMixin(LitApplicationMixin(ApplicationV2)) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_terrainErasePalette",

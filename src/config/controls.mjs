@@ -1,6 +1,10 @@
+import { effect } from "@preact/signals-core";
+import { LineOfSightRulerConfig } from "../applications/line-of-sight-ruler-config.mjs";
+import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settingNames, terrainHeightEditorControlName, tools } from "../consts.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor/terrain-height-editor-layer.mjs";
+import { activeControl$, activeTool$ } from "../stores/scene-controls.mjs";
 import { showTerrainHeightOnTokenLayer$ } from "./settings.mjs";
 
 const terrainHeightLayerToggleButtonName = "terrainHeightLayerToggle";
@@ -120,4 +124,18 @@ showTerrainHeightOnTokenLayer$.subscribe(isActive => {
 		toggleButton.active = isActive;
 		ui.controls.render();
 	}
+});
+
+effect(() => {
+	// When the LoS ruler is the active tool, show the LoS ruler config application
+	if (activeControl$.value === "token" && activeTool$.value === tools.lineOfSight)
+		(LineOfSightRulerConfig.current ??= new LineOfSightRulerConfig()).render(true);
+	else
+		LineOfSightRulerConfig.current?.close({ animate: false });
+
+	// When token LoS is the active tool, show the toklen LoS config application
+	if (activeControl$.value === "token" && activeTool$.value === tools.tokenLineOfSight)
+		(TokenLineOfSightConfig.current ??= new TokenLineOfSightConfig()).render(true);
+	else
+		TokenLineOfSightConfig.current?.close({ animate: false });
 });

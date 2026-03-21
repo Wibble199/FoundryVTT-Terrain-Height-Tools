@@ -8,7 +8,8 @@ import { paintingConfig$ } from "../stores/drawing.mjs";
 import { getCssColorsFor, getTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
+import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
@@ -16,7 +17,7 @@ const { ApplicationV2 } = foundry.applications.api;
 /** @type {(k: string) => string} */
 const l = k => game.i18n.localize(k);
 
-export class TerrainPaintPalette extends LitApplicationMixin(ApplicationV2) {
+export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicationMixin(ApplicationV2)) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_terrainPaintPalette",

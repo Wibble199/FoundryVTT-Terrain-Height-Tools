@@ -4,7 +4,7 @@ import { when } from "lit/directives/when.js";
 import { getCssColorsFor, terrainTypeMap$ } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
 

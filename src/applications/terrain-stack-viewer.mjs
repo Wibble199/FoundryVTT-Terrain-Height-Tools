@@ -12,7 +12,7 @@ import { activeControl$ } from "../stores/scene-controls.mjs";
 import { getShapesAtPoint } from "../stores/terrain-manager.mjs";
 import { getCssColorsFor, getTerrainType } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 
 // How many pixels each unit in height is represented by in proportional mode.
 const proportionalModeScale = 28;

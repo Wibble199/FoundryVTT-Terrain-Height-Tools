@@ -4,11 +4,12 @@ import { styleMap } from "lit/directives/style-map.js";
 import { invisibleTerrainTypes$ } from "../stores/canvas.mjs";
 import { getCssColorsFor, setSceneTerrainTypeVisible, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
+import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
 
-export class TerrainVisibilityConfig extends LitApplicationMixin(ApplicationV2) {
+export class TerrainVisibilityConfig extends ThtApplicationPositionMixin(LitApplicationMixin(ApplicationV2)) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_terrainVisibilityToggle",

@@ -1,7 +1,7 @@
 import { html } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
 import { moduleName } from "../consts.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 
 /**
  * @typedef {Object} TerrainTypesPresetDialogResult

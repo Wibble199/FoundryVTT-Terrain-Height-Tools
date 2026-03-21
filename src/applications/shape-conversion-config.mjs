@@ -3,14 +3,15 @@ import { computed } from "@preact/signals-core";
 import { when } from "lit/directives/when.js";
 import { wallHeightModuleName } from "../consts.mjs";
 import { convertConfig$ } from "../stores/drawing.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
+import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
 
 /** @type {(k: string) => string} */
 const l = k => game.i18n.localize(k);
 
-export class ShapeConversionConfig extends LitApplicationMixin(ApplicationV2) {
+export class ShapeConversionConfig extends ThtApplicationPositionMixin(LitApplicationMixin(ApplicationV2)) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_shapeConversionConfig",

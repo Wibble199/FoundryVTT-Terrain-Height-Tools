@@ -78,15 +78,6 @@ export class AbstractEditorTool {
 		if (!applicationInstance) {
 			applicationInstance = new APPLICATION_TYPE();
 			applications.set(APPLICATION_TYPE, applicationInstance);
-
-			// Only position it once so that if the user moves it, we keep it in the same place
-			Hooks.once(`render${APPLICATION_TYPE.name}`, () => {
-				const left = ui.sidebar?.element[0].getBoundingClientRect()?.left;
-				applicationInstance.setPosition({
-					top: 5,
-					left: left - APPLICATION_TYPE.DEFAULT_OPTIONS.position.width - 7
-				});
-			});
 		}
 
 		applicationInstance.render(true);

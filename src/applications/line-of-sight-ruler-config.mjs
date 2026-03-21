@@ -3,14 +3,15 @@ import { computed } from "@preact/signals-core";
 import { when } from "lit/directives/when.js";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$ } from "../stores/line-of-sight.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
+import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
 
 /** @type {(k: string) => string} */
 const l = k => game.i18n.localize(k);
 
-export class LineOfSightRulerConfig extends LitApplicationMixin(ApplicationV2) {
+export class LineOfSightRulerConfig extends ThtApplicationPositionMixin(LitApplicationMixin(ApplicationV2)) {
 
 	static DEFAULT_OPTIONS = {
 		id: "tht_lineOfSightRulerConfig",
@@ -23,6 +24,14 @@ export class LineOfSightRulerConfig extends LitApplicationMixin(ApplicationV2) {
 			width: 200
 		}
 	};
+
+	/** @type {LineOfSightRulerConfig | undefined} */
+	static current;
+
+	constructor(...args) {
+		super(...args);
+		LineOfSightRulerConfig.current = this;
+	}
 
 	/** @override */
 	async _renderFrame(options) {

@@ -7,14 +7,15 @@ import { styleMap } from "lit/directives/style-map.js";
 import { tokenRelativeHeights } from "../consts.mjs";
 import { includeNoHeightTerrain$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
-import { LitApplicationMixin } from "./lit-application-mixin.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
+import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
 
 /** @type {(k: string) => string} */
 const l = k => game.i18n.localize(k);
 
-export class TokenLineOfSightConfig extends LitApplicationMixin(ApplicationV2) {
+export class TokenLineOfSightConfig extends ThtApplicationPositionMixin(LitApplicationMixin(ApplicationV2)) {
 
 	/** @type {Signal<1 | 2 | undefined>} */
 	#selectingToken$ = signal(undefined);
@@ -44,7 +45,7 @@ export class TokenLineOfSightConfig extends LitApplicationMixin(ApplicationV2) {
 
 	constructor(...args) {
 		super(...args);
-		current = this;
+		TokenLineOfSightConfig.current = this;
 	}
 
 	/** @override */
