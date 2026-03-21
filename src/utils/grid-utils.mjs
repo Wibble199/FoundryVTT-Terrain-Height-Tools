@@ -51,50 +51,6 @@ export function getGridCenter(row, col) {
 }
 
 /**
- * Given a token, returns all the vertices of that token's border.
- * @param {Token} token
- * @returns {{ x: number; y: number; }[]}
- */
-export function getGridVerticesFromToken(token) {
-	// Gridless is not supported
-	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return [];
-
-	// For hex tokens, grab the vertices from getShape().points
-	if (canvas.grid.isHexagonal) {
-		// We round this off in an attempt to fix the issue where small intersections are detected when using the token
-		// LoS tool. This doesn't completely fix the issue, but improves it. It seems to stem from TokenDocuments' x and
-		// y properties being rounded.
-		return pointArrayToObjects(token.getShape().points)
-			.map(({ x, y }) => ({ x: Math.round(x + token.x), y: Math.round(y + token.y) }));
-	}
-
-	// For square grids, there are no points on getShape()
-	const { x, y } = token.document;
-	const { width: w, height: h } = token.getShape();
-
-	return [
-		{ x: x, y: y },
-		{ x: x + w, y: y },
-		{ x: x + w, y: y + h },
-		{ x: x, y: y + h }
-	];
-}
-
-/**
- * Takes a flat point array and converts it into an array of objects.
- * @param {number[]} arr
- * @param {number} [xOffset]
- * @param {number} [yOffset]
- * @returns {{ x: number; y: number; }[]}
- */
-function pointArrayToObjects(arr, xOffset = 0, yOffset = 0) {
-	const points = [];
-	for (let i = 0; i < arr.length; i += 2)
-		points.push({ x: arr[i] + xOffset, y: arr[i + 1] + yOffset });
-	return points;
-}
-
-/**
  * Converts a value in from grid cells into scene units.
  * For example, if the canvas was set to 0.5, passing 3 to this function would return 1.5.
  * @template {number | null} T

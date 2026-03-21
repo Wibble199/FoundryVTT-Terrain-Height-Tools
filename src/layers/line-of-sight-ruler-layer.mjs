@@ -122,8 +122,6 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/** @override */
 	async _draw() {
-		if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS) return;
-
 		this.#setupEventListeners("on");
 
 		this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
@@ -345,8 +343,10 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		/** @type {{ x: number; y: number }} */
 		const { x, y } = this.toLocal(event.data.global);
 
-		// Holding shift disabling snapping
-		const snap = !game.keyboard.isModifierActive(KeyboardManager.MODIFIER_KEYS.SHIFT);
+		// No snapping on gridless, and holding shift on a gridded will disable snapping
+		const snap = canvas.grid.type !== CONST.GRID_TYPES.GRIDLESS &&
+			!game.keyboard.isModifierActive(KeyboardManager.MODIFIER_KEYS.SHIFT);
+
 		if (!snap) return [x, y];
 
 		// Otherwise, snap to nearest cell center OR cell corner (whichever is closer):
