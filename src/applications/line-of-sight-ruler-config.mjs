@@ -77,7 +77,7 @@ export class LineOfSightRulerConfig extends ThtApplicationPositionMixin(LitAppli
 						name="rulerEndHeight"
 						.value=${computed(() => {
 							const h2 = lineOfSightRulerConfig$.h2.value;
-							return h2 ? toSceneUnits(h2) : "";
+							return typeof h2 === "number" ? toSceneUnits(h2) : "";
 						})}
 						min="0"
 						placeholder=${l("TERRAINHEIGHTTOOLS.SameAsStart")}

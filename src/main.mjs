@@ -21,7 +21,6 @@ Hooks.once("ready", ready);
 Hooks.on("getSceneControlButtons", registerSceneControls);
 Hooks.on("renderSceneControls", updateActiveControlTool);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
-Hooks.on("refreshToken", token => LineOfSightRulerLayer.current?._onTokenRefresh(token)); // TODO: is this needed?
 
 Hooks.on("updateScene", canvasStore.onUpdateScene);
 Hooks.on("canvasReady", canvasStore.onCanvasReady);

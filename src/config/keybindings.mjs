@@ -1,7 +1,6 @@
 /** @import { Signal } from "@preact/signals-core" */
 import { signal } from "@preact/signals-core";
 import { keybindings, moduleName, settingNames } from "../consts.mjs";
-import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
 
 /** @type {Map<string, Set<(e: KeyboardEventContext) => void>>} */
 const keybindingListeners = new Map();
@@ -14,18 +13,12 @@ export const keyPressed$ = Object.fromEntries(
 export function registerKeybindings() {
 	registerKeybinding(keybindings.increaseLosRulerHeight, {
 		name: "KEYBINDINGS.IncreaseLosRulerHeight",
-		editable: [{ key: "Equal" }],
-		onDown: () => {
-			LineOfSightRulerLayer.current?._handleHeightChangeKeybinding(1);
-		}
+		editable: [{ key: "Equal" }]
 	});
 
 	registerKeybinding(keybindings.decreaseLosRulerHeight, {
 		name: "KEYBINDINGS.DecreaseLosRulerHeight",
-		editable: [{ key: "Minus" }],
-		onDown: () => {
-			LineOfSightRulerLayer.current?._handleHeightChangeKeybinding(-1);
-		}
+		editable: [{ key: "Minus" }]
 	});
 
 	registerKeybinding(keybindings.showTerrainStack, {

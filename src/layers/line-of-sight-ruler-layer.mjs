@@ -1,6 +1,7 @@
 /** @import { FlattenedLineOfSightIntersectionRegion } from "../geometry/terrain-shape.mjs" */
 import { effect } from "@preact/signals-core";
-import { moduleDrawingGroupName, moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
+import { addKeybindingListener, removeKeybindingListener } from "../config/keybindings.mjs";
+import { keybindings, moduleDrawingGroupName, moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
 import { activeControl$, activeTool$ } from "../stores/scene-controls.mjs";
@@ -122,7 +123,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 
 	/** @override */
 	async _draw() {
-		this.#setupEventListeners("on");
+		this.#setupEventListeners(true);
 
 		this.#lineStartIndicator = this.addChild(new LineOfSightRulerLineCap(Color.from(game.user.color)));
 		this.#lineStartIndicator.height = lineOfSightRulerConfig$.value.h1;
@@ -285,21 +286,28 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/**
 	 * When a token is refreshed, pass that along to any groups.
 	 * If a token is being tracked for a ruler, that ruler will be re-drawn.
+	 * @param {Token} token
 	 */
-	_onTokenRefresh(token) {
+	_onTokenRefresh = token => {
 		for (const group of this.#rulerGroups.values()) {
 			group._onTokenRefresh(token);
 		}
-	}
+	};
 
 	// ----------------------------- //
 	// Mouse/keyboard event handling //
 	// ----------------------------- //
-	/** @param {"on" | "off"} action */
-	#setupEventListeners(action) {
+	/** @param {boolean} enable */
+	#setupEventListeners(enable) {
+		const action = enable ? "on" : "off";
 		this[action]("pointerdown", this.#onMouseDown);
 		this[action]("pointermove", this.#onMouseMove);
 		this[action]("pointerup", this.#onMouseUp);
+
+		(enable ? addKeybindingListener : removeKeybindingListener)(keybindings.increaseLosRulerHeight, this.#increaseLosRulerHeight);
+		(enable ? addKeybindingListener : removeKeybindingListener)(keybindings.decreaseLosRulerHeight, this.#decreaseLosRulerHeight);
+
+		Hooks[action]("refreshToken", this._onTokenRefresh);
 	}
 
 	#onMouseDown = event => {
@@ -367,8 +375,18 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		return [nearestSnapPoint[0], nearestSnapPoint[1]];
 	}
 
+	/** @param {KeyboardEventContext} e */
+	#increaseLosRulerHeight = e => {
+		if (!e.up) this.#handleHeightChangeKeybinding(1);
+	};
+
+	/** @param {KeyboardEventContext} e */
+	#decreaseLosRulerHeight = e => {
+		if (!e.up) this.#handleHeightChangeKeybinding(-1);
+	};
+
 	/** @param {number} delta  */
-	_handleHeightChangeKeybinding(delta) {
+	#handleHeightChangeKeybinding(delta) {
 		if (!this.#isToolSelected) return;
 
 		// When increasing or decreasing the height, snap to the nearest whole number.
