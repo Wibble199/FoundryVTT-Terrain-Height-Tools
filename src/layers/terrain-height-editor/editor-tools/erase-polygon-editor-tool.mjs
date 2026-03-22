@@ -27,8 +27,9 @@ export class ErasePolygonEditorTool extends AbstractPolygonEditorTool {
 	_use(polygons) {
 		const { excludedTerrainTypeIds: excludingTerrainTypeIds, bottom, top } = eraseConfig$.value;
 
-		for (const polygon of polygons) {
-			heightMap.eraseRegion({ polygon }, { excludingTerrainTypeIds, bottom, top });
-		}
+		heightMap.eraseRegions(
+			polygons.map(polygon => ({ polygon })),
+			{ excludingTerrainTypeIds, bottom, top }
+		);
 	}
 }

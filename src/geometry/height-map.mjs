@@ -78,8 +78,8 @@ export class HeightMap extends TerrainProvider {
 	// Painting tools //
 	// -------------- //
 	/**
-	 * Paints a region onto the heightmap, creating a new shape or combining existing shapes where relevant.
-	 * @param {{ polygon: PointLike[]; holes?: PointLike[][]; }} region
+	 * Paints one or more region onto the heightmap, creating new shapes and combining existing shapes where relevant.
+	 * @param {{ polygon: PointLike[]; holes?: PointLike[][]; }[]} regions
 	 * @param {string} terrainTypeId The ID of the terrain type to paint.
 	 * @param {number} height The height of the terrain to paint.
 	 * @param {number} elevation The elevation of the terrain to paint.
@@ -91,124 +91,127 @@ export class HeightMap extends TerrainProvider {
 	 * @param {boolean} [options.persist] Whether to persist changes to history tracker and to scene data.
 	 * @returns true if any changes have been made
 	 */
-	async paintRegion({ polygon, holes = [] }, terrainTypeId, height = 0, elevation = 0, { mode = "totalReplace", persist = true } = {}) {
+	async paintRegions(regions, terrainTypeId, height = 0, elevation = 0, { mode = "totalReplace", persist = true } = {}) {
+		const terrainType = getTerrainType(terrainTypeId);
+		if (!terrainType) throw new Error(`Invalid terrain type ID '${terrainTypeId}'`);
+
+		const top = elevation + height;
+		const bottom = elevation;
+
 		return await this.#withPersistence(async () => {
-			const terrainType = getTerrainType(terrainTypeId);
-			if (!terrainType) throw new Error(`Invalid terrain type ID '${terrainTypeId}'`);
-
-			const startTimestamp = performance.now();
-
-			const top = elevation + height;
-			const bottom = elevation;
-
-			const outerPolygon = Polygon.createSolid(polygon);
-			const holePolygons = holes.map(h => Polygon.createHole(h));
 
 			let hasChanges = false;
 
-			// This array will hold the GeoJSON polygon results of the operations for the newly created shapes with their
-			// values height values.
-			let newShapePaths = [
-				{
-					top,
-					bottom,
-					paths: [
-						[
-							outerPolygon.toGeoJsonRing(),
-							...holePolygons.map(h => h.toGeoJsonRing())
+			const startTimestamp = performance.now();
+
+			for (const { polygon, holes } of regions) {
+				const outerPolygon = Polygon.createSolid(polygon);
+				const holePolygons = holes?.map(h => Polygon.createHole(h)) ?? [];
+
+				// This array will hold the GeoJSON polygon results of the operations for the newly created shapes with
+				// their values height values.
+				let newShapePaths = [
+					{
+						top,
+						bottom,
+						paths: [
+							[
+								outerPolygon.toGeoJsonRing(),
+								...holePolygons.map(h => h.toGeoJsonRing())
+							]
 						]
-					]
-				}
-			];
+					}
+				];
 
-			// STAGE 1: Update the new or existing shapes according to vertical overlaps.
-			switch (true) {
-				// If doing total replace, just clip any existing shapes in the polygon area.
-				// Leave newShapePaths unchanged.
-				case mode === "totalReplace": {
-					hasChanges = await this.eraseRegion({ polygon, holes }, { persist: false }) || hasChanges;
-					break;
-				}
-
-				// If doing a destructive merge of a non-zone, remove other non-zones in the polygon area and height range
-				// Leave newShapePaths unchanged.
-				case mode === "destructiveMerge" && terrainType.usesHeight: {
-					const nonZoneTerrainTypeIds = terrainTypes$.value.filter(t => t.usesHeight).map(t => t.id);
-					hasChanges = await this.eraseRegion({ polygon, holes }, { onlyTerrainTypeIds: nonZoneTerrainTypeIds, top, bottom, persist: false }) || hasChanges;
-					break;
-				}
-
-				// If doing a destructive merge of a zone, remove other zones in the polygon area
-				// Leave newShapePaths unchanged.
-				case mode === "destructiveMerge" && !terrainType.usesHeight: {
-					const zoneTerrainTypeIds = terrainTypes$.value.filter(t => !t.usesHeight).map(t => t.id);
-					hasChanges = await this.eraseRegion({ polygon, holes }, { onlyTerrainTypeIds: zoneTerrainTypeIds, persist: false }) || hasChanges;
-					break;
-				}
-
-				// If doing an additive merge of a non-zone, need to modify the newShapePaths to carve out areas that are
-				// overlapping existing terrain.
-				// Need to adjust the newShapePaths array so that we cut any shapes out of that which overlap existing
-				// terrain.
-				case mode === "additiveMerge" && terrainType.usesHeight: {
-					// We don't care about the terrain types of the existing terrain, so just combine the clipper paths of
-					// shapes with identical top/bottom values.
-					/** @type {Map<string, { top: number; bottom: number; paths: [number, number][][] }>} */
-					const existingShapePaths = groupBy2(
-						this.getShapes(outerPolygon.boundingRect, {
-							collisionTest: ({ t: shape }) => shape.usesHeight && shape.top > bottom && shape.bottom < top
-						}),
-						shape => `${shape.top}|${shape.bottom}`,
-						shapes => ({ top: shapes[0].top, bottom: shapes[0].bottom, paths: shapes.map(shape => shape.toGeoJsonPolygon()) })
-					);
-
-					for (const [, existingShape] of existingShapePaths) {
-						// Put the changes into a new array, then replace the entire existing array with the new one.
-						// I.E. this is so we do NOT modify the array as we're iterating over it too.
-						// Also, naming things is hard :(
-						/** @type {typeof newShapePaths} */
-						const newNewShapePaths = [];
-
-						/** @type {(paths: [number, number][][][], top: number, bottom: number) => void} */
-						const addNewNewShapePath = (paths, top, bottom) => {
-							const existing = newNewShapePaths.find(p => p.top === top && p.bottom === bottom);
-							if (existing)
-								existing.paths.push(...paths);
-							else
-								newNewShapePaths.push({ paths: Array.from(paths), top, bottom });
-						};
-
-						for (const newShapePath of newShapePaths) {
-							// Work out the intersection between the new shape and the existing shape. If the new shape
-							// could fit above or below the existing shape, add those height/elevation ranges to the paths.
-							const intersection = polygonIntersection(newShapePath.paths, existingShape.paths);
-
-							if (newShapePath.bottom < existingShape.bottom)
-								addNewNewShapePath(intersection, existingShape.bottom, newShapePath.bottom);
-
-							if (newShapePath.top > existingShape.top)
-								addNewNewShapePath(intersection, newShapePath.top, existingShape.top);
-
-							// Work out the difference - i.e. the part of the new shape untouched by the existing shape,
-							// and add it to the paths at the full height (i.e. this bit hasn't been carved out).
-							const newShapePathOnly = polygonDifference(newShapePath.paths, existingShape.paths);
-							addNewNewShapePath(newShapePathOnly, newShapePath.top, newShapePath.bottom);
-						}
-
-						newShapePaths = newNewShapePaths;
+				// STAGE 1: Update the new or existing shapes according to vertical overlaps.
+				switch (true) {
+					// If doing total replace, just clip any existing shapes in the polygon area.
+					// Leave newShapePaths unchanged.
+					case mode === "totalReplace": {
+						hasChanges = await this.eraseRegions([{ polygon, holes }], { persist: false }) || hasChanges;
+						break;
 					}
 
-					break;
+					// If doing a destructive merge of a non-zone, remove other non-zones in the polygon area and height
+					// range. Leave newShapePaths unchanged.
+					case mode === "destructiveMerge" && terrainType.usesHeight: {
+						const nonZoneTerrainTypeIds = terrainTypes$.value.filter(t => t.usesHeight).map(t => t.id);
+						hasChanges = await this.eraseRegions([{ polygon, holes }], { onlyTerrainTypeIds: nonZoneTerrainTypeIds, top, bottom, persist: false }) || hasChanges;
+						break;
+					}
+
+					// If doing a destructive merge of a zone, remove other zones in the polygon area
+					// Leave newShapePaths unchanged.
+					case mode === "destructiveMerge" && !terrainType.usesHeight: {
+						const zoneTerrainTypeIds = terrainTypes$.value.filter(t => !t.usesHeight).map(t => t.id);
+						hasChanges = await this.eraseRegions([{ polygon, holes }], { onlyTerrainTypeIds: zoneTerrainTypeIds, persist: false }) || hasChanges;
+						break;
+					}
+
+					// If doing an additive merge of a non-zone, need to modify the newShapePaths to carve out areas that
+					// are overlapping existing terrain.
+					// Need to adjust the newShapePaths array so that we cut any shapes out of that which overlap existing
+					// terrain.
+					case mode === "additiveMerge" && terrainType.usesHeight: {
+						// We don't care about the terrain types of the existing terrain, so just combine the clipper
+						// paths of shapes with identical top/bottom values.
+						/** @type {Map<string, { top: number; bottom: number; paths: [number, number][][] }>} */
+						const existingShapePaths = groupBy2(
+							this.getShapes(outerPolygon.boundingRect, {
+								collisionTest: ({ t: shape }) => shape.usesHeight && shape.top > bottom && shape.bottom < top
+							}),
+							shape => `${shape.top}|${shape.bottom}`,
+							shapes => ({ top: shapes[0].top, bottom: shapes[0].bottom, paths: shapes.map(shape => shape.toGeoJsonPolygon()) })
+						);
+
+						for (const [, existingShape] of existingShapePaths) {
+							// Put the changes into a new array, then replace the entire existing array with the new one.
+							// I.E. this is so we do NOT modify the array as we're iterating over it too.
+							// Also, naming things is hard :(
+							/** @type {typeof newShapePaths} */
+							const newNewShapePaths = [];
+
+							/** @type {(paths: [number, number][][][], top: number, bottom: number) => void} */
+							const addNewNewShapePath = (paths, top, bottom) => {
+								const existing = newNewShapePaths.find(p => p.top === top && p.bottom === bottom);
+								if (existing)
+									existing.paths.push(...paths);
+								else
+									newNewShapePaths.push({ paths: Array.from(paths), top, bottom });
+							};
+
+							for (const newShapePath of newShapePaths) {
+								// Work out the intersection between the new shape and the existing shape. If the new shape
+								// could fit above or below the existing shape, add those height/elevation ranges to the paths.
+								const intersection = polygonIntersection(newShapePath.paths, existingShape.paths);
+
+								if (newShapePath.bottom < existingShape.bottom)
+									addNewNewShapePath(intersection, existingShape.bottom, newShapePath.bottom);
+
+								if (newShapePath.top > existingShape.top)
+									addNewNewShapePath(intersection, newShapePath.top, existingShape.top);
+
+								// Work out the difference - i.e. the part of the new shape untouched by the existing shape,
+								// and add it to the paths at the full height (i.e. this bit hasn't been carved out).
+								const newShapePathOnly = polygonDifference(newShapePath.paths, existingShape.paths);
+								addNewNewShapePath(newShapePathOnly, newShapePath.top, newShapePath.bottom);
+							}
+
+							newShapePaths = newNewShapePaths;
+						}
+
+						break;
+					}
+
+					// If doing an additive merge of a zone, don't need to do anything here, just the merge in stage 2 :)
 				}
 
-				// If doing an additive merge of a zone, don't need to do anything here, just the merge in stage 2 :)
-			}
-
-			// STAGE 2: Merge the new terrain with any adjacent existing terrain of the same type, top, & bottom and add
-			// to the scene
-			for (const { top, bottom, paths } of newShapePaths) {
-				hasChanges ||= paths.length > 0;
-				this.#addShapeAndMergeWithAdjacent(paths, terrainTypeId, top, bottom);
+				// STAGE 2: Merge the new terrain with any adjacent existing terrain of the same type, top, & bottom and
+				// add to the scene
+				for (const { top, bottom, paths } of newShapePaths) {
+					hasChanges ||= paths.length > 0;
+					this.#addShapeAndMergeWithAdjacent(paths, terrainTypeId, top, bottom);
+				}
 			}
 
 			debug(`paintRegion took ${Math.round(performance.now() - startTimestamp)}ms`);
@@ -232,10 +235,11 @@ export class HeightMap extends TerrainProvider {
 	 */
 	async paintCells(cells, terrainTypeId, height = 1, elevation = 0, options = {}) {
 		return await this.#withPersistence(async () => {
-			let anyChanges = false;
-			for (const polygonWithHoles of polygonsFromGridCells(cells, canvas.grid))
-				anyChanges = await this.paintRegion(polygonWithHoles, terrainTypeId, height, elevation, { ...options, persist: false }) || anyChanges;
-			return anyChanges;
+			return await this.paintRegions(
+				polygonsFromGridCells(cells, canvas.grid),
+				terrainTypeId, height, elevation,
+				{ ...options, persist: false }
+			);
 		});
 	}
 
@@ -256,8 +260,8 @@ export class HeightMap extends TerrainProvider {
 	}
 
 	/**
-	 * Erases a region from the heightmap, removing and breaking apart existing shapes where relevant.
-	 * @param {{ polygon: PointLike[]; holes?: PointLike[][]; }} region
+	 * Erases one or more regions from the heightmap, removing and breaking apart existing shapes where relevant.
+	 * @param {{ polygon: PointLike[]; holes?: PointLike[][]; }[]} regions
 	 * @param {Object} [options]
 	 * @param {string[]} [options.onlyTerrainTypeIds] A list of terrain type IDs to remove.
 	 * @param {string[]} [options.excludingTerrainTypeIds] A list of terrain type IDs NOT to remove.
@@ -266,65 +270,68 @@ export class HeightMap extends TerrainProvider {
 	 * @param {boolean} [options.persist] Whether to persist changes to history tracker and to scene data.
 	 * @returns true if any changes have been made
 	 */
-	async eraseRegion({ polygon, holes = [] }, { onlyTerrainTypeIds, excludingTerrainTypeIds, bottom, top, persist = true } = {}) {
+	async eraseRegions(regions, { onlyTerrainTypeIds, excludingTerrainTypeIds, bottom, top, persist = true } = {}) {
+		bottom ??= -Infinity;
+		top ??= Infinity;
+
 		return await this.#withPersistence(() => {
-			const startTimestamp = performance.now();
-
-			bottom ??= -Infinity;
-			top ??= Infinity;
-
 			let anyChanges = false;
 
-			var outerPolygon = Polygon.createSolid(polygon);
-			const holePolygons = holes.map(h => Polygon.createHole(h));
+			const startTimestamp = performance.now();
 
-			// Create the clipper path from the polygons to ensure that the vertices are difined in the correct order
-			const eraseShapePath = [
-				outerPolygon.toGeoJsonRing(),
-				...holePolygons.map(h => h.toGeoJsonRing())
-			];
+			for (const { polygon, holes } of regions) {
 
-			// Find other shapes that we may need to combine with/erase
-			const potentialOverlaps = this.getShapes(outerPolygon.boundingRect, {
-				collisionTest: ({ t: shape }) =>
-					onlyTerrainTypeIds?.includes(shape.terrainTypeId) !== false &&
-					excludingTerrainTypeIds?.includes(shape.terrainTypeId) !== true &&
-					(
-						!shape.usesHeight || // terrain is a zone OR
-						(shape.top > bottom && shape.bottom < top) // shape exists within the specified removal range
-					)
-			});
+				const outerPolygon = Polygon.createSolid(polygon);
+				const holePolygons = holes?.map(h => Polygon.createHole(h)) ?? [];
 
-			for (const existingShape of potentialOverlaps) {
-				const existingShapePath = existingShape.toGeoJsonPolygon();
+				// Create the clipper path from the polygons to ensure that the vertices are difined in the correct order
+				const eraseShapePath = [
+					outerPolygon.toGeoJsonRing(),
+					...holePolygons.map(h => h.toGeoJsonRing())
+				];
 
-				// Intersection = areas of shape that are erased
-				const intersectionResult = polygonIntersection(existingShapePath, eraseShapePath);
+				// Find other shapes that we may need to combine with/erase
+				const potentialOverlaps = this.getShapes(outerPolygon.boundingRect, {
+					collisionTest: ({ t: shape }) =>
+						onlyTerrainTypeIds?.includes(shape.terrainTypeId) !== false &&
+						excludingTerrainTypeIds?.includes(shape.terrainTypeId) !== true &&
+						(
+							!shape.usesHeight || // terrain is a zone OR
+							(shape.top > bottom && shape.bottom < top) // shape exists within the specified removal range
+						)
+				});
 
-				// If no part of the existing shape was touched by the erase region, do nothing
-				if (!intersectionResult || intersectionResult.length === 0) continue;
+				for (const existingShape of potentialOverlaps) {
+					const existingShapePath = existingShape.toGeoJsonPolygon();
 
-				anyChanges = true;
+					// Intersection = areas of shape that are erased
+					const intersectionResult = polygonIntersection(existingShapePath, eraseShapePath);
 
-				// Delete existing shape
-				this.deleteShapes(existingShape);
+					// If no part of the existing shape was touched by the erase region, do nothing
+					if (!intersectionResult || intersectionResult.length === 0) continue;
 
-				// If there would be any terrain left after an erase carved it out (e.g. an erase from h0->1 on a shape 1->2
-				// would result in terrain from elevation 1 -> height 1 being left behind).
-				const usesHeight = getTerrainType(existingShape.terrainTypeId)?.usesHeight;
-				if (usesHeight && existingShape.top > top) {
-					// bottom of the shape is now the top of the eraser - everything below is erased
-					this.#addShapeAndMergeWithAdjacent(intersectionResult, existingShape.terrainTypeId, existingShape.top, top);
+					anyChanges = true;
+
+					// Delete existing shape
+					this.deleteShapes(existingShape);
+
+					// If there would be any terrain left after an erase carved it out (e.g. an erase from h0->1 on a shape 1->2
+					// would result in terrain from elevation 1 -> height 1 being left behind).
+					const usesHeight = getTerrainType(existingShape.terrainTypeId)?.usesHeight;
+					if (usesHeight && existingShape.top > top) {
+						// bottom of the shape is now the top of the eraser - everything below is erased
+						this.#addShapeAndMergeWithAdjacent(intersectionResult, existingShape.terrainTypeId, existingShape.top, top);
+					}
+					if (usesHeight && existingShape.bottom < bottom) {
+						// top of the shape is now the bottom of the eraser - everything above is erased
+						this.#addShapeAndMergeWithAdjacent(intersectionResult, existingShape.terrainTypeId, bottom, existingShape.bottom);
+					}
+
+					// Existing difference with erase = areas of existing shape that are NOT erased.
+					// These shapes need to be added back on
+					const unchangedExistingShapeResult = polygonDifference(existingShapePath, eraseShapePath);
+					this.#addShapeAndMergeWithAdjacent(unchangedExistingShapeResult, existingShape.terrainTypeId, existingShape.top, existingShape.bottom);
 				}
-				if (usesHeight && existingShape.bottom < bottom) {
-					// top of the shape is now the bottom of the eraser - everything above is erased
-					this.#addShapeAndMergeWithAdjacent(intersectionResult, existingShape.terrainTypeId, bottom, existingShape.bottom);
-				}
-
-				// Existing difference with erase = areas of existing shape that are NOT erased.
-				// These shapes need to be added back on
-				const unchangedExistingShapeResult = polygonDifference(existingShapePath, eraseShapePath);
-				this.#addShapeAndMergeWithAdjacent(unchangedExistingShapeResult, existingShape.terrainTypeId, existingShape.top, existingShape.bottom);
 			}
 
 			debug(`eraseRegion took ${Math.round(performance.now() - startTimestamp)}ms`);
@@ -346,10 +353,10 @@ export class HeightMap extends TerrainProvider {
 	 */
 	async eraseCells(cells, options = {}) {
 		return await this.#withPersistence(async () => {
-			let anyChanges = false;
-			for (const polygonWithHoles of polygonsFromGridCells(cells, canvas.grid))
-				anyChanges = await this.eraseRegion(polygonWithHoles, { ...options, persist: false }) || anyChanges;
-			return anyChanges;
+			return await this.eraseRegions(
+				polygonsFromGridCells(cells, canvas.grid),
+				{ ...options, persist: false }
+			);
 		});
 	}
 

@@ -42,8 +42,12 @@ export class PaintPolygonEditorTool extends AbstractPolygonEditorTool {
 		const { terrainTypeId, height, elevation, mode } = paintingConfig$.value;
 		const usesHeight = getTerrainType(terrainTypeId)?.usesHeight ?? false;
 
-		for (const polygon of polygons) {
-			heightMap.paintRegion({ polygon }, terrainTypeId, usesHeight ? height : 0, usesHeight ? elevation : 0, { mode });
-		}
+		heightMap.paintRegions(
+			polygons.map(polygon => ({ polygon })),
+			terrainTypeId,
+			usesHeight ? height : 0,
+			usesHeight ? elevation : 0,
+			{ mode }
+		);
 	}
 }
