@@ -2,7 +2,8 @@ import { html } from "@lit-labs/preact-signals";
 import { computed } from "@preact/signals-core";
 import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
-import { eraseConfig$ } from "../stores/drawing.mjs";
+import "../components/drawing-mode-picker.mjs";
+import { drawingMode$, eraseConfig$ } from "../stores/drawing.mjs";
 import { getCssColorsFor, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
@@ -27,7 +28,7 @@ export class TerrainErasePalette extends ThtApplicationPositionMixin(LitApplicat
 		},
 		position: {
 			width: 220,
-			height: 385
+			height: 431
 		}
 	};
 
@@ -41,6 +42,12 @@ export class TerrainErasePalette extends ThtApplicationPositionMixin(LitApplicat
 	/** @override */
 	_renderHTML() {
 		return html`
+			<tht-drawing-mode-picker
+				.value=${drawingMode$}
+				@input=${e => drawingMode$.value = e.target.value}
+				style="margin-bottom: 8px"
+			></tht-drawing-mode-picker>
+
 			<p class="flex0" style="margin-top: 0;">${l("TERRAINHEIGHTTOOLS.TerrainTypesToErase")}</p>
 			<ul class="terrain-type-palette">
 				${terrainTypes$.value.map(terrainType => {

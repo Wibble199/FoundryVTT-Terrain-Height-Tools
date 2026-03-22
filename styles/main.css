@@ -36,11 +36,17 @@
 
 .tht-radio-button label {
 	display: block;
+	margin-left: -1px; /* Collapse adjacent borders */
 	padding: 4px 8px;
 	border: 1px solid var(--color-border-light-tertiary);
-	border-left-width: 0;
 	text-align: center;
 	cursor: pointer;
+}
+
+.tht-radio-button:has(input:checked) {
+	/* Put the active one as position relative so that it appears over the top of other ones and the red border is
+	correctly visible */
+	position: relative;
 }
 
 .tht-radio-button input:checked + label {
@@ -49,9 +55,9 @@
 }
 
 .tht-radio-button:first-of-type label {
+	margin-left: 0;
 	border-top-left-radius: 3px;
 	border-bottom-left-radius: 3px;
-	border-left-width: 1px;
 }
 
 .tht-radio-button:last-of-type label {

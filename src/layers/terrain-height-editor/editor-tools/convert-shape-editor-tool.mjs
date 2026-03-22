@@ -6,12 +6,12 @@ import { convertConfig$ } from "../../../stores/drawing.mjs";
 import { getTerrainType } from "../../../stores/terrain-types.mjs";
 import { toSceneUnits } from "../../../utils/grid-utils.mjs";
 import { getLabelText } from "../../terrain-height-graphics/terrain-shape-graphic.mjs";
-import { AbstractShapeEditorTool } from "./abstract/abstract-shape-editor-tool.mjs";
+import { AbstractShapePickerEditorTool } from "./abstract/abstract-shape-picker-editor-tool.mjs";
 
 /**
  * Tool that allows a user to convert an existing shape into drawing/walls/region.
  */
-export class ConvertShapeEditorTool extends AbstractShapeEditorTool {
+export class ConvertShapeEditorTool extends AbstractShapePickerEditorTool {
 
 	static APPLICATION_TYPE = ShapeConversionConfig;
 

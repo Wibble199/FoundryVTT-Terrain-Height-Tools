@@ -3,8 +3,9 @@ import { computed } from "@preact/signals-core";
 import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
+import "../components/drawing-mode-picker.mjs";
 import { terrainPaintMode, tools } from "../consts.mjs";
-import { paintingConfig$ } from "../stores/drawing.mjs";
+import { drawingMode$, paintingConfig$ } from "../stores/drawing.mjs";
 import { getCssColorsFor, getTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
@@ -30,7 +31,7 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 		},
 		position: {
 			width: 220,
-			height: 378
+			height: 424
 		}
 	};
 
@@ -57,6 +58,12 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 			: undefined);
 
 		return html`
+			<tht-drawing-mode-picker
+				.value=${drawingMode$}
+				@input=${e => drawingMode$.value = e.target.value}
+				style="margin-bottom: 8px"
+			></tht-drawing-mode-picker>
+
 			<ul class="terrain-type-palette">
 				${when(
 					terrainTypes$.value.length,
@@ -102,7 +109,7 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 						.value=${computed(() => toSceneUnits(paintingConfig$.height.value))}
 						?disabled=${computed(() => !selectedTerrainType$.value?.usesHeight)}
 						@change=${e => paintingConfig$.height.value = fromSceneUnits(this.#getInputValue(e, 0.1))}
-						@blue=${e => e.target.value = toSceneUnits(paintingConfig$.height.value)}
+						@blur=${e => e.target.value = toSceneUnits(paintingConfig$.height.value)}
 					>
 				</div>
 				<div class="tht-form-group flexrow">
@@ -120,7 +127,7 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 						.value=${computed(() => toSceneUnits(paintingConfig$.elevation.value))}
 						?disabled=${computed(() => !selectedTerrainType$.value?.usesHeight)}
 						@change=${e => paintingConfig$.elevation.value = fromSceneUnits(this.#getInputValue(e))}
-						@blue=${e => e.target.value = toSceneUnits(paintingConfig$.elevation.value)}
+						@blur=${e => e.target.value = toSceneUnits(paintingConfig$.elevation.value)}
 					>
 				</div>
 

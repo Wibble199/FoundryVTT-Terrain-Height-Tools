@@ -1,6 +1,11 @@
-/** @import { terrainFillMode, terrainPaintMode } from "../consts.mjs" */
+/** @import { Signal } from "@lit-labs/preact-signals" */
+/** @import { drawingModeTypes, terrainFillMode, terrainPaintMode } from "../consts.mjs" */
 /** @import { DeepSignal } from "../utils/signal-utils.mjs"; */
+import { signal } from "@preact/signals-core";
 import { deepSignal } from "../utils/signal-utils.mjs";
+
+/** @type {Signal<drawingModeTypes>} */
+export const drawingMode$ = signal("gridCells");
 
 /**
  * @typedef {Object} PaintingConfigModel

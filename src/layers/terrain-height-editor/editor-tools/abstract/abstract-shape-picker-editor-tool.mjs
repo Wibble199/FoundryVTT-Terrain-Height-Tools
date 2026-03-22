@@ -6,7 +6,7 @@ import { AbstractEditorTool } from "./abstract-editor-tool.mjs";
 /**
  * Base class for tools that require the user select a single existing shape from the canvas.
  */
-export class AbstractShapeEditorTool extends AbstractEditorTool {
+export class AbstractShapePickerEditorTool extends AbstractEditorTool {
 
 	static hint = "Select a shape";
 

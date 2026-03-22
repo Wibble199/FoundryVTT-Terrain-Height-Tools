@@ -1,21 +1,34 @@
+import { computed } from "@preact/signals-core";
 import { TerrainPaintPalette } from "../../../applications/terrain-paint-palette.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
-import { paintingConfig$ } from "../../../stores/drawing.mjs";
+import { drawingMode$, paintingConfig$ } from "../../../stores/drawing.mjs";
 import { getTerrainType, terrainTypeMap$ } from "../../../stores/terrain-types.mjs";
+import { abortableSubscribe } from "../../../utils/signal-utils.mjs";
 import { AbstractPolygonEditorTool } from "./abstract/abstract-polygon-editor-tool.mjs";
 
 /**
- * Tool for allowing the user to paint an arbitrary polygon on the canvas.
+ * Tool for allowing the user to paint a region on the canvas.
  */
-export class PaintPolygonEditorTool extends AbstractPolygonEditorTool {
+export class PaintEditorTool extends AbstractPolygonEditorTool {
 
 	static APPLICATION_TYPE = TerrainPaintPalette;
 
-	/** @override */
-	_canDraw() {
-		const terrainTypeId = paintingConfig$.terrainTypeId.value;
-		return terrainTypeId && terrainTypeMap$.value.has(terrainTypeId);
+	constructor() {
+		super();
+
+		// If selected drawing mode is cells and the scene is gridless, select another
+		if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS && drawingMode$.value === "gridCells")
+			drawingMode$.value = "rectangle";
+
+		// Update drawing mode when changed in UI
+		abortableSubscribe(drawingMode$, drawingMode => this._selectDrawingMode(drawingMode), this._cleanupSignal);
 	}
+
+	/** @override */
+	_canDraw = computed(() => {
+		const terrainTypeId = paintingConfig$.terrainTypeId.value;
+		return !!terrainTypeId && terrainTypeMap$.value.has(terrainTypeId);
+	});
 
 	/** @override */
 	_configurePreviewLine(g) {
@@ -35,7 +48,7 @@ export class PaintPolygonEditorTool extends AbstractPolygonEditorTool {
 	}
 
 	/**
-	 * @param {{ X: number; Y: number; }[][]} polygons
+	 * @param {{ polygon: PointLike[]; holes?: PointLike[][] }[]} polygons
 	 * @override
 	 */
 	_use(polygons) {
@@ -43,7 +56,7 @@ export class PaintPolygonEditorTool extends AbstractPolygonEditorTool {
 		const usesHeight = getTerrainType(terrainTypeId)?.usesHeight ?? false;
 
 		heightMap.paintRegions(
-			polygons.map(polygon => ({ polygon })),
+			polygons,
 			terrainTypeId,
 			usesHeight ? height : 0,
 			usesHeight ? elevation : 0,

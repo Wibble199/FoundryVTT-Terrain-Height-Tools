@@ -1,12 +1,12 @@
 /** @import { TerrainShape } from "../../../geometry/terrain-shape.mjs"; */
 import { terrainHeightEditorControlName, tools } from "../../../consts.mjs";
 import { paintingConfig$ } from "../../../stores/drawing.mjs";
-import { AbstractShapeEditorTool } from "./abstract/abstract-shape-editor-tool.mjs";
+import { AbstractShapePickerEditorTool } from "./abstract/abstract-shape-picker-editor-tool.mjs";
 
 /**
  * Tool that allows the user to copy the paint config from an existing shape.
  */
-export class PipetteEditorTool extends AbstractShapeEditorTool {
+export class PipetteEditorTool extends AbstractShapePickerEditorTool {
 
 	static hint = "TERRAINHEIGHTTOOLS.SelectAShapeCopyHint";
 
@@ -27,6 +27,6 @@ export class PipetteEditorTool extends AbstractShapeEditorTool {
 
 		// Select the paintbrush tool. This feels like a horrible dirty way of doing this, but there doesn't seem to be
 		// any API exposed by Foundry to set the tool without pretending to click the button.
-		document.querySelector(`#tools-panel-${terrainHeightEditorControlName} [data-tool="${tools.paintCells}"]`)?.click();
+		document.querySelector(`#tools-panel-${terrainHeightEditorControlName} [data-tool="${tools.paint}"]`)?.click();
 	}
 }

@@ -17,17 +17,23 @@ export const terrainHeightEditorControlName = "terrain-height-tools-editor";
 
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
-	paintCells: "paintCells",
-	paintPolygon: "paintPolygon",
+	paint: "paint",
 	fill: "fill",
-	eraseCells: "eraseCells",
-	erasePolygon: "erasePolygon",
+	erase: "erase",
 	eraseShape: "eraseShape",
 	pipette: "pipette",
 	lineOfSight: "terrainHeightToolsLineOfSight",
 	tokenLineOfSight: "terrainHeightToolsTokenLineOfSight",
 	convert: "convert",
 	terrainVisibility: "terrainVisibility"
+});
+
+/** @enum {keyof typeof drawingModeTypes} */
+export const drawingModeTypes = /** @type {const} */ ({
+	gridCells: "gridCells",
+	rectangle: "rectangle",
+	ellipse: "ellipse",
+	customPoly: "customPoly"
 });
 
 /** @enum {keyof typeof settingNames} */

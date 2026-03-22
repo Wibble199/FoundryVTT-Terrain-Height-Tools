@@ -14,8 +14,6 @@ const terrainHeightLayerToggleButtonName = "terrainHeightLayerToggle";
  * @param {SceneControl[]} controls
  */
 export function registerSceneControls(controls) {
-	const isGridless = canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS;
-
 	// Add a LOS ruler and toggle map button in the token controls
 	controls.find(grp => grp.name === "token").tools.push(
 		{
@@ -47,32 +45,22 @@ export function registerSceneControls(controls) {
 		title: game.i18n.localize("CONTROLS.GroupTerrainHeightTools"),
 		icon: "fas fa-chart-simple",
 		layer: "terrainHeightEditorLayer",
-		activeTool: tools.paintCells,
+		activeTool: tools.paint,
 		visible: game.user.isGM,
 		tools: [
-			!isGridless && {
-				name: tools.paintCells,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaintCells"),
-				icon: "fas fa-paintbrush"
-			},
 			{
-				name: tools.paintPolygon,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaintPolygon"),
-				icon: "fas fa-paintbrush"
+				name: tools.paint,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaint"),
+				icon: "fas fa-paintbrush-alt"
 			},
 			/* {
 				name: tools.fill,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsFill"),
 				icon: "fas fa-fill-drip"
 			}, */
-			!isGridless && {
-				name: tools.eraseCells,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsEraseCells"),
-				icon: "fas fa-eraser"
-			},
 			{
-				name: tools.erasePolygon,
-				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErasePolygon"),
+				name: tools.erase,
+				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErase"),
 				icon: "fas fa-eraser"
 			},
 			{
@@ -110,7 +98,7 @@ export function registerSceneControls(controls) {
 				},
 				button: true
 			}
-		].filter(Boolean)
+		]
 	});
 }
 

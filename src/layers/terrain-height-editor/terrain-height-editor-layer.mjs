@@ -3,11 +3,9 @@ import { heightMap } from "../../geometry/height-map.mjs";
 import { activeControl$, activeTool$ } from "../../stores/scene-controls.mjs";
 import { abortableEffect } from "../../utils/signal-utils.mjs";
 import { ConvertShapeEditorTool } from "./editor-tools/convert-shape-editor-tool.mjs";
-import { EraseCellsEditorTool } from "./editor-tools/erase-cells-editor-tool.mjs";
-import { ErasePolygonEditorTool } from "./editor-tools/erase-polygon-editor-tool.mjs";
+import { EraseEditorTool } from "./editor-tools/erase-editor-tool.mjs";
 import { EraseShapeEditorTool } from "./editor-tools/erase-shape-editor-tool.mjs";
-import { PaintCellsEditorTool } from "./editor-tools/paint-cells-editor-tool.mjs";
-import { PaintPolygonEditorTool } from "./editor-tools/paint-polygon-editor-tool.mjs";
+import { PaintEditorTool } from "./editor-tools/paint-editor-tool.mjs";
 import { PipetteEditorTool } from "./editor-tools/pipette-editor-tool.mjs";
 import { TerrainVisibilityEditorTool } from "./editor-tools/terrain-visibility-editor-tool.mjs";
 
@@ -18,19 +16,21 @@ import { TerrainVisibilityEditorTool } from "./editor-tools/terrain-visibility-e
  */
 export class TerrainHeightEditorLayer extends InteractionLayer {
 
+	#lastPointerPosition = { x: -1, y: -1 };
+
+	#lastPointerButtons = 0;
+
 	static #tools = {
 		[tools.convert]: ConvertShapeEditorTool,
-		[tools.eraseCells]: EraseCellsEditorTool,
-		[tools.erasePolygon]: ErasePolygonEditorTool,
+		[tools.erase]: EraseEditorTool,
 		[tools.eraseShape]: EraseShapeEditorTool,
 		// [tools.fill]: NYI
-		[tools.paintCells]: PaintCellsEditorTool,
-		[tools.paintPolygon]: PaintPolygonEditorTool,
+		[tools.paint]: PaintEditorTool,
 		[tools.pipette]: PipetteEditorTool,
 		[tools.terrainVisibility]: TerrainVisibilityEditorTool
 	};
 
-	/** @type {import("./tools/abstract/abstract-editor-tool.mjs").AbstractEditorTool | null} */
+	/** @type {import("./editor-tools/abstract/abstract-editor-tool.mjs").AbstractEditorTool | null} */
 	#selectedTool = null;
 
 	/** @type {AbortController} */
@@ -101,48 +101,42 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	// -------------------- //
 	/** @param {"on" | "off"} action */
 	#setupEventListeners(action) {
-		this[action]("mousedown", this.#onMouseDown);
-		this[action]("rightdown", this.#onRightDown);
-		this[action]("mousemove", this.#onMouseMove);
-		this[action]("mouseup", this.#onMouseUp);
-		this[action]("rightup", this.#onRightUp);
+		this[action]("pointerdown", this.#onPointerChange);
+		this[action]("pointermove", this.#onPointerChange);
+		this[action]("pointerup", this.#onPointerChange);
 	}
 
-	#onMouseDown = async event => {
-		if (!this.#selectedTool || event.button !== 0) return;
-
+	// Seems like a pointerdown event doesn't fire if a button is already being held, but a pointermove event does.
+	// https://github.com/pixijs/pixijs/issues/4048#issuecomment-304517070
+	// Going to use a single function which is responsible for determining
+	#onPointerChange = async event => {
 		const { x, y } = this.toLocal(event.data.global);
-		this.#selectedTool._onMouseDownLeft(x, y);
-		this.#selectedTool.isMouseLeftDown = true;
-	};
 
-	#onRightDown = async event => {
-		if (!this.#selectedTool) return;
+		// Left mouse button
+		const isLeftDown = (event.buttons & 1) === 1;
+		const wasLeftDown = (this.#lastPointerButtons & 1) === 1;
+		if (this.#selectedTool) {
+			this.#selectedTool.isMouseLeftDown = isLeftDown;
+			if (isLeftDown && !wasLeftDown) this.#selectedTool._onMouseDownLeft(x, y);
+			else if (!isLeftDown && wasLeftDown) this.#selectedTool._onMouseUpLeft(x, y);
+		}
 
-		const { x, y } = this.toLocal(event.data.global);
-		this.#selectedTool._onMouseDownRight(x, y);
-		this.#selectedTool.isMouseRightDown = true;
-	};
+		// Right mouse button
+		const isRightDown = (event.buttons & 2) === 2;
+		const wasRightDown = (this.#lastPointerButtons & 2) === 2;
+		if (this.#selectedTool) {
+			this.#selectedTool.isMouseRightDown = isRightDown;
+			if (isRightDown && !wasRightDown) this.#selectedTool._onMouseDownRight(x, y);
+			else if (!isRightDown && wasRightDown) this.#selectedTool._onMouseUpRight(x, y);
+		}
 
-	#onMouseMove = async event => {
-		const { x, y } = this.toLocal(event.data.global);
-		this.#selectedTool?._onMouseMove(x, y);
-	};
+		// Mouse move
+		if (x !== this.#lastPointerPosition.x || y !== this.#lastPointerPosition.y) {
+			this.#selectedTool?._onMouseMove(x, y);
+		}
 
-	#onMouseUp = async event => {
-		if (!this.#selectedTool) return;
-
-		const { x, y } = this.toLocal(event.data.global);
-		this.#selectedTool._onMouseUpLeft(x, y);
-		this.#selectedTool.isMouseLeftDown = false;
-	};
-
-	#onRightUp = async event => {
-		if (!this.#selectedTool) return;
-
-		const { x, y } = this.toLocal(event.data.global);
-		this.#selectedTool._onMouseUpRight(x, y);
-		this.#selectedTool.isMouseRightDown = true;
+		this.#lastPointerPosition = { x, y };
+		this.#lastPointerButtons = event.buttons;
 	};
 
 	async clear() {
