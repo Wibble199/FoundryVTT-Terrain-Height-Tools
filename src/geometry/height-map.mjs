@@ -159,7 +159,7 @@ export class HeightMap extends TerrainProvider {
 							collisionTest: ({ t: shape }) => shape.usesHeight && shape.top > bottom && shape.bottom < top
 						}),
 						shape => `${shape.top}|${shape.bottom}`,
-						shapes => ({ top: shapes[0].top, bottom: shapes[0].bottom, paths: shapes.flatMap(shape => shape.toGeoJsonPolygon()) })
+						shapes => ({ top: shapes[0].top, bottom: shapes[0].bottom, paths: shapes.map(shape => shape.toGeoJsonPolygon()) })
 					);
 
 					for (const [, existingShape] of existingShapePaths) {
