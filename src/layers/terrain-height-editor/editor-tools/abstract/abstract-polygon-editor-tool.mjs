@@ -1,15 +1,10 @@
 import { drawDashedPath } from "../../../../utils/pixi-utils.mjs";
 import { AbstractEditorTool } from "./abstract-editor-tool.mjs";
 
-const minDragDistance = 100;
-
 /**
  * Base class from with tools that require the user to draw a polygon to use can extend from.
  */
 export class AbstractPolygonEditorTool extends AbstractEditorTool {
-
-	/** @type {[number, number] | undefined} */
-	#dragInitialPoint;
 
 	#lastClickTime = 0;
 
@@ -27,13 +22,6 @@ export class AbstractPolygonEditorTool extends AbstractEditorTool {
 
 	/** @override */
 	_onMouseDownLeft(x, y) {
-		// If the user is not drawing a polygon, they need to click and drag to start one
-		// (I find this weird, but it's to have the same behaviour as Foundry's polygon drawing tool)
-		if (this.#currentPoints.length === 0) {
-			this.#dragInitialPoint = [Math.round(x), Math.round(y)];
-			return;
-		}
-
 		// If the user is already drawing a polygon, then double clicking will end the polygon
 		if ((Date.now() - this.#lastClickTime) < 250) {
 			if (this.#currentPoints.length < 3) {
@@ -47,8 +35,8 @@ export class AbstractPolygonEditorTool extends AbstractEditorTool {
 
 			this.#currentPoints = [];
 
-		} else {
-			// Otherwise, if the user is drawing a polygon, then single clicking will add a new point to that polygon
+		} else if (this._canDraw()) {
+			// Otherwise, then single clicking will add a new point to the polygon
 			this.#currentPoints.push([Math.round(x), Math.round(y)]);
 		}
 
@@ -63,32 +51,6 @@ export class AbstractPolygonEditorTool extends AbstractEditorTool {
 			this.#updatePreview(x, y);
 			return;
 		}
-
-		// If the user is not already drawing a polygon, but their mouse is down, see how far it has moved. If it has
-		// moved far enough, then start drawing one
-		if (!this.#dragInitialPoint) return;
-
-		const dx = this.#dragInitialPoint[0] - x;
-		const dy = this.#dragInitialPoint[1] - y;
-		const r2 = (dx * dx) + (dy * dy);
-
-		if (r2 > minDragDistance && this._canDraw()) {
-			this.#currentPoints.push(this.#dragInitialPoint);
-			this.#dragInitialPoint = undefined;
-			this.#updatePreview(x, y);
-		}
-	}
-
-	/** @override */
-	_onMouseUpLeft(x, y) {
-		// If there is only one point currently (i.e. we're still dragging the initial edge), then a mouse release will
-		// create the next point.
-		if (this.#currentPoints.length === 1) {
-			this.#currentPoints.push([Math.round(x), Math.round(y)]);
-			this.#updatePreview(x, y);
-		}
-
-		this.#dragInitialPoint = undefined;
 	}
 
 	/** @override */
