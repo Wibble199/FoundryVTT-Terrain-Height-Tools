@@ -1,10 +1,17 @@
 import { Point } from "./point.mjs";
 
 /**
- * Represents a line segment, from `p1` to `p2`.
- * LineSegments are considered equal regardless of 'direction'. I.E. p1 vs p2 order does not matter.
+ * @class LineSegment
+ * @property {Point} p1
  */
 export class LineSegment {
+
+	/** @type {Point} */
+	#p1;
+
+	/** @type {Point} */
+	#p2;
+
 	/** @type {number | undefined} */
 	#length;
 
@@ -16,8 +23,8 @@ export class LineSegment {
 	 * @param {Point | { x: number; y: number; }} p2
 	 */
 	constructor(p1, p2) {
-		this.p1 = p1 instanceof Point ? p1 : new Point(p1.x, p1.y);
-		this.p2 = p2 instanceof Point ? p2 : new Point(p2.x, p2.y);
+		this.#p1 = p1 instanceof Point ? p1 : new Point(p1.x, p1.y);
+		this.#p2 = p2 instanceof Point ? p2 : new Point(p2.x, p2.y);
 	}
 
 	/**
@@ -31,12 +38,20 @@ export class LineSegment {
 		return new LineSegment(new Point(x1, y1), new Point(x2, y2));
 	}
 
+	get p1() {
+		return this.#p1;
+	}
+
+	get p2() {
+		return this.#p2;
+	}
+
 	get dx() {
-		return this.p2.x - this.p1.x;
+		return this.#p2.x - this.#p1.x;
 	}
 
 	get dy() {
-		return this.p2.y - this.p1.y;
+		return this.#p2.y - this.#p1.y;
 	}
 
 	/** Unit length in the X direction (i.e. the difference in X this LineSegment would have if it had a length of 1) */
@@ -50,7 +65,7 @@ export class LineSegment {
 	}
 
 	get slope() {
-		return this.p1.x !== this.p2.x
+		return this.#p1.x !== this.#p2.x
 			? this.dy / this.dx
 			: Infinity;
 	}
@@ -71,8 +86,8 @@ export class LineSegment {
 
 	/** @param {LineSegment} other */
 	equals(other) {
-		return (this.p1.equals(other.p1) && this.p2.equals(other.p2))
-			|| (this.p1.equals(other.p2) && this.p2.equals(other.p1));
+		return (this.#p1.equals(other.p1) && this.#p2.equals(other.p2))
+			|| (this.#p1.equals(other.p2) && this.#p2.equals(other.p1));
 	}
 
 	/**
@@ -121,7 +136,7 @@ export class LineSegment {
 	 */
 	intersectsXAt(x) {
 		// If the given `x` is not between p1.x and p2.x, return undefined
-		if (x >= Math.max(this.p1.x, this.p2.x) || x <= Math.min(this.p1.x, this.p2.x))
+		if (x >= Math.max(this.#p1.x, this.#p2.x) || x <= Math.min(this.#p1.x, this.#p2.x))
 			return undefined;
 
 		const slope = this.slope;
@@ -132,10 +147,10 @@ export class LineSegment {
 
 		// If slope is 0, line is horizontal, so it's p1.y and p2.y are the same, and it intersects there
 		if (slope === 0)
-			return this.p1.y;
+			return this.#p1.y;
 
 		// For other values, line is diagonal, so work out where it would meet the X
-		return this.p1.y + ((x - this.p1.x) * slope);
+		return this.#p1.y + ((x - this.#p1.x) * slope);
 	}
 
 	/**
@@ -146,7 +161,7 @@ export class LineSegment {
 	 */
 	intersectsYAt(y) {
 		// If the given `y` is not between p1.y and p2.y, return undefined
-		if (y > Math.max(this.p1.y, this.p2.y) || y < Math.min(this.p1.y, this.p2.y))
+		if (y > Math.max(this.#p1.y, this.#p2.y) || y < Math.min(this.#p1.y, this.#p2.y))
 			return undefined;
 
 		const slope = this.slope;
@@ -157,10 +172,10 @@ export class LineSegment {
 
 		// If slope is infinity, line is vertical, so it's p1.x and p2.x are the same, and it intersects there
 		if (slope === Infinity)
-			return this.p1.x;
+			return this.#p1.x;
 
 		// For other values, line is diagonal, so work out where it would meet the Y
-		return this.p1.x + ((y - this.p1.y) / slope);
+		return this.#p1.x + ((y - this.#p1.y) / slope);
 	}
 
 	/**
@@ -168,8 +183,8 @@ export class LineSegment {
 	 * distance along each line segmnet that the intersection occured.
 	 *
 	 * The returned `t` value is how far along 'this' line segment the intersection point is at:
-	 * - 0 means that the intersection is at this.p1.
-	 * - 1 means that the intersection is at this.p2.
+	 * - 0 means that the intersection is at this.#p1.
+	 * - 1 means that the intersection is at this.#p2.
 	 * - Another value (which will be between 0-1) means it proportionally lies along the line segment.
 	 *
 	 * The returned `u` value is the equivalent of `t` but for the 'other' line segment.
@@ -184,8 +199,8 @@ export class LineSegment {
 	intersectsAt(other, { ignoreLength = false } = {}) {
 		if (this.lengthSquared <= 0 || other.lengthSquared <= 0) return undefined;
 
-		const { x: x1, y: y1 } = this.p1;
-		const { x: x2, y: y2 } = this.p2;
+		const { x: x1, y: y1 } = this.#p1;
+		const { x: x2, y: y2 } = this.#p2;
 		const { x: x3, y: y3 } = other.p1;
 		const { x: x4, y: y4 } = other.p2;
 
@@ -216,7 +231,7 @@ export class LineSegment {
 	 * @returns {{ x: number; y: number; }}
 	 */
 	lerp(t) {
-		return LineSegment.lerp(this.p1.x, this.p1.y, this.p2.x, this.p2.y, t);
+		return LineSegment.lerp(this.#p1.x, this.#p1.y, this.#p2.x, this.#p2.y, t);
 	}
 
 	/**
@@ -267,11 +282,11 @@ export class LineSegment {
 	 * Creates the LineSegment that represents this inverse of this LineSegment.
 	 */
 	inverse() {
-		return new LineSegment(this.p2, this.p1);
+		return new LineSegment(this.#p2, this.#p1);
 	}
 
 	toString() {
-		return `LineSegment { (${this.p1.x}, ${this.p1.y}) -> (${this.p2.x}, ${this.p2.y}) }`;
+		return `LineSegment { (${this.#p1.x}, ${this.#p1.y}) -> (${this.#p2.x}, ${this.#p2.y}) }`;
 	}
 
 	/**
@@ -291,6 +306,6 @@ export class LineSegment {
 		const offset = { x: px * distance, y: py * distance };
 
 		// Work out the translated points
-		return new LineSegment(this.p1.offset(offset), this.p2.offset(offset));
+		return new LineSegment(this.#p1.offset(offset), this.#p2.offset(offset));
 	}
 }

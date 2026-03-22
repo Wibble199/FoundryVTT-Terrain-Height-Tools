@@ -43,6 +43,18 @@ import { Polygon } from "./polygon.mjs";
  */
 export class TerrainShape {
 
+	#terrainTypeId;
+
+	#polygon;
+
+	#holes;
+
+	#height;
+
+	#elevation;
+
+	#visible;
+
 	/** @type {string | undefined} */
 	_providerId;
 
@@ -64,24 +76,48 @@ export class TerrainShape {
 		if (top !== undefined && top < elevation) throw new Error("Invalid height. Top must be higher than elevation/bottom.");
 		if (height !== undefined && top !== undefined && top !== height + elevation) throw new Error("Invalid height. Top and height do not reconcile.");
 
-		this.terrainTypeId = terrainTypeId;
-		this.polygon = Polygon.createSolid(polygon);
-		this.holes = holes.map(hole => Polygon.createHole(hole));
-		this.height = height ?? (top - elevation);
-		this.elevation = elevation;
-		this.visible = visible;
+		this.#terrainTypeId = terrainTypeId;
+		this.#polygon = Object.freeze(Polygon.createSolid(polygon));
+		this.#holes = Object.freeze(holes.map(hole => Object.freeze(Polygon.createHole(hole))));
+		this.#height = height ?? (top - elevation);
+		this.#elevation = elevation;
+		this.#visible = visible;
 	}
 
-	get usesHeight() {
-		return getTerrainType(this.terrainTypeId)?.usesHeight ?? false;
+	get terrainTypeId() {
+		return this.#terrainTypeId;
+	}
+
+	get terrainType() {
+		return getTerrainType(this.#terrainTypeId);
+	}
+
+	get polygon() {
+		return this.#polygon;
+	}
+
+	get holes() {
+		return this.#holes;
+	}
+
+	get height() {
+		return this.#height;
+	}
+
+	get elevation() {
+		return this.#elevation;
 	}
 
 	get top() {
-		return this.elevation + this.height;
+		return this.#elevation + this.#height;
 	}
 
 	get bottom() {
-		return this.elevation;
+		return this.#elevation;
+	}
+
+	get visible() {
+		return this.#visible;
 	}
 
 	/**
@@ -89,11 +125,11 @@ export class TerrainShape {
 	 */
 	toObject() {
 		return {
-			terrainTypeId: this.terrainTypeId,
-			polygon: this.polygon.toObject(),
-			holes: this.holes.map(h => h.toObject()),
-			height: this.height,
-			elevation: this.elevation
+			terrainTypeId: this.#terrainTypeId,
+			polygon: this.#polygon.toObject(),
+			holes: this.#holes.map(h => h.toObject()),
+			height: this.#height,
+			elevation: this.#elevation
 		};
 	}
 
@@ -102,8 +138,8 @@ export class TerrainShape {
 	 */
 	toGeoJsonPolygon() {
 		return [
-			this.polygon.toGeoJsonRing(),
-			...this.holes.map(h => h.toGeoJsonRing())
+			this.#polygon.toGeoJsonRing(),
+			...this.#holes.map(h => h.toGeoJsonRing())
 		];
 	}
 
@@ -114,8 +150,8 @@ export class TerrainShape {
 	 * @param {boolean} [options.containsOnEdge]
 	 */
 	containsPoint(x, y, { containsOnEdge = true } = {}) {
-		return this.polygon.containsPoint(x, y, { containsOnEdge })
-			&& this.holes.every(h => !h.containsPoint(x, y, { containsOnEdge: !containsOnEdge }));
+		return this.#polygon.containsPoint(x, y, { containsOnEdge })
+			&& this.#holes.every(h => !h.containsPoint(x, y, { containsOnEdge: !containsOnEdge }));
 	}
 
 	/**
@@ -124,10 +160,10 @@ export class TerrainShape {
 	 * @param {number} [options.padding]
 	 */
 	toSvg({ padding = 2 } = {}) {
-		const { x1: x, y1: y, w, h } = this.polygon.boundingBox;
+		const { x1: x, y1: y, w, h } = this.#polygon.boundingBox;
 
 		return {
-			path: this.polygon.toSvgPath() + " " + this.holes.map(h => h.toSvgPath()).join(" "),
+			path: this.#polygon.toSvgPath() + " " + this.#holes.map(h => h.toSvgPath()).join(" "),
 			viewBox: `${x - padding} ${y - padding} ${w + (padding * 2)} ${h + (padding * 2)}`
 		};
 	}
@@ -142,8 +178,8 @@ export class TerrainShape {
 		// If the shape is shorter than both the start and end heights, then we can skip the intersection tests as
 		// the line of sight ray would never cross at the required height for an intersection.
 		// E.G. a ray from height 2 to height 3 would never intersect a terrain of height 1.
-		const shapeTop = usesHeight ? this.elevation + this.height : Infinity;
-		const shapeBottom = usesHeight ? this.elevation : -Infinity;
+		const shapeTop = usesHeight ? this.#elevation + this.#height : Infinity;
+		const shapeBottom = usesHeight ? this.#elevation : -Infinity;
 		if (usesHeight && p1.h > shapeTop && p2.h > shapeTop) return [];
 		if (usesHeight && p1.h < shapeBottom && p2.h < shapeBottom) return [];
 
@@ -180,9 +216,9 @@ export class TerrainShape {
 		// Loop each edge in this shape and check for an intersection. Record height, shape and how far along the
 		// test line the intersection occured.
 		/** @type {[Polygon | undefined, LineSegment][]} */
-		const allEdges = this.polygon.edges
+		const allEdges = this.#polygon.edges
 			.map(e => [undefined, e])
-			.concat(this.holes
+			.concat(this.#holes
 				.flatMap(h => h.edges.map(e => [h, e])));
 
 		/** @type {LineOfSightIntersection[]} */
@@ -200,13 +236,13 @@ export class TerrainShape {
 			// calculations later on, as we don't then need to check for vertex collisions and handle them differently.
 			// If the prev/next edge is not parallel then it should cause it's own intersection and get added normally.
 			if (intersection.u < Number.EPSILON) {
-				const previousEdge = (hole ?? this.polygon).previousEdge(edge);
+				const previousEdge = (hole ?? this.#polygon).previousEdge(edge);
 				if (previousEdge.isParallelTo(testRay)) {
 					intersections.push({ ...intersection, u: 1, edge: previousEdge, hole });
 				}
 
 			} else if (intersection.u > 1 - Number.EPSILON) {
-				const nextEdge = (hole ?? this.polygon).nextEdge(edge);
+				const nextEdge = (hole ?? this.#polygon).nextEdge(edge);
 				if (nextEdge.isParallelTo(testRay)) {
 					intersections.push({ ...intersection, u: 0, edge: nextEdge, hole });
 				}
@@ -238,8 +274,8 @@ export class TerrainShape {
 
 			switch (p1LiesOnEdges.length) {
 				case 0: {
-					isInside = this.polygon.containsPoint(x1, y1, { containsOnEdge: false })
-						&& !this.holes.some(h => h.containsPoint(x1, y1, { containsOnEdge: true }));
+					isInside = this.#polygon.containsPoint(x1, y1, { containsOnEdge: false })
+						&& !this.#holes.some(h => h.containsPoint(x1, y1, { containsOnEdge: true }));
 					break;
 				}
 
@@ -249,11 +285,11 @@ export class TerrainShape {
 					const { edge, poly, t: u } = p1LiesOnEdges[0];
 
 					if (u < Number.EPSILON) {
-						const previousEdge = (poly ?? this.polygon).previousEdge(edge);
+						const previousEdge = (poly ?? this.#polygon).previousEdge(edge);
 						isInside = previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 
 					} else if (u > 1 - Number.EPSILON) {
-						const nextEdge = (poly ?? this.polygon).nextEdge(edge);
+						const nextEdge = (poly ?? this.#polygon).nextEdge(edge);
 						isInside = edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 
 					} else {
@@ -275,10 +311,10 @@ export class TerrainShape {
 					// and since it's only 4 basic maths operations it'll have no noticable impact on perf.
 					isInside = p1LiesOnEdges.some(({ edge, poly, t: u }) => {
 						if (u < Number.EPSILON) {
-							const previousEdge = (poly ?? this.polygon).previousEdge(edge);
+							const previousEdge = (poly ?? this.#polygon).previousEdge(edge);
 							return previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 						} else if (u > 1 - Number.EPSILON) {
-							const nextEdge = (poly ?? this.polygon).nextEdge(edge);
+							const nextEdge = (poly ?? this.#polygon).nextEdge(edge);
 							return edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 						}
 					});
@@ -296,7 +332,7 @@ export class TerrainShape {
 					// However, with custom providers, there could be more than 4 at a single intersection.
 					// What we need to do is pair off the edges, and test whether the ray is between ALL pairs of edges.
 					isInside = [...groupBy(p1LiesOnEdges, x => x.poly).values()]
-						.every(edgeIntersections => (edgeIntersections[0].poly ?? this.polygon)
+						.every(edgeIntersections => (edgeIntersections[0].poly ?? this.#polygon)
 							.pairEdges(edgeIntersections.map(x => x.edge))
 							.every(([e1, e2]) => testRay.isBetween(e1, e2)));
 
@@ -368,12 +404,12 @@ export class TerrainShape {
 					const intersectionsOfTByHole = [...groupBy(intersectionsOfT, x => x.hole).values()];
 
 					const rayInside = intersectionsOfTByHole
-						.every(intersectionsOfTOfHole => (intersectionsOfTOfHole[0].hole ?? this.polygon)
+						.every(intersectionsOfTOfHole => (intersectionsOfTOfHole[0].hole ?? this.#polygon)
 							.pairEdges(intersectionsOfTOfHole.map(x => x.edge))
 							.every(([e1, e2]) => testRay.isBetween(e1, e2)));
 
 					const inverseRayInside = intersectionsOfTByHole
-						.every(intersectionsOfTOfHole => (intersectionsOfTOfHole[0].hole ?? this.polygon)
+						.every(intersectionsOfTOfHole => (intersectionsOfTOfHole[0].hole ?? this.#polygon)
 							.pairEdges(intersectionsOfTOfHole.map(x => x.edge))
 							.every(([e1, e2]) => inverseTestRay.isBetween(e1, e2)));
 

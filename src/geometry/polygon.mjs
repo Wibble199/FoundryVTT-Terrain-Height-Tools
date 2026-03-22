@@ -50,6 +50,8 @@ export class Polygon {
 				}
 			}
 		}
+
+		Object.freeze(this.boundingBox);
 	}
 
 	/**
@@ -128,9 +130,9 @@ export class Polygon {
 
 		this.#vertices.push(vertex);
 
-		// If there is atleast one existing edge, update the last edge so that it instead ends at the new point
+		// If there is atleast one existing edge, replace the last edge so that it instead ends at the new point
 		if (this.#edges.length >= 1)
-			this.#edges[this.#edges.length - 1].p2 = vertex;
+			this.#edges = this.#edges.with(-1, new LineSegment(this.#edges.at(-1).p1, vertex));
 
 		// Add a new edge from this new vertex to the first vertex (when there were no vertices in this polygon before, this
 		// would make an edge from this new vertex to iself, but when more vertices are added this works fine).

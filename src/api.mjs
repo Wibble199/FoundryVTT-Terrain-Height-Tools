@@ -7,7 +7,6 @@ import { defaultGroupName, moduleName, settingNames } from "./consts.mjs";
 import { heightMap } from "./geometry/height-map.mjs";
 import { TerrainShape } from "./geometry/terrain-shape.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
-import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 import { getShapesAtPoint as getShapesAtPointImpl, getShapesByBounds, TerrainProvider } from "./stores/terrain-manager.mjs";
 import { terrainTypes$ } from "./stores/terrain-types.mjs";
 import { rectangleFromP1P2 } from "./utils/pixi-utils.mjs";
@@ -30,7 +29,8 @@ export function getTerrainType(terrain) {
 	if (!terrain?.id?.length && !terrain?.name?.length)
 		throw new Error("Expected `terrain` to have an `id` or `name` property.");
 
-	return terrainTypes$.value.find(t => t.id === terrain.id || t.name === terrain.name);
+	return terrainTypes$.value.find(t => t.id === terrain.id
+		|| t.name?.localeCompare(terrain.name, undefined, { sensitivity: "base" }) === 0);
 }
 
 /**
@@ -42,13 +42,17 @@ export function getTerrainTypes() {
 }
 
 /**
- * Gets the THT height map terrain data at the given grid coordinates.
- * @param {number} x
- * @param {number} y
- * @returns {{ terrainTypeId: string; height: number; elevation: number; }[]}
+ * Gets the THT height map terrain shapes at the given grid coordinates.
+ * @param {number} i
+ * @param {number} j
+ * @returns {TerrainShape[]}
  */
-export function getCell(x, y) {
-	return TerrainHeightEditorLayer.current?._heightMap.get(y, x);
+export function getCell(i, j) {
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS)
+		throw new Error("Cannot use this function on gridless scenes");
+
+	const { x, y } = canvas.grid.getCenterPoint({ i, j });
+	return heightMap.getShapesAtPoint(x, y);
 }
 
 /**
@@ -61,6 +65,9 @@ export function getCell(x, y) {
  * @returns {TerrainShape[]}
  */
 export function getShapes(i, j, { providerIds } = {}) {
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS)
+		throw new Error("Cannot use this function on gridless scenes");
+
 	const { x, y } = canvas.grid.getCenterPoint({ i, j });
 	return getShapesAtPointImpl(x, y, { providerIds });
 }
@@ -82,16 +89,19 @@ export function getShapesAtPoint(x, y, { providerIds } = {}) {
  * Paints the target cells on the current scene with the provided terrain data.
  * @param {[number, number][]} cells The grid cells to paint as [X,Y] coordinate pairs. The cells do not have to be
  * connected.
- * @param {Object} shapes The terrain options to use when painting the cells.
- * @param {string} shapes.id The ID of the terrain type to use. Either this or `name` must be provided.
- * @param {string} shapes.name The name of the terrain type to use. Either this or `id` must be provided.
- * @param {number} shapes.height If the terrain type uses heights, the height to paint on these cells.
- * @param {number} shapes.elevation If the terrain type uses heights, the elevation (how high off the ground) to paint these cells.
+ * @param {Object} terrain The terrain options to use when painting the cells.
+ * @param {string} terrain.id The ID of the terrain type to use. Either this or `name` must be provided.
+ * @param {string} terrain.name The name of the terrain type to use. Either this or `id` must be provided.
+ * @param {number} terrain.height If the terrain type uses heights, the height to paint on these cells.
+ * @param {number} terrain.elevation If the terrain type uses heights, the elevation (how high off the ground) to paint these cells.
  * @param {Object} [options]
  * @param {import("./consts.mjs").terrainPaintMode} [options.mode]
  * @returns {Promise<boolean>}
  */
 export function paintCells(cells, terrain, { mode = "totalReplace" } = {}) {
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS)
+		throw new Error("Cannot use this function on gridless scenes");
+
 	if (!Array.isArray(cells) || cells.some(cell => !Array.isArray(cell)))
 		throw new Error("Expected `cells` to be an array of arrays.");
 	if (cells.length === 0) return;
@@ -107,16 +117,61 @@ export function paintCells(cells, terrain, { mode = "totalReplace" } = {}) {
 }
 
 /**
- * Erases terrain height data from the given cells on the current scene.
- * @param {[number, number][]} cells
+ * Paints the given regions onto the current scene with the provided terrain data.
+ * @param {{ polygon: { x: number; y: number; }[]; holes?: { x: number; y: number; }[][]; }[]} regions
+ * @param {Object} terrain The terrain options to use when painting the cells.
+ * @param {string} terrain.id The ID of the terrain type to use. Either this or `name` must be provided.
+ * @param {string} terrain.name The name of the terrain type to use. Either this or `id` must be provided.
+ * @param {number} terrain.height If the terrain type uses heights, the height to paint on these cells.
+ * @param {number} terrain.elevation If the terrain type uses heights, the elevation (how high off the ground) to paint these cells.
+ * @param {Object} [options]
+ * @param {import("./consts.mjs").terrainPaintMode} [options.mode]
  * @returns {Promise<boolean>}
  */
-export function eraseCells(cells) {
+export function paintRegions(regions, terrain, { mode = "totalReplace" } = {}) {
+	const terrainType = getTerrainType(terrain);
+	if (!terrainType)
+		throw new Error(`Could not find a terrain type with ID "${terrain.id}" or name "${terrain.name}"`);
+
+	if (terrainType.usesHeight && typeof terrain.height !== "number")
+		throw new Error(`Terrain "${terrainType.name}' requires a height, but one was not provided.`);
+
+	return heightMap.paintRegions(regions, terrainType.id, terrain.height ?? 0, terrain.elevation ?? 0, { mode });
+}
+
+/**
+ * Erases terrain height data from the given cells on the current scene.
+ * @param {[number, number][]} cells
+ * @param {Object} [options]
+ * @param {number} [options.top] If provided, only erases terrain beneath this value (this is the top of the eraser).
+ * @param {number} [options.bottom] If provided, only erases terrain above this value (this is the bottom of the eraser).
+ * @param {string[]} [options.onlyTerrainTypeIds] If provided, only terrain with a terrain type ID within this array will be removed.
+ * @param {string[]} [options.excludingTerrainTypeIds] If provided, will not remove terrain with a type ID that is in this array.
+ * @returns {Promise<boolean>}
+ */
+export function eraseCells(cells, { top, bottom, onlyTerrainTypeIds, excludingTerrainTypeIds } = {}) {
+	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS)
+		throw new Error("Cannot use this function on gridless scenes");
+
 	if (!Array.isArray(cells) || cells.some(cell => !Array.isArray(cell)))
 		throw new Error("Expected `cells` to be an array of arrays.");
 	if (cells.length === 0) return;
 
-	return heightMap.eraseCells(cells);
+	return heightMap.eraseCells(cells, { top, bottom, onlyTerrainTypeIds, excludingTerrainTypeIds });
+}
+
+/**
+ * Erases terrain data from the given regions on the current scene.
+ * @param {{ polygon: { x: number; y: number; }[]; holes?: { x: number; y: number; }[][]; }[]} regions
+ * @param {Object} [options]
+ * @param {number} [options.top] If provided, only erases terrain beneath this value (this is the top of the eraser).
+ * @param {number} [options.bottom] If provided, only erases terrain above this value (this is the bottom of the eraser).
+ * @param {string[]} [options.onlyTerrainTypeIds] If provided, only terrain with a terrain type ID within this array will be removed.
+ * @param {string[]} [options.excludingTerrainTypeIds] If provided, will not remove terrain with a type ID that is in this array.
+ * @returns {Promise<boolean>}
+ */
+export function eraseRegions(regions, { top, bottom, onlyTerrainTypeIds, excludingTerrainTypeIds } = {}) {
+	return heightMap.eraseRegions(regions, { top, bottom, onlyTerrainTypeIds, excludingTerrainTypeIds });
 }
 
 /**
@@ -198,7 +253,7 @@ export function calculateLineOfSightRaysBetweenTokens(token1, token2, { token1Re
  * @param {} [options.showLabels=true] Whether height labels are shown at the start and end of the ruler.
  */
 export function drawLineOfSightRay(p1, p2, { group = defaultGroupName, drawForOthers = true, includeNoHeightTerrain = false, showLabels = true } = {}) {
-	LineOfSightRulerLayer.current?._updateTokenLineOfSightRays([{
+	LineOfSightRulerLayer.current?._drawLineOfSightRays([{
 		a: p1,
 		b: p2,
 		includeNoHeightTerrain,
@@ -217,7 +272,7 @@ export function drawLineOfSightRay(p1, p2, { group = defaultGroupName, drawForOt
  */
 export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOthers = true } = {}) {
 	// For legacy reasons, if a and b are not provided, use p1 and p2.
-	LineOfSightRulerLayer.current?._updateTokenLineOfSightRays(rays.map(ray => ({
+	LineOfSightRulerLayer.current?._drawLineOfSightRays(rays.map(ray => ({
 		...ray,
 		a: ray.a ?? ray.p1,
 		b: ray.b ?? ray.p2
@@ -246,7 +301,7 @@ export function drawLineOfSightRays(rays, { group = defaultGroupName, drawForOth
  */
 export function drawLineOfSightRaysBetweenTokens(token1, token2, { group = defaultGroupName, token1RelativeHeight, token2RelativeHeight, includeNoHeightTerrain = false, drawForOthers = true, includeEdges = true } = {}) {
 	const defaultRelativeHeight = game.settings.get(moduleName, settingNames.defaultTokenLosTokenHeight);
-	LineOfSightRulerLayer.current?._updateTokenLineOfSightRays([{
+	LineOfSightRulerLayer.current?._drawLineOfSightRays([{
 		a: token1, ah: token1RelativeHeight ?? defaultRelativeHeight,
 		b: token2, bh: token2RelativeHeight ?? defaultRelativeHeight,
 		includeNoHeightTerrain,

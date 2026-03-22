@@ -158,7 +158,7 @@ export class HeightMap extends TerrainProvider {
 						/** @type {Map<string, { top: number; bottom: number; paths: [number, number][][] }>} */
 						const existingShapePaths = groupBy2(
 							this.getShapes(outerPolygon.boundingRect, {
-								collisionTest: ({ t: shape }) => shape.usesHeight && shape.top > bottom && shape.bottom < top
+								collisionTest: ({ t: shape }) => shape.terrainType?.usesHeight && shape.top > bottom && shape.bottom < top
 							}),
 							shape => `${shape.top}|${shape.bottom}`,
 							shapes => ({ top: shapes[0].top, bottom: shapes[0].bottom, paths: shapes.map(shape => shape.toGeoJsonPolygon()) })
@@ -296,7 +296,7 @@ export class HeightMap extends TerrainProvider {
 						onlyTerrainTypeIds?.includes(shape.terrainTypeId) !== false &&
 						excludingTerrainTypeIds?.includes(shape.terrainTypeId) !== true &&
 						(
-							!shape.usesHeight || // terrain is a zone OR
+							!shape.terrainType?.usesHeight || // terrain is a zone OR
 							(shape.top > bottom && shape.bottom < top) // shape exists within the specified removal range
 						)
 				});
