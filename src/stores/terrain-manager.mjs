@@ -239,6 +239,17 @@ export class TerrainProvider {
 		return this.quadtree.getObjects(rect, { collisionTest });
 	}
 
+	/**
+	 * Similar to `getShapes`, but allows for specifying multiple input rectangles whose intersections to look for.
+	 * @param {PIXI.Rectangle[]} rects
+	 * @param {Object} [options]
+	 * @param {(entry: { r: PIXI.Rectangle; t: TerrainShape; }, rect: PIXI.Rectangle) => boolean} [options.collisionTest]
+	 * @returns {Set<TerrainShape>}
+	 */
+	getShapesMulti(rects, options) {
+		return new Set(rects.flatMap(rect => [...this.getShapes(rect, options)]));
+	}
+
 	destroy() {
 		Hooks.off("canvasReady", this.#canvasReadyHookId);
 		Hooks.off("canvasTearDown", this.#canvasTearDownHookId);

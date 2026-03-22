@@ -26,7 +26,7 @@ export function groupBy(items, keySelector) {
  * @param {Iterable<TElement>} items
  * @param {(item: TElement) => TKey} keySelector
  * @param {(items: TElement[]) => TGroup} groupSelector
- * @returns {Map<TKey, TGroup[]>}
+ * @returns {Map<TKey, TGroup>}
  */
 export function groupBy2(items, keySelector, groupSelector) {
 	const groups = new Map();

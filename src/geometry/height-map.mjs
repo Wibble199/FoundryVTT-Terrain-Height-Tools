@@ -189,8 +189,8 @@ export class HeightMap extends TerrainProvider {
 							if (newShapePath.top > existingShape.top)
 								addNewNewShapePath(intersection, newShapePath.top, existingShape.top);
 
-							// Work out the difference - i.e. the part of the new shape untouched by the existing shape, and
-							// add it to the paths at the full height (i.e. this bit hasn't been carved out).
+							// Work out the difference - i.e. the part of the new shape untouched by the existing shape,
+							// and add it to the paths at the full height (i.e. this bit hasn't been carved out).
 							const newShapePathOnly = polygonDifference(newShapePath.paths, existingShape.paths);
 							addNewNewShapePath(newShapePathOnly, newShapePath.top, newShapePath.bottom);
 						}
@@ -204,44 +204,11 @@ export class HeightMap extends TerrainProvider {
 				// If doing an additive merge of a zone, don't need to do anything here, just the merge in stage 2 :)
 			}
 
-			// STAGE 2: Merge the new terrain with any adjacent existing terrain of the same type, top, & bottom and add to
-			// the scene
-			for (let { top, bottom, paths } of newShapePaths) {
-				// Figure out if any similar shapes are adjacent, as these might be able to be merged
-				const possibleMergeCandidates = new Set(HeightMap.#shapesFromGeoJson(paths)
-					.flatMap(({ polygon }) => [...this.getShapes(
-						// Increase the size by 1px on each side so we can get shapes which touch but don't overlap
-						new PIXI.Rectangle(
-							polygon.boundingBox.x1 - 1,
-							polygon.boundingBox.y1 - 1,
-							polygon.boundingBox.w + 2,
-							polygon.boundingBox.h + 2
-						),
-						{
-							collisionTest: ({ t: shape }) =>
-								shape.terrainTypeId === terrainTypeId && shape.top === top && shape.bottom === bottom
-						}
-					)]));
-
-				// If there were some potentially mergable shapes, merge (union) them
-				if (possibleMergeCandidates.size > 0) {
-					for (const mergeCandidate of possibleMergeCandidates)
-						this.deleteShapes(mergeCandidate);
-
-					paths = polygonUnion(paths, Array.from(possibleMergeCandidates, c => c.toGeoJsonPolygon()));
-				}
-
-				const finalNewShapes = HeightMap.#shapesFromGeoJson(paths);
-				hasChanges ||= finalNewShapes.length > 0;
-
-				// Add the resulting merged shapes
-				this.addShapes(finalNewShapes.map(({ polygon, holes }) => new TerrainShape({
-					polygon,
-					holes,
-					terrainTypeId,
-					top,
-					bottom
-				})));
+			// STAGE 2: Merge the new terrain with any adjacent existing terrain of the same type, top, & bottom and add
+			// to the scene
+			for (const { top, bottom, paths } of newShapePaths) {
+				hasChanges ||= paths.length > 0;
+				this.#addShapeAndMergeWithAdjacent(paths, terrainTypeId, top, bottom);
 			}
 
 			debug(`paintRegion took ${Math.round(performance.now() - startTimestamp)}ms`);
@@ -301,6 +268,8 @@ export class HeightMap extends TerrainProvider {
 	 */
 	async eraseRegion({ polygon, holes = [] }, { onlyTerrainTypeIds, excludingTerrainTypeIds, bottom, top, persist = true } = {}) {
 		return await this.#withPersistence(() => {
+			const startTimestamp = performance.now();
+
 			bottom ??= -Infinity;
 			top ??= Infinity;
 
@@ -344,36 +313,21 @@ export class HeightMap extends TerrainProvider {
 				// would result in terrain from elevation 1 -> height 1 being left behind).
 				const usesHeight = getTerrainType(existingShape.terrainTypeId)?.usesHeight;
 				if (usesHeight && existingShape.top > top) {
-					this.addShapes(HeightMap.#shapesFromGeoJson(intersectionResult).map(({ polygon, holes }) => new TerrainShape({
-						terrainTypeId: existingShape.terrainTypeId,
-						top: existingShape.top,
-						bottom: top, // bottom of the shape is now the top of the eraser - everything below is erased
-						polygon,
-						holes
-					})));
+					// bottom of the shape is now the top of the eraser - everything below is erased
+					this.#addShapeAndMergeWithAdjacent(intersectionResult, existingShape.terrainTypeId, existingShape.top, top);
 				}
 				if (usesHeight && existingShape.bottom < bottom) {
-					this.addShapes(HeightMap.#shapesFromGeoJson(intersectionResult).map(({ polygon, holes }) => new TerrainShape({
-						terrainTypeId: existingShape.terrainTypeId,
-						top: bottom, // top of the shape is now the bottom of the eraser - everything above is erased
-						bottom: existingShape.bottom,
-						polygon,
-						holes
-					})));
+					// top of the shape is now the bottom of the eraser - everything above is erased
+					this.#addShapeAndMergeWithAdjacent(intersectionResult, existingShape.terrainTypeId, bottom, existingShape.bottom);
 				}
 
 				// Existing difference with erase = areas of existing shape that are NOT erased.
 				// These shapes need to be added back on
 				const unchangedExistingShapeResult = polygonDifference(existingShapePath, eraseShapePath);
-
-				this.addShapes(HeightMap.#shapesFromGeoJson(unchangedExistingShapeResult).map(({ polygon, holes }) => new TerrainShape({
-					terrainTypeId: existingShape.terrainTypeId,
-					top: existingShape.top,
-					bottom: existingShape.bottom,
-					polygon,
-					holes
-				})));
+				this.#addShapeAndMergeWithAdjacent(unchangedExistingShapeResult, existingShape.terrainTypeId, existingShape.top, existingShape.bottom);
 			}
+
+			debug(`eraseRegion took ${Math.round(performance.now() - startTimestamp)}ms`);
 
 			return anyChanges;
 		}, persist);
@@ -420,6 +374,131 @@ export class HeightMap extends TerrainProvider {
 			this.deleteAllShapes();
 			return true;
 		});
+	}
+
+	/**
+	 * Adds the given polygons to the height map, merging them with adjacent terrain of the same type, height and
+	 * elevation. This includes both vertical (height) and horizontal (x/y) adjacent terrain.
+	 *
+	 * This is not the complete painting algorithm, use paintRegion for that instead which will correctly combine with
+	 * other existing terrain based on the painting mode. This is instead a reusable utility function.
+	 * @param {[number, number][][][]} polygons
+	 * @param {string} terrainTypeId
+	 * @param {number} top
+	 * @param {number} bottom
+	 */
+	#addShapeAndMergeWithAdjacent(polygons, terrainTypeId, top, bottom) {
+		let newShapePaths = [
+			{
+				top,
+				bottom,
+				polygons
+			}
+		];
+
+		// STAGE 1: VERTICAL (NON-ZONES ONLY)
+		if (getTerrainType(terrainTypeId)?.usesHeight) {
+			// Get existing terrain of the same type that is within the new drawn range, and is touching or overlapping
+			// vertically, and group them by which have the same top/bottom.
+			const possibleVMergeCandidates = groupBy2(
+				this.getShapesMulti(
+					HeightMap.#shapesFromGeoJson(polygons).map(p => p.polygon.boundingRect),
+					{
+						collisionTest: ({ t: shape }) =>
+							shape.terrainTypeId === terrainTypeId &&
+							shape.bottom <= top &&
+							shape.top >= bottom
+					}
+				),
+				shape => `${shape.top}|${shape.bottom}`,
+				shapes => ({
+					top: shapes[0].top,
+					bottom: shapes[0].bottom,
+					shapes,
+					polygons: shapes.map(shape => shape.toGeoJsonPolygon())
+				})
+			);
+
+			/** @type {Set<TerrainShape>} */
+			const existingShapesToDelete = new Set();
+
+			for (const [, existingShape] of possibleVMergeCandidates) {
+				// Put the changes into a new array, then replace the entire existing array with the new one.
+				// I.E. this is so we do NOT modify the array as we're iterating over it too.
+				// Also, naming things is hard :(
+				/** @type {typeof newShapePaths} */
+				const newNewShapePaths = [];
+
+				/**
+				 * Adds or appends a shape in the newNewShapePaths array for the given height range.
+				 * @type {(paths: [number, number][][][], top: number, bottom: number) => void}
+				 */
+				const addNewNewShapePath = (polygons, top, bottom) => {
+					const existing = newNewShapePaths.find(p => p.top === top && p.bottom === bottom);
+					if (existing)
+						existing.polygons.push(...polygons);
+					else
+						newNewShapePaths.push({ polygons: Array.from(polygons), top, bottom });
+				};
+
+				for (const newShapePath of newShapePaths) {
+					// Work out the intersection between the new shape and the existing shapes. If there is any overlap,
+					// then we combine their tops/bottoms, and add that to the newNewShapePaths array, and remove the
+					// overlap from the current newShapePath.
+					const intersection = polygonIntersection(newShapePath.polygons, existingShape.polygons);
+
+					if (intersection.length === 0) {
+						addNewNewShapePath(newShapePath.polygons, newShapePath.top, newShapePath.bottom);
+						continue;
+					}
+
+					addNewNewShapePath(intersection, Math.max(existingShape.top, newShapePath.top), Math.min(existingShape.bottom, newShapePath.bottom));
+
+					const newShapeOnlyPolygon = polygonDifference(newShapePath.polygons, existingShape.polygons);
+					addNewNewShapePath(newShapeOnlyPolygon, newShapePath.top, newShapePath.bottom);
+
+					const existingOnlyPolygon = polygonDifference(existingShape.polygons, newShapePath.polygons);
+					addNewNewShapePath(existingOnlyPolygon, existingShape.top, existingShape.bottom);
+
+					existingShape.shapes.forEach(s => existingShapesToDelete.add(s));
+				}
+
+				newShapePaths = newNewShapePaths;
+			}
+
+			this.deleteShapes(...existingShapesToDelete);
+		}
+
+		// STAGE 2: HORIZONTAL
+		// Get all shapes that might be mergable with the new polygon(s)
+		for (let { top, bottom, polygons } of newShapePaths) {
+			const possibleHMergeCandidates = new Set(HeightMap.#shapesFromGeoJson(polygons)
+				.flatMap(({ polygon: { boundingBox: { x1, y1, w, h } } }) => [...this.getShapes(
+					new PIXI.Rectangle(x1 - 1, y1 - 1, w + 2, h + 2),
+					{
+						collisionTest: ({ t: shape }) =>
+							shape.terrainTypeId === terrainTypeId &&
+							shape.top === top &&
+							shape.bottom === bottom
+					}
+				)]));
+
+			// For each possible merge, delete it and union it with the incoming polygons
+			// Not sure if there is an easy way of detecting if two polygons have merged - if so, could save destroying and
+			// recreating shapes that do not overlap at all. Cannot use intersection as shapes that touch but do not overlap
+			// would not give any result. Then again, it's probably not much of an issue to delete and recreate.
+			polygons = polygonUnion(polygons, Array.from(possibleHMergeCandidates, s => s.toGeoJsonPolygon()));
+			this.deleteShapes(...possibleHMergeCandidates);
+
+			// Add unioned shapes in
+			this.addShapes(HeightMap.#shapesFromGeoJson(polygons).map(({ polygon, holes }) => new TerrainShape({
+				polygon,
+				holes,
+				terrainTypeId,
+				top,
+				bottom
+			})));
+		}
 	}
 
 	// ------- //
@@ -485,7 +564,7 @@ export class HeightMap extends TerrainProvider {
 	/**
 	 * Takes a GeoJSON polygon or multipolygon and maps them onto an object with polygon and holes, suitable for
 	 * constructing a TerrainShape.
-	 * @param {[number, number][][]} result
+	 * @param {[number, number][][][] | [number, number][][]} result
 	 */
 	static #shapesFromGeoJson(result) {
 		if (result.length === 0) return [];
