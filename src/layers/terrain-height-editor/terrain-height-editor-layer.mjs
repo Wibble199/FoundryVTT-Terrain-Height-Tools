@@ -80,12 +80,12 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 	/** @override */
 	_activate() {
-		this.#setupEventListeners("on");
+		this.#setupEventListeners(true);
 	}
 
 	/** @override */
 	_deactivate() {
-		this.#setupEventListeners("off");
+		this.#setupEventListeners(false);
 	}
 
 	/** @override */
@@ -99,24 +99,28 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	// -------------------- //
 	// Mouse event handling //
 	// -------------------- //
-	/** @param {"on" | "off"} action */
-	#setupEventListeners(action) {
-		this[action]("pointerdown", this.#onPointerChange);
-		this[action]("pointermove", this.#onPointerChange);
-		this[action]("pointerup", this.#onPointerChange);
+	/** @param {boolean} enable */
+	#setupEventListeners(enable) {
+		const onOff = enable ? "on" : "off";
+		this[onOff]("pointerdown", this.#onPointerChange);
+		this[onOff]("pointermove", this.#onPointerChange);
+		this[onOff]("pointerup", this.#onPointerChange);
+
+		const addRemove = enable ? "addEventListener" : "removeEventListener";
+		document[addRemove]("keydown", this.#onKeyDown);
+		document[addRemove]("keyup", this.#onKeyUp);
 	}
 
 	// Seems like a pointerdown event doesn't fire if a button is already being held, but a pointermove event does.
 	// https://github.com/pixijs/pixijs/issues/4048#issuecomment-304517070
-	// Going to use a single function which is responsible for determining
-	#onPointerChange = async event => {
+	// Using a single function which is responsible for determining the state and which events to forward to the tools
+	#onPointerChange = event => {
 		const { x, y } = this.toLocal(event.data.global);
 
 		// Left mouse button
 		const isLeftDown = (event.buttons & 1) === 1;
 		const wasLeftDown = (this.#lastPointerButtons & 1) === 1;
 		if (this.#selectedTool) {
-			this.#selectedTool.isMouseLeftDown = isLeftDown;
 			if (isLeftDown && !wasLeftDown) this.#selectedTool._onMouseDownLeft(x, y);
 			else if (!isLeftDown && wasLeftDown) this.#selectedTool._onMouseUpLeft(x, y);
 		}
@@ -125,7 +129,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		const isRightDown = (event.buttons & 2) === 2;
 		const wasRightDown = (this.#lastPointerButtons & 2) === 2;
 		if (this.#selectedTool) {
-			this.#selectedTool.isMouseRightDown = isRightDown;
 			if (isRightDown && !wasRightDown) this.#selectedTool._onMouseDownRight(x, y);
 			else if (!isRightDown && wasRightDown) this.#selectedTool._onMouseUpRight(x, y);
 		}
@@ -137,6 +140,16 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 
 		this.#lastPointerPosition = { x, y };
 		this.#lastPointerButtons = event.buttons;
+	};
+
+	/** @param {KeyboardEvent} event */
+	#onKeyDown = event => {
+		this.#selectedTool?._onKeyDown(event);
+	};
+
+	/** @param {KeyboardEvent} event */
+	#onKeyUp = event => {
+		this.#selectedTool?._onKeyUp(event);
 	};
 
 	async clear() {

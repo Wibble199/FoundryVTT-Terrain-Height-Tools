@@ -80,6 +80,16 @@ export class AbstractPolygonEditorTool extends AbstractEditorTool {
 	}
 
 	/** @override */
+	_onKeyDown(e) {
+		this.#drawingMode?._onKeyDown(e);
+	}
+
+	/** @override */
+	_onKeyUp(e) {
+		this.#drawingMode?._onKeyUp(e);
+	}
+
+	/** @override */
 	_cleanup() {
 		super._cleanup();
 		canvas.interface.removeChild(this.#previewGraphics);
@@ -158,25 +168,41 @@ class AbstractDrawingMode {
 	 * @param {number} x
 	 * @param {number} y
 	 */
+	// eslint-disable-next-line no-unused-vars
 	_onMouseDownLeft(x, y) {}
 
 	/**
 	 * @param {number} x
 	 * @param {number} y
 	 */
+	// eslint-disable-next-line no-unused-vars
 	_onMouseUpLeft(x, y) {}
 
 	/**
 	 * @param {number} x
 	 * @param {number} y
 	 */
+	// eslint-disable-next-line no-unused-vars
 	_onMouseMove(x, y) {}
 
 	/**
 	 * @param {number} x
 	 * @param {number} y
 	 */
+	// eslint-disable-next-line no-unused-vars
 	_onMouseDownRight(x, y) {}
+
+	/**
+	 * @param {KeyboardEvent} e
+	 */
+	// eslint-disable-next-line no-unused-vars
+	_onKeyDown(e) {}
+
+	/**
+	 * @param {KeyboardEvent} e
+	 */
+	// eslint-disable-next-line no-unused-vars
+	_onKeyUp(e) {}
 }
 
 /**
@@ -239,15 +265,21 @@ class RectangleDrawingMode extends AbstractDrawingMode {
 	/** @type {[number, number] | null} */
 	#startPosition = null;
 
+	/** @type {[number, number] | null} */
+	#mousePosition = null;
+
+	#isAltKeyPressed = false;
+
 	_onMouseDownLeft(x, y) {
 		this.#startPosition = [x, y];
+		this.#mousePosition = [x, y];
 	}
 
-	_onMouseUpLeft(x, y) {
+	_onMouseUpLeft() {
 		if (!this.#startPosition) return;
 
-		const { x1, y1, x2, y2, w, h } = this.#getRect(x, y);
-		if ((w >= RectangleDrawingMode.minRectangleSize || h >= RectangleDrawingMode.minRectangleSize) && w > 0 && h > 0) {
+		const { x1, y1, x2, y2, aw, ah } = this.#getRect();
+		if ((aw >= RectangleDrawingMode.minRectangleSize || ah >= RectangleDrawingMode.minRectangleSize) && aw > 0 && ah > 0) {
 			this._complete([
 				{
 					polygon: [
@@ -261,45 +293,68 @@ class RectangleDrawingMode extends AbstractDrawingMode {
 		}
 
 		this.#startPosition = null;
-		this._previewGraphics.clear();
+		this.#mousePosition = null;
+		this.#updatePreview();
 	}
 
 	_onMouseMove(x, y) {
-		if (this.#startPosition)
-			this.#updatePreview(x, y);
+		if (!this.#startPosition) return;
+		this.#mousePosition = [x, y];
+		this.#updatePreview();
 	}
 
 	_onMouseDownRight() {
 		// Right click cancels
 		this.#startPosition = null;
-		this._previewGraphics.clear();
+		this.#mousePosition = null;
+		this.#updatePreview();
+	}
+
+	/** @param {KeyboardEvent} e  */
+	_onKeyDown(e) {
+		this.#isAltKeyPressed = e.altKey;
+		this.#updatePreview();
+	}
+
+	/** @param {KeyboardEvent} e  */
+	_onKeyUp(e) {
+		this.#isAltKeyPressed = e.altKey;
+		this.#updatePreview();
 	}
 
 	/**
 	 * @param {number} mouseX Current mouse X coordinate
 	 * @param {number} mouseY Current mouse Y coordinate
 	 */
-	#updatePreview(mouseX, mouseY) {
+	#updatePreview() {
 		this._previewGraphics.clear();
 
-		const { x1, y1, w, h } = this.#getRect(mouseX, mouseY);
-		if (w >= RectangleDrawingMode.minRectangleSize || h >= RectangleDrawingMode.minRectangleSize) {
+		if (!this.#startPosition) return;
+
+		const { x1, y1, w, h, aw, ah } = this.#getRect();
+		if (aw >= RectangleDrawingMode.minRectangleSize || ah >= RectangleDrawingMode.minRectangleSize) {
 			this._configurePreviewFill();
 			this._configurePreviewLine();
 			this._previewGraphics.drawRect(x1, y1, w, h);
 		}
 	}
 
-	/**
-	 * @param {number} mouseX Current mouse X coordinate
-	 * @param {number} mouseY Current mouse Y coordinate
-	 */
-	#getRect(mouseX, mouseY) {
-		const x1 = Math.min(mouseX, this.#startPosition[0]);
-		const y1 = Math.min(mouseY, this.#startPosition[1]);
-		const x2 = Math.max(mouseX, this.#startPosition[0]);
-		const y2 = Math.max(mouseY, this.#startPosition[1]);
-		return { x1, y1, x2, y2, w: x2 - x1, h: y2 - y1 };
+	#getRect() {
+		const [x1, y1] = this.#startPosition;
+		let [x2, y2] = this.#mousePosition;
+		let w = x2 - x1;
+		let h = y2 - y1;
+
+		// Draw a square if alt is held
+		if (this.#isAltKeyPressed) {
+			const maxSize = Math.max(Math.abs(w), Math.abs(h));
+			w = maxSize * Math.sign(w);
+			h = maxSize * Math.sign(h);
+			x2 = x1 + w;
+			y2 = y1 + h;
+		}
+
+		return { x1, y1, x2, y2, w, h, aw: Math.abs(w), ah: Math.abs(h) };
 	}
 }
 
@@ -313,14 +368,22 @@ class EllipseDrawingMode extends AbstractDrawingMode {
 	/** @type {[number, number] | null} */
 	#startPosition = null;
 
+	/** @type {[number, number] | null} */
+	#mousePosition = null;
+
+	#isCtrlKeyPressed = false;
+
+	#isAltKeyPressed = false;
+
 	_onMouseDownLeft(x, y) {
 		this.#startPosition = [x, y];
+		this.#mousePosition = [x, y];
 	}
 
-	_onMouseUpLeft(x, y) {
+	_onMouseUpLeft() {
 		if (!this.#startPosition) return;
 
-		const { cx, cy, rx, ry } = this.#getEllipse(x, y);
+		const { cx, cy, rx, ry } = this.#getEllipse();
 		const density = PIXI.Circle.approximateVertexDensity((rx + ry) / 2);
 
 		if (rx >= EllipseDrawingMode.minEllipseRadius && ry >= EllipseDrawingMode.minEllipseRadius) {
@@ -335,28 +398,46 @@ class EllipseDrawingMode extends AbstractDrawingMode {
 		}
 
 		this.#startPosition = null;
-		this._previewGraphics.clear();
+		this.#mousePosition = null;
+		this.#updatePreview();
 	}
 
 	_onMouseMove(x, y) {
-		if (this.#startPosition)
-			this.#updatePreview(x, y);
+		if (!this.#startPosition) return;
+		this.#mousePosition = [x, y];
+		this.#updatePreview();
 	}
 
 	_onMouseDownRight() {
 		// Right click cancels
 		this.#startPosition = null;
-		this._previewGraphics.clear();
+		this.#mousePosition = null;
+		this.#updatePreview();
+	}
+
+	/** @param {KeyboardEvent} e  */
+	_onKeyDown(e) {
+		this.#isCtrlKeyPressed = e.ctrlKey;
+		this.#isAltKeyPressed = e.altKey;
+		this.#updatePreview();
+	}
+
+	/** @param {KeyboardEvent} e  */
+	_onKeyUp(e) {
+		this.#isCtrlKeyPressed = e.ctrlKey;
+		this.#isAltKeyPressed = e.altKey;
+		this.#updatePreview();
 	}
 
 	/**
 	 * @param {number} mouseX Current mouse X coordinate
 	 * @param {number} mouseY Current mouse Y coordinate
 	 */
-	#updatePreview(mouseX, mouseY) {
+	#updatePreview() {
 		this._previewGraphics.clear();
+		if (!this.#startPosition) return;
 
-		const { cx, cy, rx, ry } = this.#getEllipse(mouseX, mouseY);
+		const { cx, cy, rx, ry } = this.#getEllipse();
 		if (rx >= EllipseDrawingMode.minEllipseRadius && ry >= EllipseDrawingMode.minEllipseRadius) {
 			this._configurePreviewFill();
 			this._configurePreviewLine();
@@ -364,16 +445,37 @@ class EllipseDrawingMode extends AbstractDrawingMode {
 		}
 	}
 
-	/**
-	 * @param {number} mouseX Current mouse X coordinate
-	 * @param {number} mouseY Current mouse Y coordinate
-	 */
-	#getEllipse(mouseX, mouseY) {
-		const cx = (mouseX + this.#startPosition[0]) / 2;
-		const cy = (mouseY + this.#startPosition[1]) / 2;
+	#getEllipse() {
+		let cx, cy;
+		let rx, ry;
+		if (this.#isCtrlKeyPressed) {
+			// If ctrl key is held, draw the circle's center from the start position
+			[cx, cy] = this.#startPosition;
+			rx = Math.abs(this.#mousePosition[0] - this.#startPosition[0]);
+			ry = Math.abs(this.#mousePosition[1] - this.#startPosition[1]);
 
-		const rx = Math.abs(mouseX - this.#startPosition[0]) / 2;
-		const ry = Math.abs(mouseY - this.#startPosition[1]) / 2;
+			if (this.#isAltKeyPressed) {
+				const rMax = Math.max(rx, ry);
+				rx = ry = rMax;
+			}
+
+		} else {
+			// If ctrl key is not held, draw circle within the rectangle that has been dragged
+			let w = this.#mousePosition[0] - this.#startPosition[0];
+			let h = this.#mousePosition[1] - this.#startPosition[1];
+
+			if (this.#isAltKeyPressed) {
+				const maxSize = Math.max(Math.abs(w), Math.abs(h));
+				w = maxSize * Math.sign(w);
+				h = maxSize * Math.sign(h);
+			}
+
+			cx = this.#startPosition[0] + (w / 2);
+			cy = this.#startPosition[1] + (h / 2);
+
+			rx = Math.abs(w / 2);
+			ry = Math.abs(h / 2);
+		}
 
 		return { cx, cy, rx, ry };
 	}

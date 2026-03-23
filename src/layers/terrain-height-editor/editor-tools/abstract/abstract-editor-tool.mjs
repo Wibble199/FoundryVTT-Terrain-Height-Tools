@@ -13,12 +13,6 @@ export class AbstractEditorTool {
 	 */
 	static APPLICATION_TYPE;
 
-	/** If the left mouse button is currently being held. */
-	isMouseLeftDown = false;
-
-	/** If the right mouse button is currently being held. */
-	isMouseRightDown = false;
-
 	constructor() {
 		this._renderApplication();
 	}
@@ -57,6 +51,12 @@ export class AbstractEditorTool {
 	 * @param {number} y
 	 */
 	_onMouseUpRight(x, y) {}
+
+	/** @param {KeyboardEvent} e */
+	_onKeyDown(e) {}
+
+	/** @param {KeyboardEvent} e */
+	_onKeyUp(e) {}
 
 	/**
 	 * Called when the the tool is deselected, and can be used to clean up any state.
