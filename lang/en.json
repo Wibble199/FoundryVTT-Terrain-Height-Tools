@@ -11,7 +11,16 @@
 		"TerrainHeightToolsPipette": "Copy Terrain Configuration",
 		"TerrainHeightToolsShapeConvert": "Convert Shapes to Drawings/Walls",
 		"TerrainHeightToolsTerrainVisibility": "Terrain Visibility",
-		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight"
+		"TerrainHeightToolsTokenLineOfSight": "Terrain Height Tools Token Line of Sight",
+		"TerrainHeightToolsDrawingModeP": "<p>When adding a shape to the height map, the shape will merge with adjacent terrain of the same type, height and elevation that is being painted and will merge with terrain directly above/below of the same type.</p>",
+		"TerrainHeightToolsDrawingModeGridCells": "Grid Cells",
+		"TerrainHeightToolsDrawingModeRectangle": "Rectangle",
+		"TerrainHeightToolsDrawingModeEllipse": "Ellipse",
+		"TerrainHeightToolsDrawingModeEllipseDrawCircle": "Draw Circle",
+		"TerrainHeightToolsDrawingModeEllipseDrawFromCenter": "Draw From Center",
+		"TerrainHeightToolsDrawingModeCustomPolygon": "Custom Polygon",
+		"TerrainHeightToolsDrawingModeCustomPolygonDraw": "<span class=\"reference\">Click</span> to start a new polygon or add a new point. <span class=\"reference\">Double Click</span> to finish.",
+		"TerrainHeightToolsDrawingModeCustomPolygonRemoveLastPoint": "Remove last point"
 	},
 	"KEYBINDINGS": {
 		"DecreaseLosRulerHeight": "Decrease Line of Sight Ruler Elevation",

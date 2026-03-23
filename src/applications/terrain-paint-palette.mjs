@@ -3,12 +3,12 @@ import { computed } from "@preact/signals-core";
 import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
-import "../components/drawing-mode-picker.mjs";
 import { terrainPaintMode, tools } from "../consts.mjs";
 import { drawingMode$, paintingConfig$ } from "../stores/drawing.mjs";
 import { getCssColorsFor, getTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
+import "./components/drawing-mode-picker.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
@@ -31,7 +31,7 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 		},
 		position: {
 			width: 220,
-			height: 424
+			height: 434
 		}
 	};
 
@@ -61,8 +61,9 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 			<tht-drawing-mode-picker
 				.value=${drawingMode$}
 				@input=${e => drawingMode$.value = e.target.value}
-				style="margin-bottom: 8px"
 			></tht-drawing-mode-picker>
+
+			<hr/>
 
 			<ul class="terrain-type-palette">
 				${when(

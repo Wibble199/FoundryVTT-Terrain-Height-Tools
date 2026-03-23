@@ -6,7 +6,7 @@
 }
 
 .terrain-height-tool-window hr {
-	margin: 8px;
+	margin: 8px 0;
 	flex: 0 !important;
 	width: 100%;
 	border-top: 2px groove var(--color-border-dark-secondary);
