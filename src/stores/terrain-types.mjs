@@ -39,6 +39,7 @@ import { alphaToHex } from "../utils/misc-utils.mjs";
  * @property {number} textShadowOpacity
  * @property {number | null} defaultHeight
  * @property {number | null} defaultElevation
+ * @property {Record<string, any>} flags
  */
 
 /** @type {Signal<readonly Readonly<TerrainType>[]>} */
@@ -94,7 +95,8 @@ export function createDefaultTerrainType(id = undefined) {
 		textShadowColor: "",
 		textShadowOpacity: 1,
 		defaultHeight: null,
-		defaultElevation: null
+		defaultElevation: null,
+		flags: {}
 	};
 }
 

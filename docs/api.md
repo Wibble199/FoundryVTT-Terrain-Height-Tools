@@ -28,6 +28,7 @@ Functions:
 - [`getTerrainTypes`](#getterraintypes)
 - [`paintCells`](#paintcells)
 - [`paintRegions`](#paintregions)
+- [`registerCustomTerrainTypeConfigUi`](#registercustomterraintypeconfigui)
 
 Types:
 - [`T:LineSegment`](#tlinesegment)
@@ -643,6 +644,56 @@ await terrainHeightTools.paintRegions([
 });
 ```
 
+## registerCustomTerrainTypeConfigUi
+
+![Available Since v0.6.0](https://img.shields.io/badge/Available%20Since-v0.6.0-blue?style=flat-square)
+
+Allows adding custom configuration HTML to the terrain types configuration dialog. This can be useful if you want to add additional metadata to terrain types for use in other modules or scripts.
+
+The names for the input elements should be the index of the terrain type, followed by the property path on the terrain type object. There is no restriction on the property path, but it is recommended to use `flags.<module/script name>.yourproperty` to avoid potential collisions with other scripts and potential future THT properties.
+
+Note that THT will does not (yet) set any default values for custom fields, so be sure to be null-forgiving when reading the custom data from a terrain type in the HTML or in any custom scripts/modules.
+
+### Parameters
+
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`tab`|`string \| { id: string; label: string; icon: string; }`|*Required*|The ID of an existing tab to add the HTML to, or the definition of a new tab. The built-in tabs are: `"lines"`, `"fill"`, `"label"`, and `"other"`.|
+|`part`|`(context: { terrainType: TerrainType; index: number; }) => string \| HTMLElement`|*Required*|A function that accepts the terrain type and index and returns a HTML string or a HTML element to add to the configuration UI|
+
+### Example
+
+```js
+// Adds a new "My custom field" number to the "Other" tab
+terrainHeightTools.registerCustomTerrainTypeConfigUi("other", ({ terrainType, index }) => `
+	<div class="form-group">
+		<label>My custom field</label>
+		<div class="form-fields">
+			<input type="number" name="${index}.flags.myModule.myCustomField" value="${terrainType.flags.myModule?.myCustomField ?? ""}" min="0" step="1">
+		</div>
+		<p class="hint">Hello world! This is a non-standard THT field that I have added to the config.</p>
+	</div>
+`);
+
+// Adds a new tab "My Tab" with a custom "My custom field" number
+terrainHeightTools.registerCustomTerrainTypeConfigUi({ id: "myTab", label: "My Tab", icon: "fas fa-question-circle" }, ({ terrainType, index }) => `
+	<div class="form-group">
+		<label>My custom field</label>
+		<div class="form-fields">
+			<input type="number" name="${index}.flags.myModule.myCustomField" value="${terrainType.flags.myModule?.myCustomField ?? ""}" min="0" step="1">
+		</div>
+		<p class="hint">Hello world! This is a non-standard THT field that I have added to the config.</p>
+	</div>
+`);
+
+
+// Then at some other time you can read it (e.g. when reading data from a grid cell, or when checking LoS)
+for (const shape of terrainHeightTools.getShapesAtPoint(100, 200)) {
+	const myCustomFieldValue = shape.terrainType.flags.myModule?.myCustomField ?? 10;
+	console.log(`At x=100,y=200 shape of terrain type ${shape.terrainType.name} had a myCustomField of ${myCustomFieldValue}`);
+}
+```
+
 ---
 
 ## T:LineSegment
@@ -757,3 +808,4 @@ The TerrainType object holds metadata about a terrain type. It is readonly.
 |`textShadowColor`|`string`|The color of the drop shadow applied to the text. If blank, it is automatically calculated based on the lightness of the text color.|
 |`textShadowOpacity`|`number`|The opacity of the drop shadow applied to the text.|
 |`textRotation`|`boolean`|Whether or not the text label can be rotated to fit better.|
+|`flags`|`Record<string, any>`|A reserved place for additional data that modules/scripts may use.|
