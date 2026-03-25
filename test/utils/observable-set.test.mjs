@@ -1,3 +1,4 @@
+import { effect } from "@preact/signals-core";
 import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
 import { ObservableSet } from "../../src/utils/observable-set.mjs";
@@ -45,6 +46,22 @@ describe("ObservableSet", () => {
 			assert.deepEqual([...change.mock.calls[0].arguments[0]], [4, 5]);
 			assert.deepEqual([...add.mock.calls[0].arguments[0]], [4, 5]);
 			assert.deepEqual([...remove.mock.calls[0].arguments[0]], [1, 2, 3]);
+		});
+
+		it("should be observable", () => {
+			set = new ObservableSet([1, 2, 3]);
+			const callback = mock.fn();
+			const cleanup = effect(() => callback(set?.value));
+
+			set.add(4);
+			set.delete(1);
+
+			assert.equal(callback.mock.callCount(), 3);
+			assert.deepEqual([...callback.mock.calls[0].arguments[0]], [1, 2, 3]);
+			assert.deepEqual([...callback.mock.calls[1].arguments[0]], [1, 2, 3, 4]);
+			assert.deepEqual([...callback.mock.calls[2].arguments[0]], [2, 3, 4]);
+
+			cleanup();
 		});
 	});
 

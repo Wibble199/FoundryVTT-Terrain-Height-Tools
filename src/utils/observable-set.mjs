@@ -1,3 +1,6 @@
+/** @import { Signal } from "@preact/signals-core" */
+import { signal } from "@preact/signals-core";
+
 /**
  * @typedef {Object} ObservableSetObserver
  * @property {(values: Iterable<TElement>, newItems: TElement[], removedItems: TElement[]) => void} [change]
@@ -11,7 +14,7 @@
  */
 export class ObservableSet {
 
-	/** @type {Set<TElement>} */
+	/** @type {Signal<Set<TElement>>} */
 	#innerSet;
 
 	/** @type {Set<ObservableSetObserver>} */
@@ -21,12 +24,12 @@ export class ObservableSet {
 	 * @param {Iterable<TElement>} [initialValues]
 	 */
 	constructor(initialValues) {
-		this.#innerSet = new Set(initialValues ?? []);
+		this.#innerSet = signal(new Set(initialValues ?? []));
 	}
 
 	/** @type {Iterable<TElement>} */
 	get value() {
-		return [...this.#innerSet.values()];
+		return [...this.#innerSet.value.values()];
 	}
 
 	set value(newValue) {
@@ -34,23 +37,23 @@ export class ObservableSet {
 
 		const addedValues = [];
 		for (const newValue of newValuesSet)
-			if (!this.#innerSet.has(newValue))
+			if (!this.#innerSet.peek().has(newValue))
 				addedValues.push(newValue);
 
 		const removedValues = [];
-		for (const oldValue of this.#innerSet)
+		for (const oldValue of this.#innerSet.peek())
 			if (!newValuesSet.has(oldValue))
 				removedValues.push(oldValue);
 
 		// If no values have been added or removed, the set is unchanged
 		if (addedValues.length === 0 && removedValues.length === 0) return;
 
-		this.#innerSet = newValuesSet;
+		this.#innerSet.value = newValuesSet;
 		this.#notifySubscribers({ newValues: addedValues, removedValues });
 	}
 
 	get size() {
-		return this.#innerSet.size;
+		return this.#innerSet.value.size;
 	}
 
 	/**
@@ -60,14 +63,16 @@ export class ObservableSet {
 	 */
 	add(...values) {
 		const newValues = [];
+		const newSet = new Set(this.#innerSet.value);
 
 		for (const value of values) {
-			if (this.#innerSet.has(value)) continue;
+			if (newSet.has(value)) continue;
 
-			this.#innerSet.add(value);
+			newSet.add(value);
 			newValues.push(value);
 		}
 
+		if (newValues.length) this.#innerSet.value = newSet;
 		this.#notifySubscribers({ newValues });
 		return newValues.length > 0;
 	}
@@ -78,27 +83,29 @@ export class ObservableSet {
 	 */
 	delete(...values) {
 		const removedValues = [];
+		const newSet = new Set(this.#innerSet.value);
 
 		for (const value of values) {
-			if (this.#innerSet.delete(value))
+			if (newSet.delete(value))
 				removedValues.push(value);
 		}
 
+		if (removedValues.length) this.#innerSet.value = newSet;
 		this.#notifySubscribers({ removedValues });
 		return removedValues.length > 0;
 	}
 
 	clear() {
-		if (this.#innerSet.size === 0) return;
+		if (this.#innerSet.value.size === 0) return;
 
-		const removedValues = [...this.#innerSet];
-		this.#innerSet.clear();
+		const removedValues = [...this.#innerSet.value];
+		this.#innerSet.value = new Set();
 		this.#notifySubscribers({ removedValues });
 	}
 
 	/** @param {TElement} value */
 	has(value) {
-		return this.#innerSet.has(value);
+		return this.#innerSet.value.has(value);
 	}
 
 	/**
@@ -137,7 +144,7 @@ export class ObservableSet {
 		if (newValues.length === 0 && removedValues.length === 0) return;
 
 		for (const observer of this.#observers) {
-			observer.change?.(this.#innerSet.values(), newValues, removedValues);
+			observer.change?.(this.#innerSet.peek().values(), newValues, removedValues);
 
 			if (removedValues.length > 0)
 				observer.remove?.(removedValues);

@@ -9,7 +9,7 @@ import { showTerrainStackViewerOnTokenLayer$, terrainStackViewerDisplayMode$ } f
 import { keybindings, moduleName, terrainHeightEditorControlName } from "../consts.mjs";
 import { canvasReady$, cursorWorldPosition$ } from "../stores/canvas.mjs";
 import { activeControl$ } from "../stores/scene-controls.mjs";
-import { getShapesAtPoint } from "../stores/terrain-manager.mjs";
+import { allTerrainShapes$, getShapesAtPoint } from "../stores/terrain-manager.mjs";
 import { getCssColorsFor, getTerrainType } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
@@ -42,6 +42,11 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 
 	#terrainShapesUnderMouse$ = computed(() => {
 		if (!canvasReady$.value) return [];
+
+		// Reference the Signal in allTerrainShapes so that this computed re-calculates when that changes.
+		// getShapesAtPoint uses the quadtree (which is not a signal), so does not create a dependency, but this does.
+		// eslint-disable-next-line no-unused-vars
+		const _ = allTerrainShapes$.value;
 
 		const { x, y } = cursorWorldPosition$.value;
 		return getShapesAtPoint(x, y);
