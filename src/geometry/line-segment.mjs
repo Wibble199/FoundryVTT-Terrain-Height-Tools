@@ -288,24 +288,4 @@ export class LineSegment {
 	toString() {
 		return `LineSegment { (${this.#p1.x}, ${this.#p1.y}) -> (${this.#p2.x}, ${this.#p2.y}) }`;
 	}
-
-	/**
-	 * Creates a new LineSegment that is the result of this this LineSegment translated by the given distance in the
-	 * direction that is perpendicular to itself. The resulting LineSegment will be parallel to this segment.
-	 * @param {number} distance Distance to shift the line. Positive will result in the line being moved to the 'right'.
-	 */
-	translatePerpendicular(distance) {
-		// Get the unit vector of this segment
-		const { ux, uy } = this;
-
-		// Perpendicular (rotate the ux-uy vector)
-		const px = -uy;
-		const py = ux;
-
-		// Multiply the perpendicular vector by the distance to work out the offset
-		const offset = { x: px * distance, y: py * distance };
-
-		// Work out the translated points
-		return new LineSegment(this.#p1.offset(offset), this.#p2.offset(offset));
-	}
 }

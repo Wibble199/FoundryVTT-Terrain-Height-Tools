@@ -5,14 +5,14 @@ import { Point } from "./point.mjs";
 
 export class Polygon {
 
-	/** @type {Point[]} */
-	#vertices = [];
+	/** @type {readonly Point[]} */
+	vertices = [];
 
-	/** @type {LineSegment[]} */
-	#edges = [];
+	/** @type {readonly LineSegment[]} */
+	edges = [];
 
-	/** @type {[number, number]} */
-	#centroid = [0, 0];
+	/** @type {readonly [number, number]} */
+	centroid = [0, 0];
 
 	boundingBox = {
 		x1: Infinity, y1: Infinity,
@@ -41,16 +41,20 @@ export class Polygon {
 		}
 
 		// Self-intersecting polygons are harder to deal with, so prevent them from being created
-		for (let i = 0; i < this.#edges.length - 2; i++) {
+		for (let i = 0; i < this.edges.length - 2; i++) {
 			// Use i + 2 because adjacent edges will intersect at their joining point, which is expected
-			for (let j = i + 2; j < this.#edges.length; j++) {
-				if (i === 0 && j === this.#edges.length - 1) continue; // skip adjacent
-				if (this.#edges[i].intersectsAt(this.#edges[j]) !== undefined) {
+			for (let j = i + 2; j < this.edges.length; j++) {
+				if (i === 0 && j === this.edges.length - 1) continue; // skip adjacent
+				if (this.edges[i].intersectsAt(this.edges[j]) !== undefined) {
 					throw new Error("Self-intersecting polygons are not supported. Use ClipperLib.Clipper.SimplifyPolygon to simplify first.");
 				}
 			}
 		}
 
+		// Make polygon immutable
+		Object.freeze(this.vertices);
+		Object.freeze(this.edges);
+		Object.freeze(this.centroid);
 		Object.freeze(this.boundingBox);
 	}
 
@@ -89,32 +93,17 @@ export class Polygon {
 		return new Polygon(isClosed ? input.slice(0, -1) : input);
 	}
 
-	/** @type {readonly Point[]} */
-	get vertices() {
-		return [...this.#vertices];
-	}
-
-	/** @type {readonly LineSegment[]} */
-	get edges() {
-		return [...this.#edges];
-	}
-
-	/** @type {readonly [number, number]} */
-	get centroid() {
-		return [...this.#centroid];
-	}
-
 	/** @type {PIXI.Rectangle} */
 	get boundingRect() {
 		return new PIXI.Rectangle(this.boundingBox.x1, this.boundingBox.y1, this.boundingBox.w, this.boundingBox.h);
 	}
 
 	get isSolid() {
-		return Polygon.isClockwise(this.#vertices);
+		return Polygon.isClockwise(this.vertices);
 	}
 
 	get isHole() {
-		return !Polygon.isClockwise(this.#vertices);
+		return !Polygon.isClockwise(this.vertices);
 	}
 
 	/**
@@ -125,18 +114,18 @@ export class Polygon {
 		const vertex = Point.from(xy);
 
 		// Check that the point is not identical to the previous, as this would cause a 0 length edge.
-		if (this.#vertices.length > 0 && vertex.equals(this.#vertices[this.#vertices.length - 1], { precision: Number.EPSILON }))
+		if (this.vertices.length > 0 && vertex.equals(this.vertices[this.vertices.length - 1], { precision: Number.EPSILON }))
 			throw new Error("Cannot add vertex. It is identical to the previous vertex.");
 
-		this.#vertices.push(vertex);
+		this.vertices.push(vertex);
 
 		// If there is atleast one existing edge, replace the last edge so that it instead ends at the new point
-		if (this.#edges.length >= 1)
-			this.#edges = this.#edges.with(-1, new LineSegment(this.#edges.at(-1).p1, vertex));
+		if (this.edges.length >= 1)
+			this.edges = this.edges.with(-1, new LineSegment(this.edges.at(-1).p1, vertex));
 
 		// Add a new edge from this new vertex to the first vertex (when there were no vertices in this polygon before, this
 		// would make an edge from this new vertex to iself, but when more vertices are added this works fine).
-		this.#edges.push(new LineSegment(vertex, this.#vertices[0]));
+		this.edges.push(new LineSegment(vertex, this.vertices[0]));
 
 		// Update bounding box and centroid
 		this.#updateCalculatedValues(vertex);
@@ -187,7 +176,7 @@ export class Polygon {
 			return false;
 
 		// Check for any points that lie exactly on an edge
-		const onAnyEdge = this.#edges.some(e => {
+		const onAnyEdge = this.edges.some(e => {
 			const { t, distanceSquared } = e.findClosestPointOnLineTo(x, y);
 			return Math.abs(t) < Number.EPSILON && Math.abs(t - 1) < Number.EPSILON
 				&& distanceSquared < Number.EPSILON * Number.EPSILON;
@@ -202,7 +191,7 @@ export class Polygon {
 		// the bottom joint should count as 2, but intersecting two joined vertical lines stack at the join between them
 		// should only count as 1.
 		const intersectedEdges = new Set(distinctBy(
-			this.#edges
+			this.edges
 				.map(edge => ({ edge, intersectX: edge.intersectsYAt(y) }))
 				.filter(({ intersectX }) => typeof intersectX === "number" && intersectX < x),
 			({ intersectX }) => intersectX,
@@ -215,7 +204,7 @@ export class Polygon {
 		// cases like ┌─┐ count as either 0 or 2.
 		// We do this by traversing the edge graph from the intersected edge and seeing if it's connected to another
 		// intersecting edge by horizontal lines, then checking the direction of two edges.
-		const possibleConnectingHorizontalEdges = new Set(this.#edges
+		const possibleConnectingHorizontalEdges = new Set(this.edges
 			.filter(e => Math.abs(e.p1.y - y) < Number.EPSILON && Math.abs(e.p2.y - y) < Number.EPSILON));
 
 		/** @type {(edge: LineSegment, dir: 1 | -1) => boolean} */
@@ -251,8 +240,8 @@ export class Polygon {
 	 */
 	#updateCalculatedValues(vertex) {
 		// Update the centroid (the average of all vertices)
-		this.#centroid[0] += (vertex.x - this.#centroid[0]) / this.#vertices.length;
-		this.#centroid[1] += (vertex.y - this.#centroid[1]) / this.#vertices.length;
+		this.centroid[0] += (vertex.x - this.centroid[0]) / this.vertices.length;
+		this.centroid[1] += (vertex.y - this.centroid[1]) / this.vertices.length;
 
 		// If the given Vertex lies outside the bounding box, updates the box to contain it.
 		if (vertex.x < this.boundingBox.x1) this.boundingBox.x1 = vertex.x;
@@ -267,11 +256,11 @@ export class Polygon {
 	 * @param {LineSegment} edge
 	 */
 	previousEdge(edge) {
-		const idx = this.#edges.indexOf(edge);
+		const idx = this.edges.indexOf(edge);
 		switch (idx) {
 			case -1: return undefined;
-			case 0: return this.#edges[this.#edges.length	- 1];
-			default: return this.#edges[idx - 1];
+			case 0: return this.edges[this.edges.length	- 1];
+			default: return this.edges[idx - 1];
 		}
 	}
 
@@ -281,11 +270,11 @@ export class Polygon {
 	 * @param {LineSegment} edge
 	 */
 	nextEdge(edge) {
-		const idx = this.#edges.indexOf(edge);
+		const idx = this.edges.indexOf(edge);
 		switch (idx) {
 			case -1: return undefined;
-			case this.#edges.length - 1: return this.#edges[0];
-			default: return this.#edges[idx + 1];
+			case this.edges.length - 1: return this.edges[0];
+			default: return this.edges[idx + 1];
 		}
 	}
 
@@ -297,15 +286,15 @@ export class Polygon {
 	 * @returns {Generator<LineSegment, void, void>}
 	 */
 	*traverseEdges(startEdge, direction) {
-		const startIdx = this.#edges.indexOf(startEdge);
+		const startIdx = this.edges.indexOf(startEdge);
 		if (startIdx < 0) throw new Error("Given edge is not part of this polygon.");
 		let idx = startIdx;
 
 		while (true) {
-			idx = (idx + direction) % this.#edges.length;
-			if (idx < 0) idx += this.#edges.length;
+			idx = (idx + direction) % this.edges.length;
+			if (idx < 0) idx += this.edges.length;
 			if (idx === startIdx) return;
-			yield this.#edges[idx];
+			yield this.edges[idx];
 		}
 	}
 
@@ -321,10 +310,10 @@ export class Polygon {
 
 		// If there are as many edges provided as there are in the poly, we don't know where the pairs start. E.G. if
 		// there were 4 edges in the poly and 4 are provided, they could be paired [[0, 1], [2, 3]] OR [[1, 2], [3, 0]].
-		if (edges.length >= this.#edges.length)
+		if (edges.length >= this.edges.length)
 			throw new Error("Cannot perform edge pairing when there are an equal or greater number of edges than exist in the Polygon.");
 
-		const edgesIndices = [...edges].map(e => this.#edges.indexOf(e)).sort((a, b) => a - b);
+		const edgesIndices = [...edges].map(e => this.edges.indexOf(e)).sort((a, b) => a - b);
 
 		// If any of the indices are -1, then we failed to find it in this polygon
 		if (edgesIndices.includes(-1))
@@ -338,7 +327,7 @@ export class Polygon {
 		if (edgesIndices[0] === 0) {
 			let i = 1;
 			let shouldMove0 = false;
-			while (edgesIndices[edgesIndices.length - i] === this.#edges.length - i) {
+			while (edgesIndices[edgesIndices.length - i] === this.edges.length - i) {
 				i++;
 				shouldMove0 = !shouldMove0;
 			}
@@ -349,21 +338,21 @@ export class Polygon {
 			}
 		}
 
-		return chunk(edgesIndices.map(idx => this.#edges[idx]), 2);
+		return chunk(edgesIndices.map(idx => this.edges[idx]), 2);
 	}
 
 	/**
 	 * Converts this Polygon into a POJO.
 	 */
 	toObject() {
-		return this.#vertices.map(({ x, y }) => ({ x, y }));
+		return this.vertices.map(({ x, y }) => ({ x, y }));
 	}
 
 	/**
 	 * Creates the SVG path string for this polygon.
 	 */
 	toSvgPath() {
-		return this.#vertices.map(({ x, y }, idx) => `${idx === 0 ? "M" : "L"}${x},${y}`).join("") + "Z";
+		return this.vertices.map(({ x, y }, idx) => `${idx === 0 ? "M" : "L"}${x},${y}`).join("") + "Z";
 	}
 
 	/**
@@ -371,7 +360,7 @@ export class Polygon {
 	 * @returns {[number, number][]}
 	 */
 	toGeoJsonRing() {
-		return this.#vertices.map(({ x, y }) => [x, y]);
+		return this.vertices.map(({ x, y }) => [x, y]);
 	}
 
 	/**

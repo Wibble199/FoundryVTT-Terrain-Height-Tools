@@ -179,12 +179,14 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 			if (!graphic) continue;
 
 			providerGraphics.delete(shape);
+			graphic._destroy();
 			canvas.primary.removeChild(graphic);
 		}
 	}
 
 	_clearShapes() {
 		for (const graphic of this.#allShapeGraphics) {
+			graphic._destroy();
 			canvas.primary.removeChild(graphic);
 		}
 		this.#shapeGraphics.clear();
