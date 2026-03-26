@@ -58,12 +58,14 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 			: undefined);
 
 		return html`
-			<tht-drawing-mode-picker
-				.value=${drawingMode$}
-				@input=${e => drawingMode$.value = e.target.value}
-			></tht-drawing-mode-picker>
+			${when(game.activeTool !== tools.fill, () => html`
+				<tht-drawing-mode-picker
+					.value=${drawingMode$}
+					@input=${e => drawingMode$.value = e.target.value}
+				></tht-drawing-mode-picker>
 
-			<hr/>
+				<hr/>
+			`)}
 
 			<ul class="terrain-type-palette">
 				${when(
@@ -132,31 +134,29 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 					>
 				</div>
 
-				${when(game.activeTool !== tools.fill, () => html`
-					<div class="tht-form-group flexrow max-content-width margin-x-auto">
-						${Object.keys(terrainPaintMode).map(mode => {
-							const modePascal = mode[0].toUpperCase() + mode.substring(1);
-							return html`
-								<div
-									class="tht-radio-button"
-									data-tooltip=${l(`TERRAINHEIGHTTOOLS.PaintMode.${modePascal}.Hint`)}
+				<div class="tht-form-group flexrow max-content-width margin-x-auto">
+					${Object.keys(terrainPaintMode).map(mode => {
+						const modePascal = mode[0].toUpperCase() + mode.substring(1);
+						return html`
+							<div
+								class="tht-radio-button"
+								data-tooltip=${l(`TERRAINHEIGHTTOOLS.PaintMode.${modePascal}.Hint`)}
+							>
+								<input
+									id=${`tht_terrainPaintPalette_mode_${mode}`}
+									type="radio"
+									name="mode"
+									value=${mode}
+									.checked=${computed(() => paintingConfig$.mode.value === mode)}
+									@change=${() => paintingConfig$.mode.value = mode}
 								>
-									<input
-										id=${`tht_terrainPaintPalette_mode_${mode}`}
-										type="radio"
-										name="mode"
-										value=${mode}
-										.checked=${computed(() => paintingConfig$.mode.value === mode)}
-										@change=${() => paintingConfig$.mode.value = mode}
-									>
-									<label for=${`tht_terrainPaintPalette_mode_${mode}`}>
-										${l(`TERRAINHEIGHTTOOLS.PaintMode.${modePascal}.Name`)}
-									</label>
-								</div>
-							`;
-						})}
-					</div>
-				`)}
+								<label for=${`tht_terrainPaintPalette_mode_${mode}`}>
+									${l(`TERRAINHEIGHTTOOLS.PaintMode.${modePascal}.Name`)}
+								</label>
+							</div>
+						`;
+					})}
+				</div>
 			</div>
 		`;
 	}

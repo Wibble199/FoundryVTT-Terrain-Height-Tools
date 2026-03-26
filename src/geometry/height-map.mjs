@@ -244,19 +244,91 @@ export class HeightMap extends TerrainProvider {
 	}
 
 	/**
-	 * Attempts to paint multiple connected similar cells with the given terrain.
-	 * @param {[number, number]} originCell The cell to begin the fill operation from.
+	 * Fills the area at the given origin where the terrain matches the same terraian that point.
+	 * @param {[number, number]} originPoint The XY point on the canvas to begin the fill operation from.
 	 * @param {string} terrainTypeId The ID of the terrain type to paint.
 	 * @param {number} height The height of the terrain to paint.
 	 * @param {number} elevation The elevation of the terrain to paint.
 	 * @param {Object} [options]
-	 * @param {TerrainFillMode} [options.mode] How to handle connected cells:
-	 * - `"applicableBoundary"` - Only fills cells that are have identical terrain data within the height range to be painted.
-	 * - `"strictBoundary"` - Only fills cells that contain identical terrain data (looks at the entire cell).
+	 * @param {TerrainFillMode} [options.floodMode] How to determine areas:
+	 * - `"applicableBoundary"` - Only fills areas that are have identical terrain data within the height range to be painted.
+	 * - `"strictBoundary"` - Only fills areas that contain identical terrain data (looks at the entire cell).
+	 * @param {TerrainPaintMode} [options.paintMode] How to handle existing terrain:
+	 * - `"totalReplace"` - Completely overwrites all existing terrain data in the cells with the new data.
+	 * - `"additiveMerge"` - Merges the new terrain data with the existing data, without removing any overlapping terrain.
+	 * - `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.
 	 * @returns true if any changes have been made
 	 */
-	async fillCells(originCell, terrainTypeId, height = 1, elevation = 0, { mode = "applicableBoundary" } = {}) {
-		// TODO: this needs re-implementing
+	async fillRegion([x, y], terrainTypeId, height = 1, elevation = 0, { floodMode = "applicableBoundary", paintMode = "totalReplace" } = {}) {
+		// The initial region that might be filled (this will be narrowed down).
+		/** @type {[number, number][][][]} */
+		let paintRegion;
+		const shapesAtOriginPoint = this.getShapesAtPoint(x, y);
+		if (shapesAtOriginPoint.length === 1) {
+			// If the user has clicked on a point with a single shape, the initial is that shape's region
+			paintRegion = [shapesAtOriginPoint[0].toGeoJsonPolygon()];
+
+		} else if (shapesAtOriginPoint.length > 1) {
+			// If the user has clicked on a point which has multiple shapes, then intersect all those shapes together as
+			// the initial region
+			paintRegion = polygonIntersection(...shapesAtOriginPoint.map(s => s.toGeoJsonPolygon()));
+
+		} else {
+			// If the user has not clicked on a point which has terrain, then the potential initial is the entire canvas
+			const { width, height, padding } = canvas.scene;
+			const w = width + (width * padding * 2);
+			const h = height + (height * padding * 2);
+			paintRegion = [[[
+				[0, 0],
+				[w, 0],
+				[w, h],
+				[0, h]
+			]]];
+		}
+
+		// Next, find any shapes that overlap that initial region (and if we're in applicable boundry mode, also exist
+		// within the painted height range)
+		let minX = Infinity;
+		let maxX = -Infinity;
+		let minY = Infinity;
+		let maxY = -Infinity;
+		for (const point of paintRegion.flat(2)) {
+			minX = Math.min(minX, point[0]);
+			maxX = Math.max(maxX, point[0]);
+			minY = Math.min(minY, point[1]);
+			maxY = Math.max(maxY, point[1]);
+		}
+
+		const top = height + elevation;
+		const overlappingShapes = this.getShapes(new PIXI.Rectangle(minX, minY, maxX - minX, maxY - minY), {
+			collisionTest: ({ t: shape }) =>
+				floodMode === "strictBoundary" || // If in strictBoundry mode, consider all shapes regardless of elevation
+				!shape.terrainType.usesHeight || // Always include zones
+				(shape.bottom < top && shape.top >= elevation) // Include shapes whose top/bottom overlaps paint region
+		});
+
+		// Don't include any of the shapes that were used to construct the initial paint region, otherwise we'd always
+		// end up with an empty region and the user would not be able to paint from shapes.
+		for (const shapeAtOriginPoint of shapesAtOriginPoint) {
+			overlappingShapes.delete(shapeAtOriginPoint);
+		}
+
+		// Subtract any overlapping shapes from the initial zone
+		if (overlappingShapes.size) {
+			paintRegion = polygonDifference(paintRegion, ...[...overlappingShapes].map(s => s.toGeoJsonPolygon()));
+		}
+
+		// If there are multiple regions (which can happen when an overlapping shape cuts the initial into multiple),
+		// then find whichever one of those polygons was under the mouse and paint that one.
+		const paintRegionPolys = HeightMap.#shapesFromGeoJson(paintRegion);
+
+		const paintRegionPolyUnderMouse = paintRegionPolys.find(({ polygon, holes }) =>
+			polygon.containsPoint(x, y, { containsOnEdge: true }) &&
+			holes.every(hole => !hole.containsPoint(x, y, { containsOnEdge: false })));
+
+		if (paintRegionPolyUnderMouse)
+			return await this.paintRegions([paintRegionPolyUnderMouse], terrainTypeId, height, elevation, { mode: paintMode });
+		return false;
 	}
 
 	/**

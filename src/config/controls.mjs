@@ -53,11 +53,11 @@ export function registerSceneControls(controls) {
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsPaint"),
 				icon: "fas fa-paintbrush-alt"
 			},
-			/* {
+			{
 				name: tools.fill,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsFill"),
 				icon: "fas fa-fill-drip"
-			}, */
+			},
 			{
 				name: tools.erase,
 				title: game.i18n.localize("CONTROLS.TerrainHeightToolsErase"),

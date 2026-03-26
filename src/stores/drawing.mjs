@@ -20,7 +20,7 @@ export const paintingConfig$ = deepSignal({
 	terrainTypeId: undefined,
 	height: 1,
 	elevation: 0,
-	mode: "additiveMerge",
+	mode: "destructiveMerge",
 	floodMode: "applicableBoundary"
 });
 
