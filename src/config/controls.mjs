@@ -2,8 +2,8 @@ import { effect } from "@preact/signals-core";
 import { LineOfSightRulerConfig } from "../applications/line-of-sight-ruler-config.mjs";
 import { TokenLineOfSightConfig } from "../applications/token-line-of-sight-config.mjs";
 import { moduleName, settingNames, terrainHeightEditorControlName, tools } from "../consts.mjs";
+import { heightMap } from "../geometry/height-map.mjs";
 import { LineOfSightRulerLayer } from "../layers/line-of-sight-ruler-layer.mjs";
-import { TerrainHeightEditorLayer } from "../layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 import { activeControl$, activeTool$ } from "../stores/scene-controls.mjs";
 import { showTerrainHeightOnTokenLayer$ } from "./settings.mjs";
 
@@ -94,7 +94,7 @@ export function registerSceneControls(controls) {
 						rejectClose: false
 					});
 
-					if (shouldDelete) TerrainHeightEditorLayer.current?.clear();
+					if (shouldDelete) heightMap.clear();
 				},
 				button: true
 			}

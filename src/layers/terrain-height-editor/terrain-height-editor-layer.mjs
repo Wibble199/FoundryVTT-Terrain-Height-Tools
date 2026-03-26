@@ -41,11 +41,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		super();
 	}
 
-	/** @return {TerrainHeightEditorLayer | undefined} */
-	static get current() {
-		return canvas.terrainHeightLayer;
-	}
-
 	/** @override */
 	static get layerOptions() {
 		return foundry.utils.mergeObject(super.layerOptions, {
