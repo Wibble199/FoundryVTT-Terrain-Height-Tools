@@ -98,19 +98,35 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 	/** @param {boolean} enable */
 	#setupEventListeners(enable) {
 		const onOff = enable ? "on" : "off";
-		this[onOff]("pointerdown", this.#onPointerChange);
-		this[onOff]("pointermove", this.#onPointerChange);
-		this[onOff]("pointerup", this.#onPointerChange);
+		this[onOff]("pointermove", this.#onPointerMove);
+		this[onOff]("pointerdown", this.#checkPointerButtons);
+		this[onOff]("pointerup", this.#checkPointerButtons);
 
 		const addRemove = enable ? "addEventListener" : "removeEventListener";
 		document[addRemove]("keydown", this.#onKeyDown);
 		document[addRemove]("keyup", this.#onKeyUp);
 	}
 
-	// Seems like a pointerdown event doesn't fire if a button is already being held, but a pointermove event does.
-	// https://github.com/pixijs/pixijs/issues/4048#issuecomment-304517070
-	// Using a single function which is responsible for determining the state and which events to forward to the tools
-	#onPointerChange = event => {
+	// Seems like a pointerdown event doesn't fire if a button is already being held, but a pointermove event fires in
+	// this case instead. https://github.com/pixijs/pixijs/issues/4048#issuecomment-304517070
+	// So, if there are any buttons down, then we let the onPointerMove handler also check for changes in which buttons
+	// are down. We do not however do this when a button is not down, because the pointermove event also fires when the
+	// user's cursor is under a window, e.g. we end up drawing if the user is dragging/dropping to move a window.
+
+	/** @param {PIXI.FederatedPointerEvent} event */
+	#onPointerMove = event => {
+		const { x, y } = this.toLocal(event.data.global);
+
+		if (this.#lastPointerButtons > 0) {
+			this.#checkPointerButtons(event);
+		}
+
+		this.#throttledMouseMove(x, y);
+		this.#lastPointerPosition = { x, y };
+	};
+
+	/** @param {PIXI.FederatedPointerEvent} event */
+	#checkPointerButtons(event) {
 		const { x, y } = this.toLocal(event.data.global);
 
 		// Left mouse button
@@ -129,14 +145,14 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 			else if (!isRightDown && wasRightDown) this.#selectedTool._onMouseUpRight(x, y);
 		}
 
-		// Mouse move
-		if (x !== this.#lastPointerPosition.x || y !== this.#lastPointerPosition.y) {
-			this.#selectedTool?._onMouseMove(x, y);
-		}
-
-		this.#lastPointerPosition = { x, y };
 		this.#lastPointerButtons = event.buttons;
-	};
+	}
+
+	// Throttle mouse updates to 60fps
+	/** @type {(x: number, y: number) => void} */
+	#throttledMouseMove = foundry.utils.throttle((x, y) => {
+		this.#selectedTool?._onMouseMove(x, y);
+	}, 1000 / 60);
 
 	/** @param {KeyboardEvent} event */
 	#onKeyDown = event => {

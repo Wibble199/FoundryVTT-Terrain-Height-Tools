@@ -133,7 +133,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 	/** @override */
 	async _tearDown() {
 		await super._tearDown();
-		this.#setupEventListeners("off");
+		this.#setupEventListeners(false);
 
 		// Ensure this user's rulers are cleared for others when this user changes scenes
 		this.#clearAllCurrentUserRulers();
@@ -320,7 +320,9 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		};
 	};
 
-	#onMouseMove = event => {
+	// Limit mouse updates to 30fps
+	/** @type {(event: PIXI.FederatedPointerEvent) => void} */
+	#onMouseMove = foundry.utils.throttle(event => {
 		if (!this.#isToolSelected) return;
 
 		// Get the drag position, which may include snapping
@@ -335,7 +337,7 @@ export class LineOfSightRulerLayer extends CanvasLayer {
 		if (this.#isDraggingRuler && (lineOfSightRulerConfig$.p2.value.x !== x || lineOfSightRulerConfig$.p2.value.y !== y)) {
 			lineOfSightRulerConfig$.p2.value = { x, y };
 		}
-	};
+	}, 1000 / 60);
 
 	#onMouseUp = event => {
 		if (!this.#isToolSelected || !this.#isDraggingRuler || event.button !== 0) return;

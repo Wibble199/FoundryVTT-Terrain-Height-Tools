@@ -125,11 +125,13 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		this.off("globalpointermove", this._onGlobalPointerMove);
 	}
 
-	_onGlobalPointerMove = event => {
+	// Limit mouse updates to 30fps
+	/** @type {(event: PIXI.FederatedPointerEvent) => void} */
+	_onGlobalPointerMove = foundry.utils.throttle(event => {
 		const pos = this.toLocal(event.data.global);
 		cursorWorldPosition$.value = pos;
 		this.#cursorRadiusMask?.position.set(pos.x, pos.y);
-	};
+	}, 1000 / 60);
 
 	/**
 	 * Redraws the graphics layer using the supplied height map data.
