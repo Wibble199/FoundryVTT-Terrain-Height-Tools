@@ -11,6 +11,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Build
+        uses: actions/setup-node@v6
+        with:
+          node_version: 24
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
       - name: Update module.json download URL
         run: |
           VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
@@ -20,7 +28,7 @@ jobs:
       - name: Zip module files
         run: |
           sudo apt-get install zip &&
-          zip -r release.zip lang/ module/ presets/ styles/ templates/ textures/ license.md module.json readme.md
+          zip -r release.zip dist/ lang/ presets/ styles/ textures/ license.md module.json readme.md
 
       - name: Create Release
         id: create_release
