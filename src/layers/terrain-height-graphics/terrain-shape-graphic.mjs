@@ -15,7 +15,7 @@ import { drawDashedPath } from "../../utils/pixi-utils.mjs";
  * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.
  * Note that the order represents the order that ties are resolved, so in this case the middle will be prefered in ties.
  */
-export const labelPositionAnchors = [0.5, 0.4, 0.6, 0.2, 0.8];
+const labelPositionAnchors = [0.5, 0.4, 0.6, 0.2, 0.8];
 
 export class TerrainShapeGraphic extends PIXI.Container {
 

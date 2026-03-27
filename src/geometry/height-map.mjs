@@ -54,15 +54,6 @@ export class HeightMap extends TerrainProvider {
 	}
 
 	/**
-	 * Gets the height data exists at the given position, or `undefined` if it does not exist.
-	 * @param {number} row
-	 * @param {number} col
-	 */
-	get(row, col) {
-		return this.getShapesAtPoint(0, 0); // TODO: is this needed?
-	}
-
-	/**
 	 * Returns the shapes that exist at the given x and y coordinates.
 	 * @param {number} x
 	 * @param {number} y

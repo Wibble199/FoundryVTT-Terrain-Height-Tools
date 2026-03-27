@@ -7,7 +7,7 @@ import { isPoint3d } from "./misc-utils.mjs";
  * @param {TokenDocument} tokenDoc
  * @returns {number}
  */
-export function getTokenHeight(tokenDoc) {
+function getTokenHeight(tokenDoc) {
 	// Some systems need special handling to get accurate token sizes. This logic can go here.
 	switch (game.system.id) {
 		// In Lancer, size 0.5 tokens still take up 1 full grid size, so the default implementation would cause them to

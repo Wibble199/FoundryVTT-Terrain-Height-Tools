@@ -2,6 +2,7 @@
 import { signal } from "@preact/signals-core";
 
 /**
+ * @template TElement
  * @typedef {Object} ObservableSetObserver
  * @property {(values: Iterable<TElement>, newItems: TElement[], removedItems: TElement[]) => void} [change]
  * @property {(newItems: TElement[]) => void} [add]
@@ -17,7 +18,7 @@ export class ObservableSet {
 	/** @type {Signal<Set<TElement>>} */
 	#innerSet;
 
-	/** @type {Set<ObservableSetObserver>} */
+	/** @type {Set<ObservableSetObserver<TElement>>} */
 	#observers = new Set();
 
 	/**
@@ -110,7 +111,7 @@ export class ObservableSet {
 
 	/**
 	 * Registers the given observer, so that it is notified when the values in this ObservableSet change.
-	 * @param {ObservableSetObserver} observer Observer to be notified when changes to the collection are made.
+	 * @param {ObservableSetObserver<TElement>} observer Observer to be notified when changes to the collection are made.
 	 * @param {Object} [options]
 	 * @param {AbortSignal} [options.signal] If provided, will unsubscribe from this set when aborted.
 	 * @returns A function that can be called to unsubscribe this observer.
@@ -129,7 +130,7 @@ export class ObservableSet {
 
 	/**
 	 * Unregisters the given observer, stopping it from recieving notifications when values in this ObservableSet change.
-	 * @param {ObservableSetObserver} observer The observer that was subscribed to this Signal.
+	 * @param {ObservableSetObserver<TElement>} observer The observer that was subscribed to this Signal.
 	 */
 	unsubscribe(observer) {
 		this.#observers.delete(observer);

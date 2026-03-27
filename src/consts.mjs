@@ -11,7 +11,7 @@ export const wallHeightModuleName = "wall-height";
 
 export const heightMapProviderId = `${moduleName}.heightMap`;
 
-export const terrainUpdatedHook = `${moduleName}.terrainUpdated`;
+export const updateTerrainHook = `${moduleName}.updateTerrain`;
 
 export const terrainHeightEditorControlName = "terrain-height-tools-editor";
 

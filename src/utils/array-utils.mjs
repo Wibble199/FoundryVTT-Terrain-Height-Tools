@@ -69,7 +69,6 @@ export function distinctBy(items, ...funcs) {
 				map.set(key, item);
 			}
 		}
-		console.groupEnd();
 	}
 
 	// Recursively flatten the maps to just get the leaf values

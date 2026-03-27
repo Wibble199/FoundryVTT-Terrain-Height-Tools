@@ -31,11 +31,7 @@ Hooks.on("preUpdateToken", autoTokenElevation.handleTokenElevationChange);
 
 Object.defineProperty(globalThis, "terrainHeightTools", {
 	value: {
-		...api,
-		ui: {
-			/** @type {TerrainStackViewer} */
-			terrainStackViewer: undefined
-		}
+		...api
 	},
 	writable: false
 });
@@ -58,8 +54,7 @@ function init() {
 }
 
 function ready() {
-	const terrainStackViewer = globalThis.terrainHeightTools.ui.terrainStackViewer = new TerrainStackViewer();
-	terrainStackViewer.render(true);
+	new TerrainStackViewer().render(true);
 
 	game.socket.on(socketName, handleSocketEvent);
 
@@ -94,7 +89,7 @@ function initLibWrapper() {
 	}, libWrapper.MIXED);
 
 	libWrapper.register(moduleName, "MouseInteractionManager.prototype.can", function(wrapped, action, event) {
-		if (action === "clickLeft" && TokenLineOfSightConfig.current?._isSelecting)
+		if (action === "clickLeft" && TokenLineOfSightConfig.current?._isSelectingToken$.value)
 			return true;
 		return wrapped(action, event);
 	}, libWrapper.MIXED);

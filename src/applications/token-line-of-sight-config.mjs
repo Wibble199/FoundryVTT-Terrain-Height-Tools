@@ -22,12 +22,6 @@ export class TokenLineOfSightConfig extends ThtApplicationPositionMixin(LitAppli
 
 	_isSelectingToken$ = computed(() => typeof this.#selectingToken$.value === "number");
 
-	/** @type {Token | undefined} */
-	#hoveredToken = undefined;
-
-	/** @type {number | undefined} */
-	#hoverTokenHookId;
-
 	static DEFAULT_OPTIONS = {
 		id: "tht_tokenLineOfSightConfig",
 		window: {
@@ -143,12 +137,6 @@ export class TokenLineOfSightConfig extends ThtApplicationPositionMixin(LitAppli
 	}
 
 	/** @override */
-	_onFirstRender(...args) {
-		super._onFirstRender(...args);
-		this.#hoverTokenHookId = this.onHook("hoverToken", (...args) => this.#onTokenHover(...args));
-	}
-
-	/** @override */
 	close(options) {
 		// Clear the selection and the ruler on close
 		tokenLineOfSightConfig$.value = {
@@ -158,8 +146,6 @@ export class TokenLineOfSightConfig extends ThtApplicationPositionMixin(LitAppli
 
 		// If waiting for user to select a token, stop
 		this.#selectingToken$.value = undefined;
-
-		Hooks.off("hoverToken", this.#hoverTokenHookId);
 
 		return super.close(options);
 	}
@@ -194,10 +180,5 @@ export class TokenLineOfSightConfig extends ThtApplicationPositionMixin(LitAppli
 	#clearSelectedToken(token$) {
 		token$.value = undefined;
 		this.#selectingToken$.value = undefined;
-	}
-
-	#onTokenHover(token, isHovered) {
-		if (isHovered) this.#hoveredToken = token;
-		else if (this.#hoveredToken === token) this.#hoveredToken = undefined;
 	}
 }

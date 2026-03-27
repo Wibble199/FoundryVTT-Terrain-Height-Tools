@@ -1,3 +1,4 @@
+import { updateTerrainHook } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { ObservableSet } from "../utils/observable-set.mjs";
 
@@ -17,19 +18,9 @@ const terrainProviders = new Map();
  */
 export const allTerrainShapes$ = new ObservableSet();
 
-/**
- * Gets a snapshot of all shapes currently on the canvas.
- * @param {Object} [options]
- * @param {string[]} [options.providerIds] If provided, only returns shapes for the specified terrain providers.
- * @returns {TerrainShape[]}
- */
-export function getAllShapes({ providerIds } = {}) {
-	const shapes = [];
-	for (const [providerId, { provider }] of terrainProviders)
-		if (!providerIds?.length || providerIds.includes(providerId))
-			shapes.push(...provider.terrainShapes$.value);
-	return shapes;
-}
+allTerrainShapes$.subscribe({
+	change: () => Hooks.callAll(updateTerrainHook)
+});
 
 /**
  * Gets shapes that exist at the given point.
