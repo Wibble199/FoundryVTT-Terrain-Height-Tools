@@ -6,7 +6,7 @@ import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
 import { keyPressed$ } from "../config/keybindings.mjs";
 import { showTerrainStackViewerOnTokenLayer$, terrainStackViewerDisplayMode$ } from "../config/settings.mjs";
-import { keybindings, moduleName, terrainHeightEditorControlName } from "../consts.mjs";
+import { keybindings, terrainHeightEditorControlName } from "../consts.mjs";
 import { canvasReady$, cursorWorldPosition$ } from "../stores/canvas.mjs";
 import { activeControl$ } from "../stores/scene-controls.mjs";
 import { allTerrainShapes$, getShapesAtPoint } from "../stores/terrain-manager.mjs";
@@ -65,12 +65,6 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 			showTerrainStackViewerOnTokenLayer$.value &&
 			this.#terrainShapesUnderMouse$.value.length > 0
 		));
-
-	static PARTS = {
-		main: {
-			template: `modules/${moduleName}/templates/terrain-stack-viewer.hbs`
-		}
-	};
 
 	constructor() {
 		super();

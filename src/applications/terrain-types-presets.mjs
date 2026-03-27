@@ -60,15 +60,6 @@ export class TerrainTypesPreset extends LitApplicationMixin(ApplicationV2) {
 		}
 	};
 
-	static PARTS = {
-		main: {
-			template: `modules/${moduleName}/templates/terrain-types-presets.hbs`
-		},
-		footer: {
-			template: "templates/generic/form-footer.hbs"
-		}
-	};
-
 	/** @override */
 	async _renderHTML() {
 		const presets = await presetPromise;
