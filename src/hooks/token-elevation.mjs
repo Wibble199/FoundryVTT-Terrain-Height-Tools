@@ -8,11 +8,16 @@ import { getSpacesUnderToken, toSceneUnits } from "../utils/grid-utils.mjs";
  * surface (if the setting is enabled).
  * @param {TokenDocument} tokenDoc
  * @param {Partial<TokenDocument> & { _id: string; }} delta
+ * @param {{ isUndo?: boolean; }} options
  * @param {string} userId
  */
-export function handleTokenElevationChange(tokenDoc, delta, _, userId) {
+export function handleTokenElevationChange(tokenDoc, delta, { isUndo = false }, userId) {
 	// If the token was not updated by the current user, or the setting is disabled, do nothing
 	if (userId !== game.userId || !game.settings.get(moduleName, settingNames.tokenElevationChange)) return;
+
+	// If the move is an undo move, then it will already be undoing a previous automatic token elevation change, so do
+	// not run this logic (or else the token's elevation will change by twice as much as it should).
+	if (isUndo) return;
 
 	// If the token has not moved or changed size, then there will be no elevation change due to THT
 	if (["x", "y", "width", "height"].every(prop => !(prop in delta))) return;
