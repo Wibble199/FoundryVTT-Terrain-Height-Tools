@@ -32,19 +32,19 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	terrainType;
 
 	/** @type {PIXI.Graphics} */
-	#borderGraphics;
-
-	/** @type {PIXI.Graphics} */
-	#fillGraphics;
-
-	/** @type {PIXI.Graphics} */
 	#fadeGraphics;
 
-	/** @type {PIXI.Graphics} */
-	#fadeMask;
+	/** @type {PIXI.Graphics | undefined} */
+	#shapeMask;
 
 	/** @type {PreciseText} */
 	#label;
+
+	/** @type {(() => void)[]} */
+	#tickerFns = [];
+
+	/** @type {PIXI.Texture | undefined} */
+	static #_whiteTexture;
 
 	/**
 	 * @param {TerrainHeightGraphicsLayer} parent
@@ -61,16 +61,19 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		this.terrainType = getTerrainType(shape.terrainTypeId);
 
 		this._redrawLabel();
-		this.#redrawBorder();
-		this.#redrawFade();
-		this.#redrawFill();
+		this.#drawBorder();
+		this.#drawFade();
+		this.#drawFill();
 	}
 
 	_destroy() {
 		// On destroy, if we had a fade graphic ensure that is removed from Foundry's tracker
-		if (this.#fadeGraphics) {
+		if (this.#fadeGraphics)
 			canvas.blurFilters.delete(this.#fadeGraphics.filters[0]);
-		}
+
+		// Remove ticker functions from global ticker
+		for (const tickerFn of this.#tickerFns)
+			canvas.app.ticker.remove(tickerFn);
 	}
 
 	/**
@@ -97,6 +100,18 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		return terrainTypes$.value.findIndex(t => t.id === this.shape.terrainTypeId);
 	}
 
+	/** @returns {PIXI.Texture} */
+	static get #whiteTexture() {
+		if (this.#_whiteTexture) return this.#_whiteTexture;
+
+		const g = new PIXI.Graphics();
+		g.beginFill(0xFFFFFF);
+		g.drawRect(0, 0, 1, 1);
+		g.endFill();
+
+		return this.#_whiteTexture = canvas.app.renderer.generateTexture(g);
+	}
+
 	/**
 	 * @param {boolean} visible
 	 * @param {boolean} animate
@@ -116,12 +131,9 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	// Main drawing methods //
 	// -------------------- //
 	/** @returns {Promise<PIXI.Graphics>} */
-	#redrawBorder() {
-		if (this.#borderGraphics) this.removeChild(this.#borderGraphics);
-
-		const g = new PIXI.Graphics();
+	#drawBorder() {
+		const g = this.addChild(new PIXI.Graphics());
 		g.zIndex = 20;
-		this.#borderGraphics = this.addChild(g);
 
 		const lineStyle = this.#getLineStyleFromTerrainType();
 
@@ -142,13 +154,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		}
 	}
 
-	#redrawFade() {
-		if (this.#fadeGraphics) {
-			canvas.blurFilters.delete(this.#fadeGraphics.filters[0]);
-			this.removeChild(this.#fadeGraphics);
-		}
-		if (this.#fadeMask) this.removeChild(this.#fadeMask);
-
+	#drawFade() {
 		if ((this.terrainType.lineFadeDistance ?? 0) <= 0 || this.terrainType.lineFadeOpacity <= 0) return;
 
 		// Graphics
@@ -171,9 +177,55 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		// out of the scene. Also use a higher blur quality for this as this blur is larger than most others.
 		g.filters = [canvas.createBlurFilter(60 * this.terrainType.lineFadeDistance, CONFIG.Canvas.blurQuality * 2)];
 
-		// Mask
+		g.mask = this.#shapeMask ?? this.#drawMask();
+	}
+
+	async #drawFill() {
+		if (this.terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE) return;
+
+		const isPattern = this.terrainType.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && !!this.terrainType.fillTexture?.length;
+
+		// If using a texture, load that, falling back to solid colour if it fails to load (e.g. missing image)
+		const texture = isPattern
+			? await this.#parent._terrainTextures.get(this.shape.terrainTypeId) ?? TerrainShapeGraphic.#whiteTexture
+			: TerrainShapeGraphic.#whiteTexture;
+
+		const { x1, y1, w, h } = this.shape.polygon.boundingBox;
+		const sprite = this.addChild(new PIXI.TilingSprite(texture, w, h));
+		sprite.zIndex = 0;
+
+		sprite.x = x1;
+		sprite.y = y1;
+
+		// Color
+		sprite.tint = Color.from(this.terrainType.fillColor ?? "#000000");
+		sprite.alpha = this.terrainType.fillOpacity ?? 0.4;
+
+		// Pattern dimensions
+		if (isPattern) {
+			const { x: xOffset, y: yOffset } = this.terrainType.fillTextureOffset;
+			const { x: xScale, y: yScale } = this.terrainType.fillTextureScale;
+			const { x: xAnim, y: yAnim } = this.terrainType.fillTextureOffsetAnimation;
+
+			sprite.tilePosition.set(xOffset, yOffset);
+			sprite.tileScale.set(xScale / 100, yScale / 100);
+
+			if (xAnim !== 0 || yAnim !== 0) {
+				const tickerFn = deltaTime => {
+					sprite.tilePosition.x += ((xAnim / canvas.app.ticker.maxFPS) * deltaTime) % (texture.width * xScale);
+					sprite.tilePosition.y += ((yAnim / canvas.app.ticker.maxFPS) * deltaTime) % (texture.height * yScale);
+				};
+				canvas.app.ticker.add(tickerFn);
+				this.#tickerFns.push(tickerFn);
+			}
+		}
+
+		sprite.mask = this.#shapeMask ?? this.#drawMask();
+	}
+
+	#drawMask() {
 		const mask = new PIXI.Graphics();
-		this.#fadeMask = this.addChild(mask);
+		this.#shapeMask = this.addChild(mask);
 
 		mask.beginFill(0x000000);
 
@@ -184,25 +236,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 			mask.endHole();
 		}
 
-		g.mask = mask;
-	}
-
-	async #redrawFill() {
-		if (this.#fillGraphics) this.removeChild(this.#fillGraphics);
-
-		const g = new PIXI.Graphics();
-		this.#fillGraphics = this.addChild(g);
-		g.zIndex = 0;
-
-		await this.#setFillStyleFromTerrainType(g);
-
-		this.#drawPolygon(g, this.shape.polygon);
-
-		for (const hole of this.shape.holes) {
-			g.beginHole();
-			this.#drawPolygon(g, hole);
-			g.endHole();
-		}
+		return mask;
 	}
 
 	_redrawLabel() {
@@ -319,42 +353,6 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	// ---------------- //
 	// Graphics styling //
 	// ---------------- //
-	async #setFillStyleFromTerrainType(graphics) {
-		const color = Color.from(this.terrainType.fillColor ?? "#000000");
-
-		switch (this.terrainType.fillType) {
-			case CONST.DRAWING_FILL_TYPES.NONE: {
-				graphics.beginFill(0x000000, 0);
-				break;
-			}
-
-			case CONST.DRAWING_FILL_TYPES.PATTERN: {
-				const { x: xOffset, y: yOffset } = this.terrainType.fillTextureOffset;
-				const { x: xScale, y: yScale } = this.terrainType.fillTextureScale;
-				const matrix = new PIXI.Matrix(xScale / 100, 0, 0, yScale / 100, xOffset, yOffset);
-
-				const texture = await this.#parent._terrainTextures.get(this.shape.terrainTypeId);
-
-				if (texture) {
-					graphics.beginTextureFill({
-						texture,
-						color,
-						alpha: this.terrainType.fillOpacity,
-						matrix
-					});
-					break;
-				}
-
-				// If failed to load texture (e.g. missing image), fall through to solid color
-			}
-
-			default: {
-				graphics.beginFill(color, this.terrainType.fillOpacity ?? 0.4);
-				break;
-			}
-		}
-	}
-
 	#getLineStyleFromTerrainType() {
 		return {
 			width: this.terrainType.lineType === lineTypes.none ? 0 : this.terrainType.lineWidth ?? 0,

@@ -26,6 +26,7 @@ import { alphaToHex } from "../utils/misc-utils.mjs";
  * @property {string} fillTexture
  * @property {{ x: number; y: number; }} fillTextureOffset
  * @property {{ x: number; y: number; }} fillTextureScale
+ * @property {{ x: number; y: number; }} fillTextureOffsetAnimation
  * @property {string} textFormat
  * @property {string} elevatedTextFormat
  * @property {string} font
@@ -83,6 +84,7 @@ export function createDefaultTerrainType(id = undefined) {
 		fillTexture: "",
 		fillTextureOffset: { x: 0, y: 0 },
 		fillTextureScale: { x: 100, y: 100 },
+		fillTextureOffsetAnimation: { x: 0, y: 0 },
 		textFormat: "",
 		elevatedTextFormat: "",
 		font: CONFIG.defaultFontFamily,

@@ -271,6 +271,14 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 				<input type="number" name="${index}.fillTextureScale.y" value=${terrainType.fillTextureScale.y} step="1" required placeholder="Y">
 			</div>
 		</div>
+
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType !== CONST.DRAWING_FILL_TYPES.PATTERN })}>
+			<label>${l("TERRAINHEIGHTTOOLS.TextureScale")} <span class="hint">px/s</span></label>
+			<div class="form-fields">
+				<input type="number" name="${index}.fillTextureOffsetAnimation.x" value=${terrainType.fillTextureOffsetAnimation.x} step="1" required placeholder="X">
+				<input type="number" name="${index}.fillTextureOffsetAnimation.y" value=${terrainType.fillTextureOffsetAnimation.y} step="1" required placeholder="Y">
+			</div>
+		</div>
 	`;
 
 	/** @type {UiPartRenderer} */
