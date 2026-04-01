@@ -1,4 +1,5 @@
 /** @import { PointLike } from "./point.mjs" */
+import { geometryTolerance } from "../consts.mjs";
 import { distinctBy } from "../utils/array-utils.mjs";
 import { LineSegment } from "./line-segment.mjs";
 import { Point } from "./point.mjs";
@@ -114,7 +115,7 @@ export class Polygon {
 		const vertex = Point.from(xy);
 
 		// Check that the point is not identical to the previous, as this would cause a 0 length edge.
-		if (this.vertices.length > 0 && vertex.equals(this.vertices[this.vertices.length - 1], { precision: Number.EPSILON }))
+		if (this.vertices.length > 0 && vertex.equals(this.vertices[this.vertices.length - 1], { precision: geometryTolerance }))
 			throw new Error("Cannot add vertex. It is identical to the previous vertex.");
 
 		this.vertices.push(vertex);
@@ -178,8 +179,8 @@ export class Polygon {
 		// Check for any points that lie exactly on an edge
 		const onAnyEdge = this.edges.some(e => {
 			const { t, distanceSquared } = e.findClosestPointOnLineTo(x, y);
-			return Math.abs(t) < Number.EPSILON && Math.abs(t - 1) < Number.EPSILON
-				&& distanceSquared < Number.EPSILON * Number.EPSILON;
+			return Math.abs(t) < geometryTolerance && Math.abs(t - 1) < geometryTolerance
+				&& distanceSquared < 1e-20;
 		});
 		if (onAnyEdge) return containsOnEdge;
 
@@ -205,7 +206,7 @@ export class Polygon {
 		// We do this by traversing the edge graph from the intersected edge and seeing if it's connected to another
 		// intersecting edge by horizontal lines, then checking the direction of two edges.
 		const possibleConnectingHorizontalEdges = new Set(this.edges
-			.filter(e => Math.abs(e.p1.y - y) < Number.EPSILON && Math.abs(e.p2.y - y) < Number.EPSILON));
+			.filter(e => Math.abs(e.p1.y - y) < geometryTolerance && Math.abs(e.p2.y - y) < geometryTolerance));
 
 		/** @type {(edge: LineSegment, dir: 1 | -1) => boolean} */
 		const detectHorizontallyConnectedEdge = (edge, dir) => {

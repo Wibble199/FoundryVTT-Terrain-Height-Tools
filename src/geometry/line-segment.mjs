@@ -1,3 +1,4 @@
+import { geometryTolerance } from "../consts.mjs";
 import { Point } from "./point.mjs";
 
 /**
@@ -106,7 +107,10 @@ export class LineSegment {
 		if (diff > Math.PI / 2)
 			diff = Math.PI - diff;
 
-		return diff <= Number.EPSILON;
+		// Atan2 (used by the angle) has rounding errors beyond Number.EPSILON. Use a tolerance higher than that for
+		// safety. 1e-6 is approximately 0.00006 degrees so still a very safe threshold, while being far enough that
+		// rounding/precision errors from Math.atan2 don't cause problems.
+		return diff <= 1e-6;
 	}
 
 	/**
@@ -211,11 +215,15 @@ export class LineSegment {
 		// that the intersection is at p2, a value between 0-1 means it lies on the line, <0 or >1 means it lies out of the
 		// line. `u` is the same, but for the `other` line.
 		const denom = ((x1 - x2) * (y3 - y4)) - ((y1 - y2) * (x3 - x4));
+
+		// Should never happen since we've already checked isParallelTo, but just in case
+		if (Math.abs(denom) < geometryTolerance) return undefined;
+
 		const t = (((x1 - x3) * (y3 - y4)) - ((y1 - y3) * (x3 - x4))) / denom;
 		const u = -(((x1 - x2) * (y1 - y3)) - ((y1 - y2) * (x1 - x3))) / denom;
 
 		// If the intersection point lies outside of either line, then there is no intersection
-		if (!ignoreLength && (t < -Number.EPSILON || t > 1 + Number.EPSILON || u < -Number.EPSILON || u > 1 + Number.EPSILON)) return undefined;
+		if (!ignoreLength && (t < -geometryTolerance || t > 1 + geometryTolerance || u < -geometryTolerance || u > 1 + geometryTolerance)) return undefined;
 
 		return {
 			x: x1 + (t * (x2 - x1)),

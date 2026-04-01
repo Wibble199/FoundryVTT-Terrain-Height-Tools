@@ -1,3 +1,4 @@
+import { geometryTolerance } from "../consts.mjs";
 import { getTerrainType, terrainTypeMap$, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { distinctBy, groupBy } from "../utils/array-utils.mjs";
 import { error, warn } from "../utils/log.mjs";
@@ -227,7 +228,7 @@ export class TerrainShape {
 			const intersection = testRay.intersectsAt(edge);
 
 			// Do not include intersections at t=0 as it can interfere with initial isInside check
-			if (!intersection || intersection.t < Number.EPSILON) continue;
+			if (!intersection || intersection.t < geometryTolerance) continue;
 
 			intersections.push({ ...intersection, edge, hole });
 
@@ -235,13 +236,13 @@ export class TerrainShape {
 			// testray, then add a synthetic intersection for that edge. This makes it easier later to do the region
 			// calculations later on, as we don't then need to check for vertex collisions and handle them differently.
 			// If the prev/next edge is not parallel then it should cause it's own intersection and get added normally.
-			if (intersection.u < Number.EPSILON) {
+			if (intersection.u < geometryTolerance) {
 				const previousEdge = (hole ?? this.#polygon).previousEdge(edge);
 				if (previousEdge.isParallelTo(testRay)) {
 					intersections.push({ ...intersection, u: 1, edge: previousEdge, hole });
 				}
 
-			} else if (intersection.u > 1 - Number.EPSILON) {
+			} else if (intersection.u > 1 - geometryTolerance) {
 				const nextEdge = (hole ?? this.#polygon).nextEdge(edge);
 				if (nextEdge.isParallelTo(testRay)) {
 					intersections.push({ ...intersection, u: 0, edge: nextEdge, hole });
@@ -256,7 +257,7 @@ export class TerrainShape {
 		// There may be multiple intersections at an equal point along the test ray (t) - for example when touching a vertex
 		// of a shape - it'll intersect both edges of the vertex. These are a special case and need to be handled
 		// differently, so group everything by t.
-		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, Number.EPSILON)).entries()]
+		const intersectionsByT = [...groupBy(intersections, i => roundTo(i.t, geometryTolerance)).entries()]
 			.sort(([a], [b]) => a - b) // sort by t
 			.map(([, intersections]) => intersections);
 
@@ -269,8 +270,8 @@ export class TerrainShape {
 			const p1LiesOnEdges = allEdges
 				.map(([poly, edge]) => ({ edge, poly, ...edge.findClosestPointOnLineTo(x1, y1) }))
 				.filter(x =>
-					x.t > -Number.EPSILON && x.t < 1 + Number.EPSILON &&
-					x.distanceSquared < Number.EPSILON * Number.EPSILON);
+					x.t > -geometryTolerance && x.t < 1 + geometryTolerance &&
+					x.distanceSquared < 1e-20);
 
 			switch (p1LiesOnEdges.length) {
 				case 0: {
@@ -284,11 +285,11 @@ export class TerrainShape {
 					// relative distance along an edge, which is what we have here)
 					const { edge, poly, t: u } = p1LiesOnEdges[0];
 
-					if (u < Number.EPSILON) {
+					if (u < geometryTolerance) {
 						const previousEdge = (poly ?? this.#polygon).previousEdge(edge);
 						isInside = previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
 
-					} else if (u > 1 - Number.EPSILON) {
+					} else if (u > 1 - geometryTolerance) {
 						const nextEdge = (poly ?? this.#polygon).nextEdge(edge);
 						isInside = edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 
@@ -310,10 +311,10 @@ export class TerrainShape {
 					// relevant edge should already be in the array), but the code to try pair them up would be clunky,
 					// and since it's only 4 basic maths operations it'll have no noticable impact on perf.
 					isInside = p1LiesOnEdges.some(({ edge, poly, t: u }) => {
-						if (u < Number.EPSILON) {
+						if (u < geometryTolerance) {
 							const previousEdge = (poly ?? this.#polygon).previousEdge(edge);
 							return previousEdge.angleBetween(testRay) < previousEdge.angleBetween(edge);
-						} else if (u > 1 - Number.EPSILON) {
+						} else if (u > 1 - geometryTolerance) {
 							const nextEdge = (poly ?? this.#polygon).nextEdge(edge);
 							return edge.angleBetween(testRay) < edge.angleBetween(nextEdge);
 						}
@@ -454,7 +455,7 @@ export class TerrainShape {
 			t2 = Math.max(Math.min(t2, 1), 0);
 
 			// If the two ends of the edge wouldn't be skimming, continue to next edge
-			if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= Number.EPSILON)
+			if (d1 > skimDistThresholdSquared || d2 > skimDistThresholdSquared || Math.abs(t1 - t2) <= geometryTolerance)
 				continue;
 
 			const skimSide = isParallel ? 1 : -1;
@@ -471,7 +472,7 @@ export class TerrainShape {
 
 			// Merge adjacent skim regions. The combined skim region is from skimStartT -> skimRegions[i].t2.
 			skimStartT ??= skimRegions[i].t1;
-			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > Number.EPSILON || skimRegions[i].skimSide !== skimRegions[i + 1].skimSide) {
+			if (i === skimRegions.length - 1 || Math.abs(skimRegions[i].t2 - skimRegions[i + 1].t1) > geometryTolerance || skimRegions[i].skimSide !== skimRegions[i + 1].skimSide) {
 				const skimEndT = skimRegions[i].t2;
 
 				// We need to figure out which, if any, of the intersection regions to remove.

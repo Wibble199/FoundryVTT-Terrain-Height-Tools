@@ -1,3 +1,5 @@
+import { geometryTolerance } from "../consts.mjs";
+
 /**
  * Draws a dotted path on the given graphics object, using the line style configured on the graphics object.
  * Multiple points can be given to continue the dashing (e.g. bend a dash around a corner).
@@ -35,7 +37,7 @@ export function drawDashedPath(graphics, points, { closed = false, dashSize = 20
 
 		let remainingLength = totalLength;
 
-		while (remainingLength > Number.EPSILON) {
+		while (remainingLength > geometryTolerance) {
 
 			if (dashGapRemaining <= 0) {
 				dash = !dash;

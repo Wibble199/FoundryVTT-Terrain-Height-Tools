@@ -15,6 +15,10 @@ export const updateTerrainHook = `${moduleName}.updateTerrain`;
 
 export const terrainHeightEditorControlName = "terrain-height-tools-editor";
 
+// Number.EPSILON is too small for the tolerance when dealing with geometry since doing multiple arithmetic operations
+// will compound the floating-point errors. 1e-10 is still a very small tolerance but enough to account for these errors
+export const geometryTolerance = 1e-10;
+
 /** @enum {keyof typeof tools} */
 export const tools = /** @type {const} */ ({
 	paint: "paint",
