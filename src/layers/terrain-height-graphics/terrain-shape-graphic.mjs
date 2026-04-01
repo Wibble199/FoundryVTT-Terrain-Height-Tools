@@ -322,23 +322,36 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	async #setFillStyleFromTerrainType(graphics) {
 		const color = Color.from(this.terrainType.fillColor ?? "#000000");
 
-		if (this.terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE) {
-			graphics.beginFill(0x000000, 0);
+		switch (this.terrainType.fillType) {
+			case CONST.DRAWING_FILL_TYPES.NONE: {
+				graphics.beginFill(0x000000, 0);
+				break;
+			}
 
-		} else if (this.terrainType.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && this.terrainType.fillTexture?.length) {
-			const { x: xOffset, y: yOffset } = this.terrainType.fillTextureOffset;
-			const { x: xScale, y: yScale } = this.terrainType.fillTextureScale;
-			const matrix = new PIXI.Matrix(xScale / 100, 0, 0, yScale / 100, xOffset, yOffset);
+			case CONST.DRAWING_FILL_TYPES.PATTERN: {
+				const { x: xOffset, y: yOffset } = this.terrainType.fillTextureOffset;
+				const { x: xScale, y: yScale } = this.terrainType.fillTextureScale;
+				const matrix = new PIXI.Matrix(xScale / 100, 0, 0, yScale / 100, xOffset, yOffset);
 
-			graphics.beginTextureFill({
-				texture: await this.#parent._terrainTextures.get(this.shape.terrainTypeId),
-				color,
-				alpha: this.terrainType.fillOpacity,
-				matrix
-			});
+				const texture = await this.#parent._terrainTextures.get(this.shape.terrainTypeId);
 
-		} else {
-			graphics.beginFill(color, this.terrainType.fillOpacity ?? 0.4);
+				if (texture) {
+					graphics.beginTextureFill({
+						texture,
+						color,
+						alpha: this.terrainType.fillOpacity,
+						matrix
+					});
+					break;
+				}
+
+				// If failed to load texture (e.g. missing image), fall through to solid color
+			}
+
+			default: {
+				graphics.beginFill(color, this.terrainType.fillOpacity ?? 0.4);
+				break;
+			}
 		}
 	}
 
