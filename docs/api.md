@@ -676,13 +676,14 @@ terrainHeightTools.registerCustomTerrainTypeConfigUi("other", ({ terrainType, in
 `);
 
 // Adds a new tab "My Tab" with a custom "My custom field" number
+// Also shows how one would localize a string (equivalent to {{localize "MYMODULE.MyCustomField.Name"}} in Handlebars)
 terrainHeightTools.registerCustomTerrainTypeConfigUi({ id: "myTab", label: "My Tab", icon: "fas fa-question-circle" }, ({ terrainType, index }) => `
 	<div class="form-group">
-		<label>My custom field</label>
+		<label>${game.i18n.localize("MYMODULE.MyCustomField.Name")}</label>
 		<div class="form-fields">
 			<input type="number" name="${index}.flags.myModule.myCustomField" value="${terrainType.flags.myModule?.myCustomField ?? ""}" min="0" step="1">
 		</div>
-		<p class="hint">Hello world! This is a non-standard THT field that I have added to the config.</p>
+		<p class="hint">${game.i18n.localize("MYMODULE.MyCustomField.Hint")}</p>
 	</div>
 `);
 
