@@ -171,6 +171,7 @@
 		"Terrain": "Terrain",
 		"TerrainTypesToErase": "Terrain types to erase",
 		"TextureOffset": "Texture Offset",
+		"TextureOffsetAnimation": "Texture Animation",
 		"TextureScale": "Texture Scale",
 		"TokenLineOfSightConfigHint": "Select two tokens to measure line of sight between them.",
 		"TokenLineOfSightConfigTitle": "Token LoS",

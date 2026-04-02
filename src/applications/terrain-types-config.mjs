@@ -33,7 +33,7 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 			resizable: true
 		},
 		position: {
-			width: 860,
+			width: 870,
 			height: 720
 		},
 		form: {
@@ -273,7 +273,7 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 		</div>
 
 		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType !== CONST.DRAWING_FILL_TYPES.PATTERN })}>
-			<label>${l("TERRAINHEIGHTTOOLS.TextureScale")} <span class="hint">px/s</span></label>
+			<label>${l("TERRAINHEIGHTTOOLS.TextureOffsetAnimation")} <span class="hint">px/s</span></label>
 			<div class="form-fields">
 				<input type="number" name="${index}.fillTextureOffsetAnimation.x" value=${terrainType.fillTextureOffsetAnimation.x} step="1" required placeholder="X">
 				<input type="number" name="${index}.fillTextureOffsetAnimation.y" value=${terrainType.fillTextureOffsetAnimation.y} step="1" required placeholder="Y">
