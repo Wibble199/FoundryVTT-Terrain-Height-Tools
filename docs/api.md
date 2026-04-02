@@ -21,7 +21,7 @@ Functions:
 - [`drawLineOfSightRaysBetweenTokens`](#drawlineofsightraysbetweentokens)
 - [`eraseCells`](#erasecells)
 - [`eraseRegions`](#eraseregions)
-- [`getCell`](#getcell)
+- [`getCell / getShapes`](#getcell)
 - [`getShapes`](#getshapes)
 - [`getShapesAtPoint`](#getshapesatpoint)
 - [`getTerrainType`](#getterraintype)
@@ -393,52 +393,20 @@ await terrainHeightTools.eraseRegions([
 ], { excludingTerrainTypeIds: ["someid"] });
 ```
 
-## getCell
-
-![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
-![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
-
-Fetches the Terrain Height Tools terrain shapes from the center of a specific cell.
-
-Note: Prior to v0.6.0, terrain was bound to the grid, so this function would return the data within that cell. In v0.6.0+, terrain can now be any arbitrary shape (which may or may not neatly map onto grid cells), so the data at the center of the cell is checked.
-
-### Parameters
-
-|Name|Type|Default|Description|
-|-|-|-|-|
-|`i`|`number`|*Required*|The X coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
-|`j`|`number`|*Required*|The Y coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
-
-### Returns
-
-An array of [`TerrainShapes`](#tterrainshape) in the given cell. The order of the terrain is not guaranteed.
-
-### Example
-```js
-const cell = terrainHeightTools.getCell(2, 3);
-
-if (cell.length === 0) {
-	console.log("This cell is unpainted.");
-} else {
-	for (const { terrainTypeId, height } of cell) {
-		const terrainType = terrainHeightTools.getTerrainType({ id: terrainTypeId });
-		console.log(`${terrainType.name} is painted in this cell, at a height of ${height}.`);
-	}
-}
-```
-
-## getShapes
+## getCell / getShapes
 
 ![Available Since v0.4.0](https://img.shields.io/badge/Available%20Since-v0.4.0-blue?style=flat-square)
 
 Gets the terrain shapes at the center of the cell at the given offset grid coordinates.
 
+Note that both these functions are now identical and have been preserved for backwards-compatibility.
+
 ### Parameters
 
 |Name|Type|Default|Description|
 |-|-|-|-|
-|`i`|`number`|*Required*|The i coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
 |`j`|`number`|*Required*|The j coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`i`|`number`|*Required*|The i coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
 |`options`|`Object`|`{}`||
 |`options.providerIds`|`string[]`|`undefined`|If provided, limits the returned shapes to only those from the specified terrain providers.|
 
@@ -453,9 +421,10 @@ Each `TerrainShape` has the following properties:
 |-|-|-|
 |`polygon`|`Polygon`|The polygon that defines the outer perimeter of this shape.|
 |`holes`|`Polygon[]`|An array of polygons that define holes within this shape.|
-|`terrainTypeId`|`string`|The ID of the terrain type in this cell.|
-|`height`|`number`|The height of the terrain in this cell.|
-|`elevation`|`number`|The elevation of the terrain in this cell.|
+|`terrainTypeId`|`string`|The ID of the terrain type of this shape.|
+|`terrainType`|[`TerrainType`](#tterraintype)|The terrain type of this shape.|
+|`height`|`number`|The height of the terrain of this shape.|
+|`elevation`|`number`|The elevation of the terrain of this shape.|
 
 ### Example
 ```js
@@ -465,8 +434,7 @@ if (shapes.length === 0) {
 	console.log("This cell is unpainted.");
 } else {
 	for (const shape of shapes) {
-		const terrainType = terrainHeightTools.getTerrainType({ id: shape.terrainTypeId });
-		console.group(`The edges of this ${terrainType.name} shape are:`);
+		console.group(`The edges of this ${shape.terrainType.name} shape are:`);
 		for (const edge of shape.polygon.edges)
 			console.log(edge.toString());
 		console.groupEnd();

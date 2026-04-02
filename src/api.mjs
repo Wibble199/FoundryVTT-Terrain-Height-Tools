@@ -42,30 +42,32 @@ export function getTerrainTypes() {
 	return terrainTypes$.value;
 }
 
-/**
- * Gets the THT height map terrain shapes at the given grid coordinates.
- * @param {number} i
- * @param {number} j
- * @returns {TerrainShape[]}
- */
-export function getCell(i, j) {
-	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS)
-		throw new Error("Cannot use this function on gridless scenes");
-
-	const { x, y } = canvas.grid.getCenterPoint({ i, j });
-	return heightMap.getShapesAtPoint(x, y);
-}
 
 /**
  * Gets the terrain shapes at the center of the cell at the given offset grid coordinates.
- * @param {number} i
+ *
+ * This is now functionaly identical to getShapes, but kept for backwards-compatibility.
  * @param {number} j
+ * @param {number} i
  * @param {Object} [options]
  * @param {string[]} [options.providerIds] If provided, limits the returned shapes to only those from the specified
  * terrain providers.
  * @returns {TerrainShape[]}
  */
-export function getShapes(i, j, { providerIds } = {}) {
+export function getCell(j, i, options = {}) {
+	return getShapes(j, i, options);
+}
+
+/**
+ * Gets the terrain shapes at the center of the cell at the given offset grid coordinates.
+ * @param {number} j
+ * @param {number} i
+ * @param {Object} [options]
+ * @param {string[]} [options.providerIds] If provided, limits the returned shapes to only those from the specified
+ * terrain providers.
+ * @returns {TerrainShape[]}
+ */
+export function getShapes(j, i, { providerIds } = {}) {
 	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS)
 		throw new Error("Cannot use this function on gridless scenes");
 
