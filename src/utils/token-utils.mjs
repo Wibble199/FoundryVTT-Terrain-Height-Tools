@@ -8,6 +8,16 @@ import { isPoint3d } from "./misc-utils.mjs";
  * @returns {number}
  */
 function getTokenHeight(tokenDoc) {
+	// If the wall height module is installed, we can use the value the user has put in the token height field in the
+	// token config. Note that we explicitly check the module is enabled so that if the user uninstalls it later, we
+	// don't end up with values in the flags (that the user can't see without debugging) causing behaviour changes.
+	if (game.modules.get("wall-height")?.active === true) {
+		const tokenHeight = +tokenDoc.flags["wall-height"]?.tokenHeight;
+		if (!Number.isNaN(tokenHeight) && tokenHeight > 0) {
+			return Math.floor(tokenHeight * 2) / 2;
+		}
+	}
+
 	// Some systems need special handling to get accurate token sizes. This logic can go here.
 	switch (game.system.id) {
 		// In Lancer, size 0.5 tokens still take up 1 full grid size, so the default implementation would cause them to
