@@ -1,4 +1,4 @@
-import { moduleName, settingNames } from "../consts.mjs";
+import { flags, moduleName, settingNames } from "../consts.mjs";
 import { heightMap } from "../geometry/height-map.mjs";
 import { getTerrainType } from "../stores/terrain-types.mjs";
 import { getSpacesUnderToken, toSceneUnits } from "../utils/grid-utils.mjs";
@@ -18,6 +18,9 @@ export function handleTokenElevationChange(tokenDoc, delta, { isUndo = false }, 
 	// If the move is an undo move, then it will already be undoing a previous automatic token elevation change, so do
 	// not run this logic (or else the token's elevation will change by twice as much as it should).
 	if (isUndo) return;
+
+	// If the token has the ignore auto-elevation flag set, skip elevation adjustment
+	if (tokenDoc.getFlag(moduleName, flags.ignoreAutoElevation)) return;
 
 	// If the token has not moved or changed size, then there will be no elevation change due to THT
 	if (["x", "y", "width", "height"].every(prop => !(prop in delta))) return;
@@ -47,6 +50,9 @@ export function handleTokenElevationChange(tokenDoc, delta, { isUndo = false }, 
 export function handleTokenPreCreation(tokenDoc, _createData, _options, userId) {
 	// If the token was not created by the current user, or the setting is disabled, do nothing
 	if (userId !== game.userId || !game.settings.get(moduleName, settingNames.tokenElevationChange)) return;
+
+	// If the token has the ignore auto-elevation flag set, skip initial elevation
+	if (tokenDoc.getFlag(moduleName, flags.ignoreAutoElevation)) return;
 
 	const terrainHeight = getHighestTerrainUnderToken(tokenDoc);
 

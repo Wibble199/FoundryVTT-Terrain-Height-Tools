@@ -100,6 +100,8 @@
 		"Height.Name": "Height",
 		"Height.Hint": "The vertical size of terrain",
 		"HoverTerrainToShowDetails": "Hover terrain to show details",
+		"IgnoreAutoElevation.Name": "Ignore THT Auto Elevation",
+		"IgnoreAutoElevation.Hint": "If enabled, this token will be excluded from automatic terrain elevation adjustments.",
 		"ImportCombine": "Import (Combine with Existing)",
 		"ImportReplace": "Import (Replace Existing)",
 		"ImportTerrainTypes": "Import JSON",

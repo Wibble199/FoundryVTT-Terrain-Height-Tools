@@ -72,7 +72,8 @@ export const keybindings = /** @type {const} */ ({
 export const flags = /** @type {const} */ ({
 	heightData: "heightData",
 	invisibleTerrainTypes: "invisibleTerrainTypes",
-	terrainLayerAboveTiles: "terrainLayerAboveTiles"
+	terrainLayerAboveTiles: "terrainLayerAboveTiles",
+	ignoreAutoElevation: "ignoreAutoElevation"
 });
 
 /** @enum {number} */

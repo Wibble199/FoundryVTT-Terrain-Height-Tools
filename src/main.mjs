@@ -3,7 +3,7 @@ import { TerrainStackViewer } from "./applications/terrain-stack-viewer.mjs";
 import { TokenLineOfSightConfig } from "./applications/token-line-of-sight-config.mjs";
 import { registerSceneControls } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
-import { addAboveTilesToSceneConfig, registerSettings } from "./config/settings.mjs";
+import { addAboveTilesToSceneConfig, addIgnoreAutoElevationToTokenConfig, registerSettings } from "./config/settings.mjs";
 import { heightMapProviderId, moduleName, socketFuncs, socketName } from "./consts.mjs";
 import { heightMap } from "./geometry/height-map.mjs";
 import * as autoTokenElevation from "./hooks/token-elevation.mjs";
@@ -21,6 +21,7 @@ Hooks.once("ready", ready);
 Hooks.on("getSceneControlButtons", registerSceneControls);
 Hooks.on("renderSceneControls", updateActiveControlTool);
 Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
+Hooks.on("renderTokenConfig", addIgnoreAutoElevationToTokenConfig);
 
 Hooks.on("updateScene", canvasStore.onUpdateScene);
 Hooks.on("canvasReady", canvasStore.onCanvasReady);
