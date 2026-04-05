@@ -43,9 +43,22 @@ import { alphaToHex } from "../utils/misc-utils.mjs";
  * @property {Record<string, any>} flags
  */
 
-/** @type {Signal<readonly Readonly<TerrainType>[]>} */
+/**
+ * This stores the actual terrain types as per the world settings.
+ * @type {Signal<readonly Readonly<TerrainType>[]>}
+ */
 export const terrainTypes$ = signal([]);
 export const terrainTypeMap$ = computed(() => new Map(terrainTypes$.value.map(t => [t.id, t])));
+
+/**
+ * If the user has the config window open, this will be updated based on what is in that window.
+ * @type {Signal<readonly Readonly<TerrainType>[] | null>}
+ */
+export const previewTerrainTypes$ = signal(null);
+
+/** This a computed that will return the preview terrain types if they are set, or the world-setting types if not. */
+export const terrainTypesWithPreview$ = computed(() => previewTerrainTypes$.value ?? terrainTypes$.value);
+export const terrainTypesWithPreviewMap$ = computed(() => new Map(terrainTypesWithPreview$.value.map(t => [t.id, t])));
 
 export function loadTerrainTypes() {
 	/** @type {Partial<TerrainType>[]} */

@@ -7,7 +7,8 @@ import { repeat } from "lit/directives/repeat.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { lineTypes, moduleName, settingNames } from "../consts.mjs";
-import { createDefaultTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { createDefaultTerrainType, previewTerrainTypes$, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { abortableSubscribe } from "../utils/signal-utils.mjs";
 import { colorPicker } from "./directives/color-picker.mjs";
 import { rangePicker } from "./directives/range-picker.mjs";
 import { selectOptions } from "./directives/select-options.mjs";
@@ -50,10 +51,6 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 	#selectedTerrainTypeId = signal(terrainTypes$.value[0]?.id);
 
 	#selectedTab = signal("lines");
-
-	constructor() {
-		super();
-	}
 
 	/** @override */
 	_renderHTML() {
@@ -147,6 +144,22 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 				</button>
 			</footer>
 		`;
+	}
+
+	_preFirstRender(options) {
+		super._preFirstRender(options);
+
+		// When user changes something, update the preview which will show on the scene
+		abortableSubscribe(
+			this.#terrainTypes,
+			foundry.utils.debounce(t => previewTerrainTypes$.value = t, 500),
+			this.closeSignal
+		);
+	}
+
+	close(options) {
+		previewTerrainTypes$.value = null;
+		return super.close(options);
 	}
 
 	// ---- //

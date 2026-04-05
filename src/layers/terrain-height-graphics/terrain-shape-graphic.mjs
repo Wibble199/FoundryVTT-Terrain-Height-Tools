@@ -5,7 +5,7 @@
 import { lineTypes, moduleName, settingNames } from "../../consts.mjs";
 import { LineSegment } from "../../geometry/line-segment.mjs";
 import { Point } from "../../geometry/point.mjs";
-import { getTerrainType, terrainTypes$ } from "../../stores/terrain-types.mjs";
+import { terrainTypesWithPreview$, terrainTypesWithPreviewMap$ } from "../../stores/terrain-types.mjs";
 import { chunk } from "../../utils/array-utils.mjs";
 import { toSceneUnits } from "../../utils/grid-utils.mjs";
 import { prettyFraction } from "../../utils/misc-utils.mjs";
@@ -58,7 +58,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		this.#graphicId = foundry.utils.randomID();
 
 		this.shape = shape;
-		this.terrainType = getTerrainType(shape.terrainTypeId);
+		this.terrainType = terrainTypesWithPreviewMap$.value.get(shape.terrainTypeId);
 
 		this._redrawLabel();
 		this.#drawBorder();
@@ -97,7 +97,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	 * `zIndex` is the third and final tie-break, and we use the terrain type's index in the terrain type list.
 	 */
 	get zIndex() {
-		return terrainTypes$.value.findIndex(t => t.id === this.shape.terrainTypeId);
+		return terrainTypesWithPreview$.value.findIndex(t => t.id === this.shape.terrainTypeId);
 	}
 
 	/** @returns {PIXI.Texture} */

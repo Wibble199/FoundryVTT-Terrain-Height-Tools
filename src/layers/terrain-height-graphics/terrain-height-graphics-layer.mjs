@@ -7,7 +7,7 @@ import { heightMapProviderId, terrainHeightEditorControlName, tools } from "../.
 import { cursorWorldPosition$, invisibleTerrainTypes$, sceneRenderAboveTilesChoice$ } from "../../stores/canvas.mjs";
 import { activeControl$, activeTool$ } from "../../stores/scene-controls.mjs";
 import { allTerrainShapes$ } from "../../stores/terrain-manager.mjs";
-import { getTerrainType, terrainTypes$ } from "../../stores/terrain-types.mjs";
+import { terrainTypesWithPreview$, terrainTypesWithPreviewMap$ } from "../../stores/terrain-types.mjs";
 import { debug } from "../../utils/log.mjs";
 import { abortableEffect, abortableSubscribe } from "../../utils/signal-utils.mjs";
 import { TerrainShapeGraphic } from "./terrain-shape-graphic.mjs";
@@ -71,7 +71,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 		const tearDownSignal = this.#tearDownController.signal;
 
 		// When terrain types are changed, reload textures and redraw all the shapes
-		abortableSubscribe(terrainTypes$, terrainTypes => {
+		abortableSubscribe(terrainTypesWithPreview$, terrainTypes => {
 			this._reloadTextures(terrainTypes);
 			this._redrawShapes(allTerrainShapes$.value);
 		}, tearDownSignal);
@@ -152,7 +152,7 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	async _addShapes(newShapes) {
 		const newShapeGraphics = [];
 		for (const shape of newShapes) {
-			const terrainType = getTerrainType(shape.terrainTypeId);
+			const terrainType = terrainTypesWithPreviewMap$.value.get(shape.terrainTypeId);
 			if (!terrainType) continue;
 
 			let providerGraphics = this.#shapeGraphics.get(shape._providerId);
