@@ -21,8 +21,7 @@ Functions:
 - [`drawLineOfSightRaysBetweenTokens`](#drawlineofsightraysbetweentokens)
 - [`eraseCells`](#erasecells)
 - [`eraseRegions`](#eraseregions)
-- [`getCell / getShapes`](#getcell)
-- [`getShapes`](#getshapes)
+- [`getCell / getShapes`](#getcell-getshapes)
 - [`getShapesAtPoint`](#getshapesatpoint)
 - [`getTerrainType`](#getterraintype)
 - [`getTerrainTypes`](#getterraintypes)
@@ -31,13 +30,13 @@ Functions:
 - [`registerCustomTerrainTypeConfigUi`](#registercustomterraintypeconfigui)
 
 Types:
-- [`T:LineSegment`](#tlinesegment)
-- [`T:Point`](#tpoint)
-- [`T:Point3D`](#tpoint3d)
-- [`T:Polygon`](#tpolygon)
-- [`T:PolygonLike`](#tpolygonlike)
-- [`T:TerrainShape`](#tterrainshape)
-- [`T:TerrainType`](#tterraintype)
+- [`T:LineSegment`](#t-linesegment)
+- [`T:Point`](#-tpoint)
+- [`T:Point3D`](#t-point3d)
+- [`T:Polygon`](#t-polygon)
+- [`T:PolygonLike`](#t-polygonlike)
+- [`T:TerrainShape`](#t-terrainshape)
+- [`T:TerrainType`](#t-terraintype)
 
 ## calculateLineOfSight
 
@@ -412,7 +411,7 @@ Note that both these functions are now identical and have been preserved for bac
 
 ### Returns
 
-Either any array containing 0 or more [`TerrainShapes`](#tterrainshape). Each shape represents one region of terrain that exists at that
+An array containing 0 or more [`TerrainShapes`](#tterrainshape). Each shape represents one region of terrain that exists at that
 cell. The order of the terrain is not guaranteed.
 
 Each `TerrainShape` has the following properties:
@@ -459,7 +458,7 @@ Gets the terrain shapes at the given x,y coordinates.
 
 ### Returns
 
-Either any array containing 0 or more `TerrainShape`s. Each shape represents one region of terrain that exists at that
+An array containing 0 or more [`TerrainShapes`](#tterrainshape). Each shape represents one region of terrain that exists at that
 point. The order of the shapes is not guaranteed.
 
 Each `TerrainShape` has the following properties:
