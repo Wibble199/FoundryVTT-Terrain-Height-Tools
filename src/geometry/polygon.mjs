@@ -1,0 +1,398 @@
+/** @import { PointLike } from "./point.mjs" */
+import { geometryTolerance } from "../consts.mjs";
+import { distinctBy } from "../utils/array-utils.mjs";
+import { LineSegment } from "./line-segment.mjs";
+import { Point } from "./point.mjs";
+
+export class Polygon {
+
+	/** @type {readonly Point[]} */
+	vertices = [];
+
+	/** @type {readonly LineSegment[]} */
+	edges = [];
+
+	/** @type {readonly [number, number]} */
+	centroid = [0, 0];
+
+	boundingBox = {
+		x1: Infinity, y1: Infinity,
+		x2: -Infinity, y2: -Infinity,
+		get w() { return this.x2 - this.x1; },
+		get h() { return this.y2 - this.y1; },
+		get xMid() { return (this.x1 + this.x2) / 2; },
+		get yMid() { return (this.x1 + this.x2) / 2; }
+	};
+
+	/**
+	 * Creates a new polygon out of a collection of { x, y } vertices.
+	 * If the vertices are clockwise the polygon is solid. If the vertices are counter-clockwise the polygon is a hole.
+	 * Alternatively, use `createSolid` or `createHole` which does not care about the winding.
+	 * @param {PointLike[]} vertices
+	 */
+	constructor(vertices) {
+		if (!Array.isArray(vertices)) throw new Error("Invalid polygon: `vertices` must be an array");
+
+		// If we have been provided a self-closing polygon, then ignore the last point
+		const verticesAsPoints = vertices.map(Point.from);
+		const isSelfClosing = verticesAsPoints[0].equals(verticesAsPoints.at(-1));
+
+		for (const vertex of isSelfClosing ? verticesAsPoints.slice(0, -1) : verticesAsPoints) {
+			this.#pushVertex(vertex);
+		}
+
+		// Self-intersecting polygons are harder to deal with, so prevent them from being created
+		for (let i = 0; i < this.edges.length - 2; i++) {
+			// Use i + 2 because adjacent edges will intersect at their joining point, which is expected
+			for (let j = i + 2; j < this.edges.length; j++) {
+				if (i === 0 && j === this.edges.length - 1) continue; // skip adjacent
+				if (this.edges[i].intersectsAt(this.edges[j]) !== undefined) {
+					throw new Error("Self-intersecting polygons are not supported. Use ClipperLib.Clipper.SimplifyPolygon to simplify first.");
+				}
+			}
+		}
+
+		// Make polygon immutable
+		Object.freeze(this.vertices);
+		Object.freeze(this.edges);
+		Object.freeze(this.centroid);
+		Object.freeze(this.boundingBox);
+	}
+
+	/**
+	 * Creates a polygon as a solid/non-hole (i.e. the vertices are defined clockwise).
+	 * If the given list of vertices are counter-clockwise, they will be reversed.
+	 * @param {PointLike[] | Polygon} vertices
+	 */
+	static createSolid(vertices) {
+		vertices = vertices instanceof Polygon ? vertices.vertices : vertices;
+		const isClockwise = Polygon.isClockwise(vertices);
+		return new Polygon(isClockwise ? vertices : [...vertices.reverse()]);
+	}
+
+	/**
+	 * Creates a polygon as a hole (i.e. the vertices are defined counter-clockwise).
+	 * If the given list of vertices are clockwise, they will be reversed.
+	 * @param {PointLike[] | Polygon} vertices
+	 */
+	static createHole(vertices) {
+		vertices = vertices instanceof Polygon ? vertices.vertices : vertices;
+		const isClockwise = Polygon.isClockwise(vertices);
+		return new Polygon(isClockwise ? [...vertices.reverse()] : vertices);
+	}
+
+	/**
+	 * Creates a Polygon from a GeoJSON ring.
+	 * @param {[number, number][]} input
+	 */
+	static fromGeoJson(input) {
+		if (!Array.isArray(input) || Array.length < 3)
+			throw new Error("Invalid polygon: `input` must be an array with at least 3 vertices");
+
+		// If the input is a closed polygon (last point equals the first), then ignore that last element
+		const isClosed = input[0][0] === input.at(-1)[0] && input[0][1] === input.at(-1)[1];
+		return new Polygon(isClosed ? input.slice(0, -1) : input);
+	}
+
+	/** @type {PIXI.Rectangle} */
+	get boundingRect() {
+		return new PIXI.Rectangle(this.boundingBox.x1, this.boundingBox.y1, this.boundingBox.w, this.boundingBox.h);
+	}
+
+	get isSolid() {
+		return Polygon.isClockwise(this.vertices);
+	}
+
+	get isHole() {
+		return !Polygon.isClockwise(this.vertices);
+	}
+
+	/**
+	 * Pushes a vertex to the end of the polygon.
+	 * @param {PointLike} xy
+	 */
+	#pushVertex(xy) {
+		const vertex = Point.from(xy);
+
+		// Check that the point is not identical to the previous, as this would cause a 0 length edge.
+		if (this.vertices.length > 0 && vertex.equals(this.vertices[this.vertices.length - 1], { precision: geometryTolerance }))
+			throw new Error("Cannot add vertex. It is identical to the previous vertex.");
+
+		this.vertices.push(vertex);
+
+		// If there is atleast one existing edge, replace the last edge so that it instead ends at the new point
+		if (this.edges.length >= 1)
+			this.edges = this.edges.with(-1, new LineSegment(this.edges.at(-1).p1, vertex));
+
+		// Add a new edge from this new vertex to the first vertex (when there were no vertices in this polygon before, this
+		// would make an edge from this new vertex to iself, but when more vertices are added this works fine).
+		this.edges.push(new LineSegment(vertex, this.vertices[0]));
+
+		// Update bounding box and centroid
+		this.#updateCalculatedValues(vertex);
+	}
+
+	/**
+	 * Determines whether this polygon contains another polygon.
+	 * @param {Polygon} other
+	 */
+	containsPolygon(other) {
+		// First we can quickly check if the bounding box of `other` entirely fits within this bounding box.
+		// If it does not, we can skip the more complex edge intersection tests as there is no way this contains other.
+		const thisBb = this.boundingBox;
+		const otherBb = other.boundingBox;
+
+		if (thisBb.x1 > otherBb.x1 || thisBb.y1 > otherBb.y1 || thisBb.x2 < otherBb.x2 || thisBb.y2 < otherBb.y2)
+			return false;
+
+		// If the bounding box test passes, then we can check that a random point from the other polygon is within this
+		// polygon. This relies on the assumption that the polygons will never intersect one another.
+		// We do this by taking a the top-most vertex and adding a small Y offset (so we don't have to deal with vertex
+		// intersections), and count how many edges a ray from this point to the edge of the canvas crosses. If it's an
+		// odd number, then this is within the polygon. We don't need to woyry about the offset causing the point to no
+		// longer be within the polygon as all the grid shapes are convex.
+		const testPoint = other.vertices.find(p => p.y === otherBb.y1).offset({ y: canvas.grid.sizeY * 0.05 });
+
+		const numberOfIntersections = this.edges
+			.map(e => e.intersectsYAt(testPoint.y))
+			.filter(x => typeof x === "number" && x < testPoint.x)
+			.length;
+
+		return numberOfIntersections % 2 === 1;
+	}
+
+	/**
+	 * Determines if a point is within the bounds of this polygon.
+	 * @param {number} x
+	 * @param {number} y
+	 * @param {Object} [options]
+	 * @param {boolean} [options.containsOnEdge=true] When true (default), a point that falls exactly on an edge of this
+	 * polygon will be treated as inside the polygon. If false, that point would be treated as being outside.
+	 */
+	containsPoint(x, y, { containsOnEdge = true } = {}) {
+		const { boundingBox } = this;
+
+		// If the point is not even in the bounding box, don't need to perform edge intersections
+		if (x < boundingBox.x1 || x > boundingBox.x2 || y < boundingBox.y1 || y > boundingBox.y2)
+			return false;
+
+		// Check for any points that lie exactly on an edge
+		const onAnyEdge = this.edges.some(e => {
+			const { t, distanceSquared } = e.findClosestPointOnLineTo(x, y);
+			return Math.abs(t) < geometryTolerance && Math.abs(t - 1) < geometryTolerance
+				&& distanceSquared < 1e-20;
+		});
+		if (onAnyEdge) return containsOnEdge;
+
+
+		// From the point, count how many edges it intersects when a line is drawn from this point to the left edge
+		// of the canvas. If there's an odd number of intersections, it must be inside the polygon.
+		// First, collect a set of edges that are crossed. We also 'distinct' them by their X intersection value to
+		// eliminate any pairs of edges that are at the same point and in the same Y direction. e.g. intersecting \/ at
+		// the bottom joint should count as 2, but intersecting two joined vertical lines stack at the join between them
+		// should only count as 1.
+		const intersectedEdges = new Set(distinctBy(
+			this.edges
+				.map(edge => ({ edge, intersectX: edge.intersectsYAt(y) }))
+				.filter(({ intersectX }) => typeof intersectX === "number" && intersectX < x),
+			({ intersectX }) => intersectX,
+			({ edge }) => Math.sign(edge.dy)
+		).map(({ edge }) => edge));
+
+
+		// Next, we need to handle some edge cases when the point lies at the same y level as an intersection. We need
+		// to ensure cases like ┌─┘ only count as 1 (despite crossing two vertical lines), while also ensuring that
+		// cases like ┌─┐ count as either 0 or 2.
+		// We do this by traversing the edge graph from the intersected edge and seeing if it's connected to another
+		// intersecting edge by horizontal lines, then checking the direction of two edges.
+		const possibleConnectingHorizontalEdges = new Set(this.edges
+			.filter(e => Math.abs(e.p1.y - y) < geometryTolerance && Math.abs(e.p2.y - y) < geometryTolerance));
+
+		/** @type {(edge: LineSegment, dir: 1 | -1) => boolean} */
+		const detectHorizontallyConnectedEdge = (edge, dir) => {
+			// Starting from the given edge, traverse in a given direction.
+			// - If we find an edge that is parallel to the imaginary test ray, continue as this should connect to
+			//   another intersection edge.
+			// - If we find an edge that is an intersected edge, check if both it and the edge are pointing up or both
+			//   down. If so, remove the other one from the Set as this pair should only count as 1.
+			// - If we find an edge that is intersected, but pointing opposite, leave it in the Set as this pair should
+			//   count as 2.
+			// - If we find an edge that is not intersected and not a possible connecting edge, then just stop here.
+			for (const edge2 of this.traverseEdges(edge, dir)) {
+				if (possibleConnectingHorizontalEdges.has(edge2))
+					continue;
+				if (intersectedEdges.has(edge2) && Math.sign(edge.dy) === Math.sign(edge2.dy))
+					return intersectedEdges.delete(edge2);
+				return false;
+			}
+		};
+
+		for (const edge of intersectedEdges.values()) {
+			detectHorizontallyConnectedEdge(edge, 1) || detectHorizontallyConnectedEdge(edge, -1);
+		}
+
+		return intersectedEdges.size % 2 == 1;
+	}
+
+	/**
+	 * Updates any of the calculated values for the newly added vertex.
+	 * Should be called _after_ adding the vertex to the array.
+	 * @param {Point} vertex
+	 */
+	#updateCalculatedValues(vertex) {
+		// Update the centroid (the average of all vertices)
+		this.centroid[0] += (vertex.x - this.centroid[0]) / this.vertices.length;
+		this.centroid[1] += (vertex.y - this.centroid[1]) / this.vertices.length;
+
+		// If the given Vertex lies outside the bounding box, updates the box to contain it.
+		if (vertex.x < this.boundingBox.x1) this.boundingBox.x1 = vertex.x;
+		if (vertex.y < this.boundingBox.y1) this.boundingBox.y1 = vertex.y;
+		if (vertex.x > this.boundingBox.x2) this.boundingBox.x2 = vertex.x;
+		if (vertex.y > this.boundingBox.y2) this.boundingBox.y2 = vertex.y;
+	}
+
+	/**
+	 * Finds the edge that comes before the given edge. If the given edge is the first edge, will return the last edge.
+	 * If the given edge does not exist in this polygon, returns `undefined`.
+	 * @param {LineSegment} edge
+	 */
+	previousEdge(edge) {
+		const idx = this.edges.indexOf(edge);
+		switch (idx) {
+			case -1: return undefined;
+			case 0: return this.edges[this.edges.length	- 1];
+			default: return this.edges[idx - 1];
+		}
+	}
+
+	/**
+	 * Finds the edge that comes after the given edge. If the given edge is the last edge, will return the first edge.
+	 * If the given edge does not exist in this polygon, returns `undefined`.
+	 * @param {LineSegment} edge
+	 */
+	nextEdge(edge) {
+		const idx = this.edges.indexOf(edge);
+		switch (idx) {
+			case -1: return undefined;
+			case this.edges.length - 1: return this.edges[0];
+			default: return this.edges[idx + 1];
+		}
+	}
+
+	/**
+	 * Traverses the edges in the polygon, starting at the given edge in the given direction. Does not repeat or yield
+	 * the original 'startEdge'.
+	 * @param {LineSegment} startEdge The edge to begin traversal from.
+	 * @param {1 | -1} direction The direction of travel. 1 for forwards, -1 for backwards.
+	 * @returns {Generator<LineSegment, void, void>}
+	 */
+	*traverseEdges(startEdge, direction) {
+		const startIdx = this.edges.indexOf(startEdge);
+		if (startIdx < 0) throw new Error("Given edge is not part of this polygon.");
+		let idx = startIdx;
+
+		while (true) {
+			idx = (idx + direction) % this.edges.length;
+			if (idx < 0) idx += this.edges.length;
+			if (idx === startIdx) return;
+			yield this.edges[idx];
+		}
+	}
+
+	/**
+	 * Given a set of distinct edges belonging to this Polygon, attempts to pair them up by which ones are adjacent to
+	 * one another. An even number of edges must be provided. The edge pairs yielded from this generator are ordered
+	 * based on the defined order in the Polygon. The edges are also ordered within each pair.
+	 * @param {LineSegment[]} edges
+	 * @returns {[LineSegment, LineSegment][]}
+	 */
+	pairEdges(edges) {
+		if (edges.length === 0) return [];
+
+		// If there are as many edges provided as there are in the poly, we don't know where the pairs start. E.G. if
+		// there were 4 edges in the poly and 4 are provided, they could be paired [[0, 1], [2, 3]] OR [[1, 2], [3, 0]].
+		if (edges.length >= this.edges.length)
+			throw new Error("Cannot perform edge pairing when there are an equal or greater number of edges than exist in the Polygon.");
+
+		const edgesIndices = [...edges].map(e => this.edges.indexOf(e)).sort((a, b) => a - b);
+
+		// If any of the indices are -1, then we failed to find it in this polygon
+		if (edgesIndices.includes(-1))
+			throw new Error("At least one of the edges provided do not exist within the Polygon.");
+
+		// There is an edge case when pairing that if edge 0 is in the provided edges, this could either be the first or
+		// last edge in a pair. In this case, we iterate backwards over the edge indices from the end of the array. If
+		// that index value is the total number of egdes - i, then that edge is relevant to us. Keep going until we find
+		// an edge that isn't relevant, toggling a flag each time. If we hit an odd number of relevant edges, then we
+		// move the 0 from the start of the array to the end of the array so that it can be handled properly by `chunk`.
+		if (edgesIndices[0] === 0) {
+			let i = 1;
+			let shouldMove0 = false;
+			while (edgesIndices[edgesIndices.length - i] === this.edges.length - i) {
+				i++;
+				shouldMove0 = !shouldMove0;
+			}
+
+			if (shouldMove0) {
+				edgesIndices.shift();
+				edgesIndices.push(0);
+			}
+		}
+
+		return chunk(edgesIndices.map(idx => this.edges[idx]), 2);
+	}
+
+	/**
+	 * Converts this Polygon into a POJO.
+	 */
+	toObject() {
+		return this.vertices.map(({ x, y }) => ({ x, y }));
+	}
+
+	/**
+	 * Creates the SVG path string for this polygon.
+	 */
+	toSvgPath() {
+		return this.vertices.map(({ x, y }, idx) => `${idx === 0 ? "M" : "L"}${x},${y}`).join("") + "Z";
+	}
+
+	/**
+	 * Creates a GeoJSON ring from this.
+	 * @returns {[number, number][]}
+	 */
+	toGeoJsonRing() {
+		return this.vertices.map(({ x, y }) => [x, y]);
+	}
+
+	/**
+	 * Determines whether the given vertices are clockwise or counter-clockwise.
+	 * @param {({ x: number; y: number; } | { X: number; Y: number; })[]} vertices
+	 */
+	static isClockwise(vertices) {
+		// Work out shoelace area. If negative, then counter-clockwise; if positive then clockwise.
+		let area = 0;
+
+		for (let i = 0; i < vertices.length; i++) {
+			const p1 = vertices[i];
+			const p2 = vertices[(i + 1) % vertices.length];
+
+			// Use (x ?? X) so that this can work with THT polygons and ClipperLib paths
+			area += ((p2.x ?? p2.X) - (p1.x ?? p1.X)) * ((p2.y ?? p2.Y) + (p1.y ?? p1.Y));
+		}
+
+		return area < 0;
+	}
+
+	/**
+	 * Finds the mid of point of all given vertices.
+	 * @param {{ x: number; y: number; }[]} vertices
+	 */
+	static centroid(vertices) {
+		const centroid = { x: 0, y: 0 };
+		for (let i = 0; i < vertices.length; i++) {
+			centroid.x += (vertices[i].x - centroid.x) / (i + 1);
+			centroid.y += (vertices[i].y - centroid.y) / (i + 1);
+		}
+		return centroid;
+	}
+}

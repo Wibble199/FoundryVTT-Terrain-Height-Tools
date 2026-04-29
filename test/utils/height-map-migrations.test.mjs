@@ -1,7 +1,7 @@
-/** @import { HeightMapDataV0, HeightMapDataV1, HeightMapDataV2 } from "../../module/utils/height-map-migrations.mjs" */
+/** @import { HeightMapDataV0, HeightMapDataV1, HeightMapDataV2 } from "../../src/utils/height-map-migrations.mjs" */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { migrateData } from "../../module/utils/height-map-migrations.mjs";
+import { migrateData } from "../../src/utils/height-map-migrations.mjs";
 
 describe("migrateData()", () => {
 	it("should correctly migrate pass v2 data through unchanged", () => {

@@ -1,12 +1,12 @@
 {
-	"id": "terrain-height-tools",
+	"name": "terrain-height-tools",
 	"title": "Terrain Height Tools",
 	"description": "Tools for painting grid cells with terrain heights and calculating line of sight with respect to these heights.",
-	"version": "0.5.11",
+	"version": "0.6.3",
 	"compatibility": {
-		"minimum": "13",
-		"verified": "13",
-		"maximum": "13"
+		"minimum": "12",
+		"verified": "12",
+		"maximum": "12"
 	},
 	"authors": [
 		{
@@ -14,8 +14,8 @@
 			"discord": "@wibble199"
 		}
 	],
-	"esmodules": [
-		"module/main.mjs"
+	"scripts": [
+		"dist/module.js"
 	],
 	"styles": [
 		"styles/main.css"
@@ -36,7 +36,7 @@
 		]
 	},
 	"socket": true,
-	"url": "https://github.com/Shteb/THT_V13_Port",
-	"manifest": "https://github.com/Shteb/THT_V13_Port/releases/latest/download/module.json",
-	"download": "https://github.com/Shteb/THT_V13_Port/releases/latest/download/release.zip"
+	"url": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools",
+	"manifest": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/latest/download/module.json",
+	"download": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/latest/download/release.zip"
 }

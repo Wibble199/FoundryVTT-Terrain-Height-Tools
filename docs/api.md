@@ -11,9 +11,6 @@ global `terrainHeightTools` property. The following functions are available.
 >
 > This property will be ignored in previous versions of THT, so it is safe to add this property without checking THT's API version.
 
-Types:
-- [`T:Point3D`](#tpoint3d)
-
 Functions:
 - [`calculateLineOfSight`](#calculatelineofsight)
 - [`calculateLineOfSightByShape`](#calculatelineofsightbyshape)
@@ -23,24 +20,24 @@ Functions:
 - [`drawLineOfSightRays`](#drawlineofsightrays)
 - [`drawLineOfSightRaysBetweenTokens`](#drawlineofsightraysbetweentokens)
 - [`eraseCells`](#erasecells)
-- [`getCell`](#getcell)
-- [~~`getShape`~~](#getshape)
+- [`eraseRegions`](#eraseregions)
+- [`getCell / getShapes`](#getcell)
 - [`getShapes`](#getshapes)
+- [`getShapesAtPoint`](#getshapesatpoint)
 - [`getTerrainType`](#getterraintype)
 - [`getTerrainTypes`](#getterraintypes)
 - [`paintCells`](#paintcells)
+- [`paintRegions`](#paintregions)
+- [`registerCustomTerrainTypeConfigUi`](#registercustomterraintypeconfigui)
 
-## T:Point3D
-
-Represents a point in 3D space.
-
-### Properties
-
-|Name|Type|Description|
-|-|-|-|
-|`x`|`number`|Position in the X axis measured in canvas pixels.|
-|`y`|`number`|Position in the Y axis measured in canvas pixels.|
-|`h`|`number`|Height position, measured in arbitrary height values, just as the terrains' heights are.|
+Types:
+- [`T:LineSegment`](#tlinesegment)
+- [`T:Point`](#tpoint)
+- [`T:Point3D`](#tpoint3d)
+- [`T:Polygon`](#tpolygon)
+- [`T:PolygonLike`](#tpolygonlike)
+- [`T:TerrainShape`](#tterrainshape)
+- [`T:TerrainType`](#tterraintype)
 
 ## calculateLineOfSight
 
@@ -59,6 +56,7 @@ Note that this will always return an empty array if the line of sight ray is zer
 |`p2`|`Point3D`|*Required*|The point that the LOS ray should end. The `x` and `y` coordinates are measured in pixels relative to the canvas. `h` is measured in an arbitrary unit, just as the terrains' heights are.|
 |`options`|`Object`|`{}`|Additional options for configuring the calculation.|
 |`options.includeNoHeightTerrain`|`boolean`|`false`|If false, any terrain types that are configured as not using a height are excluded from the calculation. If true, these terrains are included, and their height is treated as if it were infinity.|
+|`options.terrainProviderIds`|`string[]`|`undefined`|If provided, limits the line of sight checks to only shapes from the specified terrain providers.|
 
 ### Returns
 
@@ -81,7 +79,7 @@ An combined array of distinct regions where a ray drawn from `p1` to `p2` inters
 |`end.y`|`number`|The Y coordinate (in canvas pixels) where the intersection ended.|
 |`end.h`|`number`|The height where the intersection ended.|
 |`end.t`|`number`|How far along the line of sight ray the intersection ended. Will always be a value between 0 and 1 inclusive. E.G. on a ray that is 200px long, a `t` value of 0.3 would mean that it ended 60 pixels along the ray.|
-|`shapes`|`HeightMapShape[]`|An array of the shape(s) that were intersected at this region.|
+|`shapes`|[`TerrainShape[]`](#tterrainshape)|An array of the shape(s) that were intersected at this region.|
 |`skimmed`|`boolean`|If `true`, this region is an area where the line of sight ray touches but does not completely enter the shape. This will also be the case if the line of sight ray is flat and the shape is the height of the ray. For example a ray where p1.h = 1 and p2.h = 2 intersecting a height 1 object will always result in a skim. If `false`, the ray has completely entered the shape.|
 
 ### Examples
@@ -121,6 +119,7 @@ Note that this will always return an empty array if the line of sight ray is zer
 |`p2`|`Point3D`|*Required*|The point that the LOS ray should end. The `x` and `y` coordinates are measured in pixels relative to the canvas. `h` is measured in an arbitrary unit, just as the terrains' heights are.|
 |`options`|`Object`|`{}`|Additional options for configuring the calculation.|
 |`options.includeNoHeightTerrain`|`boolean`|`false`|If false, any terrain types that are configured as not using a height are excluded from the calculation. If true, these terrains are included, and their height is treated as if it were infinity.|
+|`options.terrainProviderIds`|`string[]`|`undefined`|If provided, limits the line of sight checks to only shapes from the specified terrain providers.|
 
 ### Returns
 
@@ -128,10 +127,7 @@ An array of all shapes that were intersected by a ray drawn from `p1` to `p2`, a
 
 |Name|Type|Description|
 |-|-|-|
-|`shape`|`Object`|An object containing details about the intersected shape.|
-|`shape.height`|`number`|The height of the shape painted to the scene.|
-|`shape.elevation`|`number`|The elevation of the shape painted to the scene.|
-|`shape.terrainTypeId`|`string`|The terrain type ID of the shape that was intersected.|
+|`shape`|[`TerrainShape`](#tterrainshape)|The intersected shape.|
 |`region`|`Array`|An array of intersection regions with this shape. See below.|
 
 The `regions` array is an array of objects.
@@ -335,6 +331,11 @@ Users must have permissions to update the scene to use this.
 |Name|Type|Default|Description|
 |-|-|-|-|
 |`cells`|`[number, number][]`|*Required*|An array of cells to erase terrain data from. Each element in the array should be a pair of numbers representing the X and Y coordinates of a cell. Note that these are grid coordinates, not pixel coordinates. The cells do not have to be adjacent.|
+|`options`|`Object`|`{}`||
+|`options.top`|`number`|`undefined`|If provided, only erases terrain beneath this value (this is the top of the eraser).|
+|`options.bottom`|`number`|`undefined`|If provided, only erases terrain above this value (this is the bottom of the eraser).|
+|`options.onlyTerrainTypeIds`|`string[]`|`undefined`|If provided, only terrain with a terrain type ID within this array will be removed.|
+|`options.excludingTerrainTypeIds`|`string[]`|`undefined`|If provided, will not remove terrain with a type ID that is in this array.|
 
 ### Returns
 
@@ -345,72 +346,123 @@ A `Promise<boolean>` that will resolve when the data has been saved to the scene
 await terrainHeightTools.eraseCells([
 	[12, 14],
 	[23, 12]
-]);
+], { top: 3 });
 ```
 
-## getCell
+## eraseRegions
 
-![Available Since v0.3.0](https://img.shields.io/badge/Available%20Since-v0.3.0-blue?style=flat-square)
-![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
+![Available Since v0.6.0](https://img.shields.io/badge/Available%20Since-v0.6.0-blue?style=flat-square)
 
-Fetches the terrain data from a specific cell.
+Erases terrain data from the given regions.
+
+Users must have permissions to update the scene to use this.
 
 ### Parameters
 
 |Name|Type|Default|Description|
 |-|-|-|-|
-|`x`|`number`|*Required*|The X coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
-|`y`|`number`|*Required*|The Y coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`regions`|`{ polygon: PolygonLike; holes?: PolygonLike[]; }[]`|*Required*|An array of regions to erase terrain data from. Each element in the array must have a polygon (which is the outer perimeter of the region to erase), and optionally may have any number of holes within that region (e.g. like the hole of a doughnut). See also [T:PolygonLike](#tpolygonlike). Polygons/holes must not be self-intersecting polys.|
+|`options`|`Object`|`{}`||
+|`options.top`|`number`|`undefined`|If provided, only erases terrain beneath this value (this is the top of the eraser).|
+|`options.bottom`|`number`|`undefined`|If provided, only erases terrain above this value (this is the bottom of the eraser).|
+|`options.onlyTerrainTypeIds`|`string[]`|`undefined`|If provided, only terrain with a terrain type ID within this array will be removed.|
+|`options.excludingTerrainTypeIds`|`string[]`|`undefined`|If provided, will not remove terrain with a type ID that is in this array.|
 
 ### Returns
 
-An array of terrain in the given cell. Each element in the array is an object with the following properties.
-
-|Name|Type|Description|
-|-|-|-|
-|`terrainTypeId`|`string`|The ID of the terrain type in this cell.|
-|`height`|`number`|The height of the terrain in this cell.|
-|`elevation`|`number`|The elevation of the terrain in this cell.|
+A `Promise<boolean>` that will resolve when the data has been saved to the scene. The boolean that is returned will indicate whether or not any changes were made to the terrain map.
 
 ### Example
 ```js
-const cell = terrainHeightTools.getCell(2, 3);
+await terrainHeightTools.eraseRegions([
+	{
+		polygon: [
+			{ x: 50, y: 50 },
+			{ x: 100, y: 50 },
+			{ x: 100, y: 100 },
+			{ x: 50, y: 100 }
+		],
+		holes: [
+			[
+				{ x: 75, y: 60 },
+				{ x: 90, y: 90 },
+				{ x: 60, y: 90 }
+			]
+		]
+	}
+], { excludingTerrainTypeIds: ["someid"] });
+```
 
-if (cell.length === 0) {
+## getCell / getShapes
+
+![Available Since v0.4.0](https://img.shields.io/badge/Available%20Since-v0.4.0-blue?style=flat-square)
+
+Gets the terrain shapes at the center of the cell at the given offset grid coordinates.
+
+Note that both these functions are now identical and have been preserved for backwards-compatibility.
+
+### Parameters
+
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`j`|`number`|*Required*|The j coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`i`|`number`|*Required*|The i coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`options`|`Object`|`{}`||
+|`options.providerIds`|`string[]`|`undefined`|If provided, limits the returned shapes to only those from the specified terrain providers.|
+
+### Returns
+
+Either any array containing 0 or more [`TerrainShapes`](#tterrainshape). Each shape represents one region of terrain that exists at that
+cell. The order of the terrain is not guaranteed.
+
+Each `TerrainShape` has the following properties:
+
+|Name|Type|Description|
+|-|-|-|
+|`polygon`|`Polygon`|The polygon that defines the outer perimeter of this shape.|
+|`holes`|`Polygon[]`|An array of polygons that define holes within this shape.|
+|`terrainTypeId`|`string`|The ID of the terrain type of this shape.|
+|`terrainType`|[`TerrainType`](#tterraintype)|The terrain type of this shape.|
+|`height`|`number`|The height of the terrain of this shape.|
+|`elevation`|`number`|The elevation of the terrain of this shape.|
+
+### Example
+```js
+const shapes = terrainHeightTools.getShapes(2, 3);
+
+if (shapes.length === 0) {
 	console.log("This cell is unpainted.");
 } else {
-	for (const { terrainTypeId, height } of cell) {
-		const terrainType = terrainHeightTools.getTerrainType({ id: terrainTypeId });
-		console.log(`${terrainType.name} is painted in this cell, at a height of ${height}.`);
+	for (const shape of shapes) {
+		console.group(`The edges of this ${shape.terrainType.name} shape are:`);
+		for (const edge of shape.polygon.edges)
+			console.log(edge.toString());
+		console.groupEnd();
 	}
 }
 ```
 
-## ~~getShape~~
+## getShapesAtPoint
 
-![Removed in v0.4.0](https://img.shields.io/badge/Removed%20In-v0.4.0-red?style=flat-square)
+![Available Since v0.6.0](https://img.shields.io/badge/Available%20Since-v0.6.0-blue?style=flat-square)
 
-This function has been replaced by [`getShapes`](#getshapes).
-
-## getShapes
-
-![Available Since v0.4.0](https://img.shields.io/badge/Available%20Since-v0.4.0-blue?style=flat-square)
-
-Fetches the height map shapes that exist at a specific cell.
+Gets the terrain shapes at the given x,y coordinates.
 
 ### Parameters
 
 |Name|Type|Default|Description|
 |-|-|-|-|
-|`x`|`number`|*Required*|The X coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
-|`y`|`number`|*Required*|The Y coordinate of the cell to read. This is in grid coordinates, not pixel coordinates.|
+|`x`|`number`|*Required*|The X coordinate of the cell to read.|
+|`y`|`number`|*Required*|The Y coordinate of the cell to read.|
+|`options`|`Object`|`{}`||
+|`options.providerIds`|`string[]`|`undefined`|If provided, limits the returned shapes to only those from the specified terrain providers.|
 
 ### Returns
 
-Either any array containing 0 or more `HeightMapShape`s. Each shape represents one region of terrain that exists at that
-cell. The order of the terrain is not guaranteed.
+Either any array containing 0 or more `TerrainShape`s. Each shape represents one region of terrain that exists at that
+point. The order of the shapes is not guaranteed.
 
-Each `HeightMapShape` has the following properties:
+Each `TerrainShape` has the following properties:
 
 |Name|Type|Description|
 |-|-|-|
@@ -454,30 +506,7 @@ Attempts to find a specific terrain type by its name or its ID.
 ### Returns
 
 If a terrain type with the given name or ID was not found, then `undefined`.
-If it was found, an object with the following properties:
-
-|Name|Type|Description|
-|-|-|-|
-|`id`|`string`|A unique ID for this terrain type.|
-|`name`|`string`|The name of this terrain type, as shown in the palette.|
-|`usesHeight`|`boolean`|Whether or not the terrain type has a height value.|
-|`isSolid`|`boolean`|Whether or not the terrain type is considered solid for the purposes of automatically adjusting token height (since v0.3.6).|
-|`fillType`|`number`|The fill type used by the terrain type: 0 = none; 1 = solid; 2 = texture.|
-|`fillColor`|`string`|A hex string for the fill color.|
-|`fillOpacity`|`number`|The opacity of the fill. 0 = transparent, 1 = opaque.|
-|`fillTexture`|`string`|The path to a texture to use when using texture fill mode.|
-|`lineType`|`number`|The fill type used by the terrain type: 0 = none; 1 = solid; 2 = dashed.|
-|`lineColor`|`string`|A hex string for the line color.|
-|`lineOpacity`|`number`|The opacity of the line. 0 = transparent, 1 = opaque.|
-|`lineWidth`|`number`|The width (in pixels) of the line.|
-|`lineDashSize`|`number`|For dashed lines, the size of the dash (in pixels).|
-|`lineGapSize`|`number`|For dashed lines, the size of gap between the dashes (in pixels).|
-|`textFormat`|`string`|The template used for the label for the terrain.|
-|`elevatedTextFormat`|`string`|The template used for the label for the terrai when elevation is not 0.|
-|`textColor`|`string`|A hex string for the text color.|
-|`textOpacity`|`number`|The opacity of the text. 0 = transparent, 1 = opaque.|
-|`textSize`|`number`|The size of the text (in pixels).|
-|`textRotation`|`boolean`|Whether or not the text label can be rotated to fit better.|
+If it was found, a readonly [`TerrainType`](#tterraintype) object.
 
 ### Examples
 ```js
@@ -498,7 +527,225 @@ Gets an array of all terrain types that have been configured in the system.
 
 ### Returns
 
-An array of objects with the following properties:
+A readonly array of readonly [`TerrainType`s](#tterraintype).
+
+## paintCells
+
+![Available Since v0.1.4](https://img.shields.io/badge/Available%20Since-v0.1.4-blue?style=flat-square)
+![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
+
+Paints new terrain data onto the specified cells.
+
+Users must have permissions to update the scene to use this.
+
+### Parameters
+
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`cells`|`[number, number][]`|*Required*|An array of cells to paint with new terrain data. Each element in the array should be a pair of numbers representing the X and Y coordinates of a cell. Note that these are grid coordinates, not pixel coordinates. The cells do not have to be adjacent.|
+|`terrain`|`Object`|*Required*|Terrain data to apply to the specified cells. Either `id` or `name` must be provided.|
+|`terrain.id`|`string`|`undefined`|If provided, will attempt to find a terrain type with this ID.
+|`terrain.name`|`string`|`undefined`|If provided, will attempt to find a terrain type with this name. Note that this is case-sensitive. If multiple terrain types have the same name, the first will be returned.|
+|`terrain.height`|`number`|`undefined`|The height of the terrain to paint onto the scene. Required when the specified terrain type uses height, ignored if the terrain type does not.|
+|`terrain.elevation`|`number`|`undefined`|The elevation of the terrain to paint onto the scene (how high it is off the ground). Defaults to 0 when the specified terrain type uses height, ignored if the terrain type does not.|
+|`options`|`Object`|`{}`||
+|`options.mode`|`"totalReplace" \| "destructiveMerge" \| "additiveMerge"`|`"totalReplace"`|How to handle existing terrain: `"totalReplace"` - Completely overwrites all existing terrain data in the cells with the new data; `"additiveMerge"` - Merges the new terrain data with the existing data, without removing any overlapping terrain.; `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.|
+
+### Returns
+
+A `Promise<boolean>` that will resolve when the data has been saved to the scene. The boolean that is returned will indicate whether or not any changes were made to the terrain map.
+
+### Example
+```js
+await terrainHeightTools.paintCells([
+	[0, 1],
+	[1, 1],
+	[2, 1],
+	[10, 10]
+], {
+	name: "Hard Cover",
+	height: 2
+});
+```
+
+## paintRegions
+
+![Available Since v0.6.0](https://img.shields.io/badge/Available%20Since-v0.6.0-blue?style=flat-square)
+
+Paints new terrain data onto the specified regions.
+
+Users must have permissions to update the scene to use this.
+
+### Parameters
+
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`regions`|`{ polygon: PolygonLike; holes?: PolygonLike[]; }[]`|*Required*|An array of regions to paint terrain data to. Each element in the array must have a polygon (which is the outer perimeter of the region to erase), and optionally may have any number of holes within that region (e.g. like the hole of a doughnut). See also [T:PolygonLike](#tpolygonlike). Polygons/holes must not be self-intersecting polys.|
+|`terrain`|`Object`|*Required*|Terrain data to apply to the specified cells. Either `id` or `name` must be provided.|
+|`terrain.id`|`string`|`undefined`|If provided, will attempt to find a terrain type with this ID.
+|`terrain.name`|`string`|`undefined`|If provided, will attempt to find a terrain type with this name. Note that this is case-sensitive. If multiple terrain types have the same name, the first will be returned.|
+|`terrain.height`|`number`|`undefined`|The height of the terrain to paint onto the scene. Required when the specified terrain type uses height, ignored if the terrain type does not.|
+|`terrain.elevation`|`number`|`undefined`|The elevation of the terrain to paint onto the scene (how high it is off the ground). Defaults to 0 when the specified terrain type uses height, ignored if the terrain type does not.|
+|`options`|`Object`|`{}`||
+|`options.mode`|`"totalReplace" \| "destructiveMerge" \| "additiveMerge"`|`"totalReplace"`|How to handle existing terrain: `"totalReplace"` - Completely overwrites all existing terrain data in the cells with the new data; `"additiveMerge"` - Merges the new terrain data with the existing data, without removing any overlapping terrain.; `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.|
+
+### Returns
+
+A `Promise<boolean>` that will resolve when the data has been saved to the scene. The boolean that is returned will indicate whether or not any changes were made to the terrain map.
+
+### Example
+```js
+await terrainHeightTools.paintRegions([
+	{
+		polygon: [
+			[100, 100],
+			[900, 100],
+			[900, 900],
+			[100, 900]
+		]
+	}
+], {
+	name: "Hard Cover",
+	height: 3
+}, {
+	mode: "destructiveMerge"
+});
+```
+
+## registerCustomTerrainTypeConfigUi
+
+![Available Since v0.6.0](https://img.shields.io/badge/Available%20Since-v0.6.0-blue?style=flat-square)
+
+Allows adding custom configuration HTML to the terrain types configuration dialog. This can be useful if you want to add additional metadata to terrain types for use in other modules or scripts.
+
+The names for the input elements should be the index of the terrain type, followed by the property path on the terrain type object. There is no restriction on the property path, but it is recommended to use `flags.<module/script name>.yourproperty` to avoid potential collisions with other scripts and potential future THT properties.
+
+Note that THT will does not (yet) set any default values for custom fields, so be sure to be null-forgiving when reading the custom data from a terrain type in the HTML or in any custom scripts/modules.
+
+### Parameters
+
+|Name|Type|Default|Description|
+|-|-|-|-|
+|`tab`|`string \| { id: string; label: string; icon: string; }`|*Required*|The ID of an existing tab to add the HTML to, or the definition of a new tab. The built-in tabs are: `"lines"`, `"fill"`, `"label"`, and `"other"`.|
+|`part`|`(context: { terrainType: TerrainType; index: number; }) => string \| HTMLElement`|*Required*|A function that accepts the terrain type and index and returns a HTML string or a HTML element to add to the configuration UI|
+
+### Example
+
+```js
+// Adds a new "My custom field" number to the "Other" tab
+terrainHeightTools.registerCustomTerrainTypeConfigUi("other", ({ terrainType, index }) => `
+	<div class="form-group">
+		<label>My custom field</label>
+		<div class="form-fields">
+			<input type="number" name="${index}.flags.myModule.myCustomField" value="${terrainType.flags.myModule?.myCustomField ?? ""}" min="0" step="1">
+		</div>
+		<p class="hint">Hello world! This is a non-standard THT field that I have added to the config.</p>
+	</div>
+`);
+
+// Adds a new tab "My Tab" with a custom "My custom field" number
+// Also shows how one would localize a string (equivalent to {{localize "MYMODULE.MyCustomField.Name"}} in Handlebars)
+terrainHeightTools.registerCustomTerrainTypeConfigUi({ id: "myTab", label: "My Tab", icon: "fas fa-question-circle" }, ({ terrainType, index }) => `
+	<div class="form-group">
+		<label>${game.i18n.localize("MYMODULE.MyCustomField.Name")}</label>
+		<div class="form-fields">
+			<input type="number" name="${index}.flags.myModule.myCustomField" value="${terrainType.flags.myModule?.myCustomField ?? ""}" min="0" step="1">
+		</div>
+		<p class="hint">${game.i18n.localize("MYMODULE.MyCustomField.Hint")}</p>
+	</div>
+`);
+
+
+// Then at some other time you can read it (e.g. when reading data from a grid cell, or when checking LoS)
+for (const shape of terrainHeightTools.getShapesAtPoint(100, 200)) {
+	const myCustomFieldValue = shape.terrainType.flags.myModule?.myCustomField ?? 10;
+	console.log(`At x=100,y=200 shape of terrain type ${shape.terrainType.name} had a myCustomField of ${myCustomFieldValue}`);
+}
+```
+
+---
+
+## T:LineSegment
+
+### Properties
+
+|Name|Type|Description|
+|-|-|-|
+|`p1`|[`Point`](#tpoint)|The start point of the line segment.|
+|`p2`|[`Point`](#tpoint)|The end point of the line segment.|
+
+## T:Point
+
+Class which represents a point in 2D space.
+
+### Properties
+
+|Name|Type|Description|
+|-|-|-|
+|`x`|`number`|Position in the X axis measured in canvas pixels.|
+|`y`|`number`|Position in the Y axis measured in canvas pixels.|
+
+## T:Point3D
+
+A simple object representing a point in 3D space.
+
+### Properties
+
+|Name|Type|Description|
+|-|-|-|
+|`x`|`number`|Position in the X axis measured in canvas pixels.|
+|`y`|`number`|Position in the Y axis measured in canvas pixels.|
+|`h`|`number`|Height position, measured in arbitrary height values, just as the terrains' heights are.|
+
+## T:Polygon
+
+Class which represents a 2D polygon. Holds a list of vertices and edges that make up a closed polygon. It may be concave, but it may not self-intersect and may not have holes.
+If it represents a solid terrain, the points will be defined clockwise.
+If it represents a hole in another polygon, the points will be defined counter-clockwise.
+
+Available in `terrainHeightTools.classes.TerrainShape`.
+
+### Properties
+
+|Name|Type|Description|
+|-|-|-|
+|`vertices`|[`readonly Point[]`](#tpoint)|A readonly array of vertices of this polygon.|
+|`edges`|[`readonly LineSegment[]`](#tlinesegment)|A readonly array of vertices of this polygon.|
+|`centroid`|`readonly [number, number]`|An XY coordinate pair of the center of the polygon.|
+|`boundingBox`|`Object`|An object representing the bounding box of this polygon.|
+|`boundingRect`|`PIXI.Rectangle`|PIXI rectangle representation of the bounding box of this polygon.|
+|`isSolid`|`boolean`|Returns whether this polygon represents a solid shape (the points are defined clockwise).|
+|`isHole`|`boolean`|Returns whether this polygon represents a hole (the points are defined counter-clockwise).|
+
+## T:PolygonLike
+
+Used as an input parameter for functions which use regions. It is an array of vertices, where each vertex can be one of the following:
+- `[number, number]` - An array pair of \[x, y\] coordinates.
+- `{ x: number; y: number; }` - An { x, y } coordinate pair.
+- `{ X: number; Y: number; }` - An { X, Y } coordinate pair. This is for easier ClipperLib compat - instead of having to map results onto { x, y }.
+
+## T:TerrainShape
+
+The TerrainShape class holds data about a shape on the map - including the type of terrain and the vertical position. It is readonly.
+
+### Properties
+
+|Name|Type|Description|
+|-|-|-|
+|`terrainTypeId`|`string`|The ID of the terrain type of this shape.|
+|`terrainType`|[`TerrainType \| undefined`](#tterraintype)|The TerrainType of this shape.|
+|`polygon`|[`Polygon`](#tpolygon)|The polygon that defines the outer perimeter of this shape.|
+|`holes`|[`Polygon[]`](#tpolygon)|Polygons that define holes within this shape.|
+|`height`|`number`|The height of this terrain.|
+|`elevation`|`number`|The elevation of this terrain (how far off the ground it is).|
+|`top`|`number`|The vertical position of the top of the shape (= elevation + height).|
+|`bottom`|`number`|The vertical position of the bototm of the shape (=elevation).|
+
+## T:TerrainType
+
+The TerrainType object holds metadata about a terrain type. It is readonly.
+
+### Properties
 
 |Name|Type|Description|
 |-|-|-|
@@ -530,42 +777,4 @@ An array of objects with the following properties:
 |`textShadowColor`|`string`|The color of the drop shadow applied to the text. If blank, it is automatically calculated based on the lightness of the text color.|
 |`textShadowOpacity`|`number`|The opacity of the drop shadow applied to the text.|
 |`textRotation`|`boolean`|Whether or not the text label can be rotated to fit better.|
-
-## paintCells
-
-![Available Since v0.1.4](https://img.shields.io/badge/Available%20Since-v0.1.4-blue?style=flat-square)
-![Changed in v0.4.0](https://img.shields.io/badge/Changed%20In-v0.4.0-orange?style=flat-square)
-
-Paints new terrain data onto the specified cells.
-
-Users must have permissions to update the scene to use this.
-
-### Parameters
-
-|Name|Type|Default|Description|
-|-|-|-|-|
-|`cells`|`[number, number][]`|*Required*|An array of cells to paint with new terrain data. Each element in the array should be a pair of numbers representing the X and Y coordinates of a cell. Note that these are grid coordinates, not pixel coordinates. The cells do not have to be adjacent.|
-|`terrain`|`Object`|*Required*|Terrain data to apply to the specified cells. Either `id` or `name` must be provided.|
-|`terrain.id`|`string`|`undefined`|If provided, will attempt to find a terrain type with this ID.
-|`terrain.name`|`string`|`undefined`|If provided, will attempt to find a terrain type with this name. Note that this is case-sensitive. If multiple terrain types have the same name, the first will be returned.|
-|`terrain.height`|`number`|`undefined`|The height of the terrain to paint onto the scene. Required when the specified terrain type uses height, ignored if the terrain type does not.|
-|`terrain.elevation`|`number`|`undefined`|The elevation of the terrain to paint onto the scene (how heigh it is off the ground). Defaults to 0 when the specified terrain type uses height, ignored if the terrain type does not.|
-|`options`|`Object`|`{}`||
-|`options.mode`|`"totalReplace" \| "destructiveMerge" \| "additiveMerge"`|`"totalReplace"`|How to handle existing terrain: `"totalReplace"` - Completely overwrites all existing terrain data in the cells with the new data; `"additiveMerge"` - Merges the new terrain data with the existing data, without removing any overlapping terrain.; `"destructiveMerge"` - Merges the new terrain data with the existing data, removing existing overlapping terrain.|
-
-### Returns
-
-A `Promise<boolean>` that will resolve when the data has been saved to the scene. The boolean that is returned will indicate whether or not any changes were made to the terrain map.
-
-### Example
-```js
-await terrainHeightTools.paintCells([
-	[0, 1],
-	[1, 1],
-	[2, 1],
-	[10, 10]
-], {
-	name: "Hard Cover",
-	height: 2
-});
-```
+|`flags`|`Record<string, any>`|A reserved place for additional data that modules/scripts may use.|

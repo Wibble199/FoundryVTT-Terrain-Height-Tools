@@ -1,7 +1,7 @@
-/** @import { HeightMapDataV1Terrain } from "../../module/utils/height-map-migrations.mjs" */
+/** @import { HeightMapDataV1Terrain } from "../../src/utils/height-map-migrations.mjs" */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HeightMap } from "../../module/geometry/height-map.mjs";
+import { HeightMap } from "../../src/geometry/height-map.mjs";
 
 describe("HeightMap::_eraseTerrainDataBetween()", () => {
 	it("should clip the top of existing terrain that extends within the given range", () => {
@@ -167,7 +167,7 @@ describe("HeightMap::_insertTerrainDataAndMerge()", () => {
 			{ terrainTypeId: "a", elevation: 10, height: 4 },
 			{ terrainTypeId: "a", elevation: 20, height: 8 },
 			{ terrainTypeId: "a", elevation: 50, height: 16 },
-			{ terrainTypeId: "a", elevation: 70, height: 19 },
+			{ terrainTypeId: "a", elevation: 70, height: 19 }
 		];
 		const anyChanges = HeightMap._insertTerrainDataAndMerge(data, "a", 0, 100);
 
@@ -180,7 +180,7 @@ describe("HeightMap::_insertTerrainDataAndMerge()", () => {
 		const data = [
 			{ terrainTypeId: "a", elevation: 1, height: 2 }, // 1->3
 			{ terrainTypeId: "a", elevation: 4, height: 2 }, // 4->6
-			{ terrainTypeId: "a", elevation: 7, height: 2 }  // 7->9
+			{ terrainTypeId: "a", elevation: 7, height: 2 } // 7->9
 		];
 		const anyChanges = HeightMap._insertTerrainDataAndMerge(data, "a", 2, 6);
 

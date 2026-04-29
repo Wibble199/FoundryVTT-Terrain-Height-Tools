@@ -7,31 +7,61 @@ on:
 jobs:
   zip_and_release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
-      - name: Update module.json version and download URL
+      - name: Build
+        uses: actions/setup-node@v6
+        with:
+          node_version: 24
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+      - name: Update module.json download URL
         run: |
           VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
-          jq --arg VERSION "$VERSION" \
-             --arg DOWNLOAD_URL "https://github.com/${{ github.repository }}/releases/download/$VERSION/release.zip" \
-             '.version = $VERSION | .download = $DOWNLOAD_URL' module.json > temp.json && mv temp.json module.json
+          jq --arg DOWNLOAD_URL "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/$VERSION/release.zip" \
+             '.download = $DOWNLOAD_URL' module.json > temp.json && mv temp.json module.json
 
       - name: Zip module files
         run: |
           sudo apt-get install zip &&
-          zip -r release.zip lang/ module/ presets/ styles/ templates/ textures/ license.md module.json readme.md
+          zip -r release.zip dist/ lang/ presets/ styles/ textures/ license.md module.json readme.md
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
           draft: true
-          files: |
-            module.json
-            release.zip
+          prerelease: false
+
+      - name: Add module.json to release
+        id: upload_module_json
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./module.json
+          asset_name: module.json
+          asset_content_type: application/json
+
+      - name: Add release.zip to release
+        id: upload_release_zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release.zip
+          asset_name: release.zip
+          asset_content_type: application/zip
 
       - name: Publish to Foundry Package Registry
         if: ${{ !contains(github.ref, 'beta') }}
@@ -48,8 +78,8 @@ jobs:
                      "id": "terrain-height-tools",
                      "release": {
                        "version": "'"$VERSION"'",
-                       "manifest": "https://github.com/${{ github.repository }}/releases/download/'"$VERSION_TAG"'/module.json",
-                       "notes": "https://github.com/${{ github.repository }}/releases/tag/'"$VERSION_TAG"'",
+                       "manifest": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/'"$VERSION_TAG"'/module.json",
+                       "notes": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/tag/'"$VERSION_TAG"'",
                        "compatibility": {
                          "minimum": "'"$MINIMUM"'",
                          "verified": "'"$VERIFIED"'",

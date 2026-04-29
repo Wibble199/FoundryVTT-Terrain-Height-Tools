@@ -1,10 +1,24 @@
 {
 	"name": "terrain-height-tools",
 	"private": true,
+	"type": "module",
 	"scripts": {
-		"test": "node --test test/**/*.test.mjs"
+		"dev": "rolldown -c -w",
+		"build": "rolldown -c",
+		"test": "node --test test/**/*.test.mjs",
+		"lint": "eslint -c eslint.config.mjs"
+	},
+	"dependencies": {
+		"@lit-labs/preact-signals": "^1.0.3",
+		"@preact/signals-core": "^1.13.0",
+		"lit": "^3.3.2",
+		"polygon-clipping": "^0.15.7"
 	},
 	"devDependencies": {
-		"@types/node": "^22.8.1"
+		"@eslint/js": "^9.39.3",
+		"@stylistic/eslint-plugin-js": "^4.4.1",
+		"@types/node": "^22.8.1",
+		"eslint": "^9.39.3",
+		"rolldown": "^1.0.0-rc.9"
 	}
 }

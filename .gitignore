@@ -4,3 +4,6 @@ node_modules/
 
 # Ignore files added for Foundry IntelliSense
 foundry.js
+
+# Built files
+dist/
