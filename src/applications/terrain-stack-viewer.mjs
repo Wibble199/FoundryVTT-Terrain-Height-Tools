@@ -13,6 +13,7 @@ import { allTerrainShapes$, getShapesAtPoint } from "../stores/terrain-manager.m
 import { getCssColorsFor, getTerrainType } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
+import { prettyFraction } from "../utils/misc-utils.mjs";
 
 // How many pixels each unit in height is represented by in proportional mode.
 const proportionalModeScale = 28;
@@ -219,7 +220,7 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 		return html`${shapes.map(({ shape, terrainType, style: { color, borderColor, background } }) => html`
 			<div class="terrain-layer-block" style=${styleMap({ color, borderColor, background })}>
 				<p class="terrain-layer-block-title">${terrainType.name}</p>
-				<p class="terrain-layer-block-height">${f(shape.bottom)} → ${f(shape.bottom)} (${l("Height")} ${f(shape.height)})</p>
+				<p class="terrain-layer-block-height">${f(shape.bottom)} → ${f(shape.top)} (${l("Height")} ${f(shape.height)})</p>
 			</div>
 		`)}`;
 	}
