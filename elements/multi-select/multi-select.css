@@ -1,0 +1,86 @@
+multi-select-fwl {
+    --input-background-color: var(--color-cool-4);
+    --input-border-color: transparent;
+    --input-text-color: var(--color-light-3);
+    --input-placeholder-color: var(--color-light-4);
+    --input-focus-outline-color: var(--color-cool-3);
+}
+
+multi-select-fwl:is(:focus, .multi-select-fwl-open) {
+	--input-text-color: var(--color-light-1);
+}
+
+.theme-light multi-select-fwl {
+	--input-background-color: rgba(0, 0, 0, 0.1);
+    --input-border-color: var(--color-dark-6);
+    --input-text-color: var(--color-dark-2);
+    --input-placeholder-color: var(--color-dark-3);
+    --input-focus-outline-color: var(--color-warm-2);
+}
+
+.theme-light multi-select-fwl:is(:focus, .multi-select-fwl-open) {
+	--input-text-color: var(--color-dark-1);
+}
+
+multi-select-fwl > .multi-select-fwl-button {
+	display: flex;
+	align-items: center;
+
+	/* Copied from Foundry's select: */
+	width: 100%;
+    height: var(--input-height);
+    line-height: var(--input-height);
+    padding: 0 0.5rem;
+    background: var(--input-background-color);
+    border: 1px solid var(--input-border-color);
+    border-radius: 4px;
+    outline: 1px solid transparent;
+    color: var(--input-text-color);
+    user-select: text;
+    font-size: var(--font-size-14);
+    transition: outline-color 0.5s;
+}
+
+multi-select-fwl:is(:focus, .multi-select-fwl-open) > .multi-select-fwl-button {
+	box-shadow: 0 0 5px var(--color-shadow-primary);
+	outline: 2px solid var(--input-focus-outline-color);
+}
+
+multi-select-fwl .multi-select-fwl-button-label-container {
+	flex: 1 0 0;
+	display: grid;
+}
+
+multi-select-fwl .multi-select-fwl-button-label-container > * {
+	grid-column: 1 / 2;
+  	grid-row: 1 / 2;
+}
+
+multi-select-fwl .multi-select-fwl-button-label-primary {
+	overflow: hidden;
+    white-space: nowrap;
+}
+
+multi-select-fwl .multi-select-fwl-button-label-placeholder {
+	color: var(--input-placeholder-color);
+}
+
+.multi-select-fwl-dropdown {
+	position: absolute;
+	z-index: var(--z-index-tooltip);
+	width: max-content;
+}
+
+.multi-select-fwl-dropdown > menu {
+	max-height: 200px;
+	overflow-y: auto;
+}
+
+.multi-select-fwl-dropdown > menu > li > i {
+	margin-right: 6px;
+	opacity: 0;
+}
+
+.multi-select-fwl-dropdown > menu > li.checked > i {
+	opacity: 1;
+}

@@ -1,0 +1,100 @@
+.color-animation-editor-fwl-preview-bar {
+	height: 18px;
+	background:
+		linear-gradient(var(--current-color)), /* cannot use solid color, else it stops url working, but can use linear-gradient with one stop */
+		url(./assets/checkerboard.svg) 0 0 / 8px 8px;
+	border: 1px solid currentColor;
+	border-radius: 2px;
+}
+
+.color-animation-editor-dropdown-fwl {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.color-animation-editor-dropdown-fwl .hint {
+	font-size: var(--font-size-14);
+    color: var(--color-form-hint);
+	margin: 0 0 -0.5rem;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview {
+	position: relative;
+	height: 28px;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-track {
+	position: absolute;
+	top: 50%;
+	height: 18px;
+	width: 100%;
+	transform: translateY(-50%);
+	background:
+		linear-gradient(to right, var(--gradient-stops)),
+		url(./assets/checkerboard.svg) 0 0 / 8px 8px;
+	border-radius: 2px;
+	cursor: copy;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-tracker {
+	position: absolute;
+	top: 5px;
+	bottom: 5px;
+	width: 5px;
+	background: #ff0000;
+	border: 1px solid rgba(0 0 0 / 80%);
+	border-top: none;
+	border-bottom: none;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-thumb {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 12px;
+	height: 28px;
+	background-color: rgb(var(--current-color-rgb));
+	border: 1px solid var(--color-warm-1);
+	border-radius: 2px;
+	cursor: col-resize;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-thumb.active {
+	outline: 3px solid #9b8dff;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-thumb-properties {
+	display: flex;
+	position: absolute;
+	top: 0px;
+	border-radius: 2px;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-thumb-properties-track {
+	position: relative;
+	height: 32px;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-thumb-properties > input {
+	flex: 0 0 40px;
+	margin-right: 0.25rem;
+}
+
+.color-animation-editor-dropdown-fwl .color-animation-editor-fwl-preview-thumb-properties > span {
+	align-self: center;
+}
+
+.color-animation-editor-fwl-ease-button {
+	flex: 0 0 30px !important;
+	height: 30px;
+	padding: 0 !important;
+}
+
+.color-animation-editor-fwl-ease-button > svg {
+	width: 20px;
+	height: 20px;
+	stroke: currentColor;
+	stroke-width: 10px;
+	fill: none;
+}
