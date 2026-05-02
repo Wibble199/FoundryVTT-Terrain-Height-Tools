@@ -10,6 +10,7 @@ import * as autoTokenElevation from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
+import "./shared/style/shared.css";
 import * as canvasStore from "./stores/canvas.mjs";
 import { updateActiveControlTool } from "./stores/scene-controls.mjs";
 import { registerTerrainProvider } from "./stores/terrain-manager.mjs";

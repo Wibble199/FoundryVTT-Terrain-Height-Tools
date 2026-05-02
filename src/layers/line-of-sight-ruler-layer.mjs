@@ -3,13 +3,14 @@ import { effect } from "@preact/signals-core";
 import { addKeybindingListener, removeKeybindingListener } from "../config/keybindings.mjs";
 import { keybindings, moduleDrawingGroupName, moduleName, settingNames, socketFuncs, socketName, tools } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
+import { drawDashedComplexPath } from "../shared/pixi/drawing.mjs";
 import { includeNoHeightTerrain$, lineOfSightRulerConfig$, tokenLineOfSightConfig$ } from "../stores/line-of-sight.mjs";
 import { activeControl$, activeTool$ } from "../stores/scene-controls.mjs";
 import { getShapesByBounds } from "../stores/terrain-manager.mjs";
 import { getTerrainColor, terrainTypeMap$ } from "../stores/terrain-types.mjs";
 import { getGridCellPolygon, getGridCenter, toSceneUnits } from "../utils/grid-utils.mjs";
 import { isPoint3d, prettyFraction } from "../utils/misc-utils.mjs";
-import { drawDashedPath, rectangleFromP1P2 } from "../utils/pixi-utils.mjs";
+import { rectangleFromP1P2 } from "../utils/pixi-utils.mjs";
 import { calculateRaysBetweenTokensOrPoints } from "../utils/token-utils.mjs";
 
 /**
@@ -654,7 +655,11 @@ class LineOfSightRuler extends PIXI.Container {
 				const gapSize = (dashSize * 2 * distinctTerrainTypeIds.length) - dashSize; // gap size needs to account for the other terrain's dots
 				for (let i = 0; i < distinctTerrainTypeIds.length; i++) {
 					setTerrainColor(distinctTerrainTypeIds[i]);
-					drawDashedPath(this.#line, [region.start, region.end], { dashSize, gapSize, offset: dashSize * 2 * i });
+					drawDashedComplexPath(
+						this.#line,
+						[{ type: "m", x: region.start.x, y: region.start.y }, { type: "l", x: region.end.x, y: region.end.y }],
+						{ dashSize: gapSize, offset: dashSize * 2 * i }
+					);
 				}
 			}
 			lastPosition = region.end;

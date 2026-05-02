@@ -1,6 +1,8 @@
-/** @import { ReadonlySignal, Signal } from "@preact/signals-core"; */
+/** @import { Signal } from "@preact/signals-core"; */
+/** @import { ColorAnimation } from "../shared/color/color-animation.mjs" */
 import { computed, signal } from "@preact/signals-core";
-import { flags, lineTypes, moduleName, settingNames } from "../consts.mjs";
+import { flags, moduleName, settingNames } from "../consts.mjs";
+import { LINE_TYPES } from "../shared/consts.mjs";
 import { alphaToHex } from "../utils/misc-utils.mjs";
 
 /**
@@ -11,17 +13,20 @@ import { alphaToHex } from "../utils/misc-utils.mjs";
  * @property {boolean} isSolid
  * @property {boolean} isAlwaysVisible
  * @property {boolean} textRotation
- * @property {lineTypes} lineType
+ * @property {LINE_TYPES} lineType
  * @property {number} lineWidth
  * @property {string} lineColor
+ * @property {ColorAnimation | null} lineColorAnimation
  * @property {number} lineOpacity
  * @property {number} lineDashSize
  * @property {number} lineGapSize
+ * @property {number} lineDashOffsetAnimation
  * @property {number} lineFadeDistance
  * @property {string} lineFadeColor
  * @property {number} lineFadeOpacity
  * @property {number} fillType
  * @property {string} fillColor
+ * @property {ColorAnimation | null} fillColorAnimation
  * @property {number} fillOpacity
  * @property {string} fillTexture
  * @property {{ x: number; y: number; }} fillTextureOffset
@@ -32,6 +37,7 @@ import { alphaToHex } from "../utils/misc-utils.mjs";
  * @property {string} font
  * @property {number} textSize
  * @property {string} textColor
+ * @property {ColorAnimation | null} textColorAnimation
  * @property {number} textOpacity
  * @property {number} textStrokeThickness
  * @property {string} textStrokeColor
@@ -82,17 +88,20 @@ export function createDefaultTerrainType(id = undefined) {
 		isSolid: true,
 		isAlwaysVisible: false,
 		textRotation: false,
-		lineType: lineTypes.solid,
+		lineType: LINE_TYPES.SOLID,
 		lineWidth: 4,
 		lineColor: "#FF0000",
+		lineColorAnimation: null,
 		lineOpacity: 0.8,
 		lineDashSize: 15,
 		lineGapSize: 10,
+		lineDashOffsetAnimation: 0,
 		lineFadeDistance: 0,
 		lineFadeColor: "#FF0000",
 		lineFadeOpacity: 0.4,
 		fillType: CONST.DRAWING_FILL_TYPES.SOLID,
 		fillColor: "#FF0000",
+		fillColorAnimation: null,
 		fillOpacity: 0.2,
 		fillTexture: "",
 		fillTextureOffset: { x: 0, y: 0 },
@@ -103,6 +112,7 @@ export function createDefaultTerrainType(id = undefined) {
 		font: CONFIG.defaultFontFamily,
 		textSize: 48,
 		textColor: "#FFFFFF",
+		textColorAnimation: null,
 		textOpacity: 1,
 		textStrokeThickness: 4,
 		textStrokeColor: "",
@@ -153,10 +163,10 @@ export function getCssColorsFor(terrainType) {
 		background: terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE
 			? "transparent"
 			: terrainType.fillColor + alphaToHex(terrainType.fillOpacity),
-		borderColor: terrainType.lineType === lineTypes.none || terrainType.lineWidth <= 0
+		borderColor: terrainType.lineType === LINE_TYPES.NONE || terrainType.lineWidth <= 0
 			? "transparent"
 			: terrainType.lineColor + alphaToHex(terrainType.lineOpacity),
-		borderWidth: terrainType.lineType === lineTypes.none
+		borderWidth: terrainType.lineType === LINE_TYPES.NONE
 			? 0
 			: terrainType.lineWidth
 	};

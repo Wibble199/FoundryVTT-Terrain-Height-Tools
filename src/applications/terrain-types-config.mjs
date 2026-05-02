@@ -6,16 +6,20 @@ import { classMap } from "lit/directives/class-map.js";
 import { repeat } from "lit/directives/repeat.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { lineTypes, moduleName, settingNames } from "../consts.mjs";
+import { when } from "lit/directives/when.js";
+import { moduleName, settingNames } from "../consts.mjs";
+import { LINE_TYPES } from "../shared/consts.mjs";
+import { selectOptions } from "../shared/directives/select-options.mjs";
+import "../shared/elements/color-animation-editor/color-animation-editor.mjs";
+import { ContextMenu } from "../shared/elements/context-menu/context-menu.mjs";
 import { createDefaultTerrainType, previewTerrainTypes$, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
 import { colorPicker } from "./directives/color-picker.mjs";
 import { rangePicker } from "./directives/range-picker.mjs";
-import { selectOptions } from "./directives/select-options.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 import { TerrainTypesPreset } from "./terrain-types-presets.mjs";
 
-/** @typedef {(context: { terrainType: TerrainType; index: number; }) => string | HTMLElement | import("lit").TemplateResult} UiPartRenderer */
+/** @typedef {(context: { app: TerrainTypesConfig; terrainType: TerrainType; index: number; }) => string | HTMLElement | import("lit").TemplateResult} UiPartRenderer */
 
 const { ApplicationV2, DialogV2 } = foundry.applications.api;
 
@@ -34,7 +38,7 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 			resizable: true
 		},
 		position: {
-			width: 870,
+			width: 820,
 			height: 720
 		},
 		form: {
@@ -58,16 +62,16 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 			<div class="terrain-type-list-container">
 				<!-- List of terrain types -->
 				<ul class="terrain-type-list">
-					${repeat(this.#terrainTypes.value, terrainType => terrainType.id, terrainType => html`
+					${repeat(this.#terrainTypes.value, terrainType => terrainType.id, (terrainType, terraianTypeIndex) => html`
 						<li
 							class=${computed(() => classMap({ active: terrainType.id === this.#selectedTerrainTypeId.value }))}
 							@click=${() => this.#selectedTerrainTypeId.value = terrainType.id}
+							@contextmenu=${e => this.#openContextMenu(terrainType.id, terraianTypeIndex, e)}
 						>
 							<span>${terrainType.name}</span>
-							<button type="button" title=${l("TERRAINHEIGHTTOOLS.MoveUp")} @click=${() => this.#moveTerrainType(terrainType.id, -1)}><i class="fas fa-arrow-up"></i></button>
-							<button type="button" title=${l("TERRAINHEIGHTTOOLS.MoveDown")} @click=${() => this.#moveTerrainType(terrainType.id, 1)}><i class="fas fa-arrow-down"></i></button>
-							<button type="button" title=${l("Duplicate")} @click=${() => this.#duplicateTerrainType(terrainType.id)}><i class="fas fa-copy"></i></button>
-							<button type="button" title=${l("Delete")} @click=${() => this.#deleteTerrainType(terrainType.id)}><i class="fas fa-trash"></i></button>
+							<button type="button" @click=${e => this.#openContextMenu(terrainType.id, terraianTypeIndex, e)}>
+								<i class="fas fa-ellipsis-vertical m-0"></i>
+							</button>
 						</li>
 					`)}
 				</ul>
@@ -108,7 +112,7 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 								<div class=${computed(() => classMap({ tab: true, active: this.#selectedTab.value === tabId }))} data-tab>
 									${tab.parts.map(part => {
 										try {
-											const result = part({ terrainType, index: terrainTypeIndex, html });
+											const result = part({ app: this, terrainType, index: terrainTypeIndex, html });
 											return typeof result === "string" ? unsafeHTML(result) : result;
 										} catch (err) {
 											return html`<span>Failed to render part: ${err}</span>`;
@@ -162,16 +166,62 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 		return super.close(options);
 	}
 
+	/**
+	 * @param {string} terrainTypeId
+	 * @param {number} terrainTypeIndex
+	 * @param {Event} e
+	 */
+	#openContextMenu(terrainTypeId, terrainTypeIndex, e) {
+		e.preventDefault();
+		e.stopImmediatePropagation();
+
+		const isFirst = terrainTypeIndex === 0;
+		const isLast = terrainTypeIndex === this.#terrainTypes.value.length - 1;
+
+		ContextMenu.open(e, [
+			!isFirst && {
+				label: l("TERRAINHEIGHTTOOLS.MoveToTop"),
+				icon: "fas fa-arrow-up-to-line",
+				onClick: () => this.#moveTerrainTypeTo(terrainTypeId, 0)
+			},
+			!isFirst && {
+				label: l("TERRAINHEIGHTTOOLS.MoveUp"),
+				icon: "fas fa-arrow-up",
+				onClick: () => this.#moveTerrainType(terrainTypeId, -1)
+			},
+			!isLast && {
+				label: l("TERRAINHEIGHTTOOLS.MoveDown"),
+				icon: "fas fa-arrow-down",
+				onClick: () => this.#moveTerrainType(terrainTypeId, 1)
+			},
+			!isLast && {
+				label: l("TERRAINHEIGHTTOOLS.MoveToBottom"),
+				icon: "fas fa-arrow-down-to-line",
+				onClick: () => this.#moveTerrainTypeTo(terrainTypeId, this.#terrainTypes.value.length)
+			},
+			{
+				label: l("Duplicate"),
+				icon: "fas fa-copy",
+				onClick: () => this.#duplicateTerrainType(terrainTypeId)
+			},
+			{
+				label: l("Delete"),
+				icon: "fas fa-trash",
+				onClick: () => this.#deleteTerrainType(terrainTypeId)
+			}
+		]);
+	}
+
 	// ---- //
 	// Tabs //
 	// ---- //
 	/** @type {UiPartRenderer} */
-	static _renderLinesTab = ({ terrainType, index }) => html`
+	static _renderLinesTab = ({ app, terrainType, index }) => html`
 		<div class="form-group">
 			<label>${l("TERRAINHEIGHTTOOLS.LineType")}</label>
 			<div class="form-fields">
 				<select name="${index}.lineType" data-dtype="Number">
-					${selectOptions(lineTypes, {
+					${selectOptions(LINE_TYPES, {
 						labelSelector: ([name]) => `TERRAINHEIGHTTOOLS.LineType${name.titleCase()}`,
 						valueSelector: 1,
 						selected: terrainType.lineType
@@ -180,14 +230,14 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 			</div>
 		</div>
 
-		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType === lineTypes.none })}>
-			<label>${l("DRAWING.LineWidth")} <span class="hint">(${l("Pixels")})</span></label>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType === LINE_TYPES.NONE })}>
+			<label>${l("TERRAINHEIGHTTOOLS.LineWidth")} <span class="units">(${l("Pixels")})</span></label>
 			<div class="form-fields">
 				<input type="number" name="${index}.lineWidth" value=${terrainType.lineWidth} min="0" step="1">
 			</div>
 		</div>
 
-		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType !== lineTypes.dashed })}>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType !== LINE_TYPES.DASHED })}>
 			<label>${l("TERRAINHEIGHTTOOLS.LineDashSize")} / ${l("TERRAINHEIGHTTOOLS.LineGapSize")}</label>
 			<div class="form-fields">
 				<input type="number" name="${index}.lineDashSize" value=${terrainType.lineDashSize} min="1" step="1">
@@ -195,24 +245,66 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 			</div>
 		</div>
 
-		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType === lineTypes.none })}>
-			<label>${l("DRAWING.StrokeColor")}</label>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType !== LINE_TYPES.DASHED })}>
+			<label>${l("TERRAINHEIGHTTOOLS.LineDashAnimation")} <span class="units">(px/s)</span></label>
 			<div class="form-fields">
-				${colorPicker({ name: `${index}.lineColor`, value: terrainType.lineColor })}
+				<input type="number" name="${index}.lineDashOffsetAnimation" value=${terrainType.lineDashOffsetAnimation} step="1">
 			</div>
 		</div>
 
-		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType === lineTypes.none })}>
-			<label>${l("DRAWING.LineOpacity")}</label>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType === LINE_TYPES.NONE || terrainType.lineColorAnimation })}>
+			<label>${l("TERRAINHEIGHTTOOLS.LineColor")}</label>
+			<div class="form-fields">
+				${colorPicker({ name: `${index}.lineColor`, value: terrainType.lineColor })}
+				<button
+					type="button"
+					data-tooltip=${l("TERRAINHEIGHTTOOLS.EnableAnimation")}
+					@click=${() => app.#setTerrainTypeProperty(index, "lineColorAnimation", {
+						duration: 2500,
+						easingFunc: "linear",
+						keyframes: [
+							{ color: 0xFF0000, alpha: 0.8, position: 0 },
+							{ color: 0x0000FF, alpha: 0.8, position: 0.5 },
+							{ color: 0xFF0000, alpha: 0.8, position: 1 }
+						]
+					})}
+				>
+					<i class="fas fa-sparkles m-0"></i>
+				</button>
+			</div>
+		</div>
+
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.lineType === LINE_TYPES.NONE || terrainType.lineColorAnimation })}>
+			<label>${l("TERRAINHEIGHTTOOLS.LineOpacity")}</label>
 			<div class="form-fields">
 				${rangePicker({ name: `${index}.lineOpacity`, value: terrainType.lineOpacity, min: 0, max: 1, step: 0.05 })}
 			</div>
 		</div>
 
+		${when(terrainType.lineType !== LINE_TYPES.NONE && terrainType.lineColorAnimation, () => html`
+			<div class="form-group">
+				<label>${l("TERRAINHEIGHTTOOLS.LineColor")}</label>
+				<div class="form-fields">
+					<color-animation-editor-fwl
+						name=${`${index}.lineColorAnimation`}
+						.value=${terrainType.lineColorAnimation}
+					></color-animation-editor-fwl>
+					<button
+						type="button"
+						class="btn-active-fwl"
+						data-tooltip=${l("TERRAINHEIGHTTOOLS.DisableAnimation")}
+						@click=${() => app.#setTerrainTypeProperty(index, "lineColorAnimation", null)}
+					>
+						<i class="fas fa-sparkles m-0"></i>
+					</button>
+				</div>
+			</div>
+		`)}
+
 		<hr/>
 
 		<div class="form-group">
-			<label>${l("TERRAINHEIGHTTOOLS.LineFadeDistance")} <span class="hint">(%)</span></label>
+			<label>${l("TERRAINHEIGHTTOOLS.LineFadeDistance")} <span class="units">(%)</span></label>
 			<div class="form-fields">
 				${rangePicker({ name: `${index}.lineFadeDistance`, value: terrainType.lineFadeDistance, min: 0, max: 0.5, step: 0.05 })}
 			</div>
@@ -234,9 +326,9 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 	`;
 
 	/** @type {UiPartRenderer} */
-	static _renderFillTab = ({ terrainType, index }) => html`
+	static _renderFillTab = ({ app, terrainType, index }) => html`
 		<div class="form-group">
-			<label>${l("DRAWING.FillTypes")}</label>
+			<label>${l("TERRAINHEIGHTTOOLS.FillType")}</label>
 			<div class="form-fields">
 				<select name="${index}.fillType" data-dtype="Number">
 					${selectOptions(CONST.DRAWING_FILL_TYPES, {
@@ -248,29 +340,64 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 			</div>
 		</div>
 
-		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE })}>
-			<label>${l("DRAWING.FillColor")}</label>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE || terrainType.fillColorAnimation })}>
+			<label>${l("TERRAINHEIGHTTOOLS.FillColor")}</label>
 			<div class="form-fields">
 				${colorPicker({ name: `${index}.fillColor`, value: terrainType.fillColor })}
+				<button
+					type="button"
+					data-tooltip=${l("TERRAINHEIGHTTOOLS.EnableAnimation")}
+					@click=${() => app.#setTerrainTypeProperty(index, "fillColorAnimation", {
+						duration: 2500,
+						easingFunc: "linear",
+						keyframes: [
+							{ color: 0xFF0000, alpha: 0.2, position: 0 },
+							{ color: 0x0000FF, alpha: 0.2, position: 0.5 },
+							{ color: 0xFF0000, alpha: 0.2, position: 1 }
+						]
+					})}
+				>
+					<i class="fas fa-sparkles m-0"></i>
+				</button>
 			</div>
 		</div>
 
-		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE })}>
-			<label>${l("DRAWING.FillOpacity")}</label>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE || terrainType.fillColorAnimation })}>
+			<label>${l("TERRAINHEIGHTTOOLS.FillOpacity")}</label>
 			<div class="form-fields">
 				${rangePicker({ name: `${index}.fillOpacity`, value: terrainType.fillOpacity, min: 0, max: 1, step: 0.1 })}
 			</div>
 		</div>
 
+		${when(terrainType.fillType !== CONST.DRAWING_FILL_TYPES.NONE && terrainType.fillColorAnimation, () => html`
+			<div class="form-group">
+				<label>${l("TERRAINHEIGHTTOOLS.FillColor")}</label>
+				<div class="form-fields">
+					<color-animation-editor-fwl
+						name=${`${index}.fillColorAnimation`}
+						.value=${terrainType.fillColorAnimation}
+					></color-animation-editor-fwl>
+					<button
+						type="button"
+						class="btn-active-fwl"
+						data-tooltip=${l("TERRAINHEIGHTTOOLS.DisableAnimation")}
+						@click=${() => app.#setTerrainTypeProperty(index, "fillColorAnimation", null)}
+					>
+						<i class="fas fa-sparkles m-0"></i>
+					</button>
+				</div>
+			</div>
+		`)}
+
 		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType !== CONST.DRAWING_FILL_TYPES.PATTERN })}>
-			<label>${l("DRAWING.FillTexture")}</label>
+			<label>${l("TERRAINHEIGHTTOOLS.FillTexture")}</label>
 			<div class="form-fields">
 				<file-picker name="${index}.fillTexture" type="image" value=${terrainType.fillTexture}></file-picker>
 			</div>
 		</div>
 
 		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType !== CONST.DRAWING_FILL_TYPES.PATTERN })}>
-			<label>${l("TERRAINHEIGHTTOOLS.TextureOffset")} <span class="hint">(${l("Pixels")})</span></label>
+			<label>${l("TERRAINHEIGHTTOOLS.TextureOffset")} <span class="units">(${l("Pixels")})</span></label>
 			<div class="form-fields">
 				<input type="number" name="${index}.fillTextureOffset.x" value=${terrainType.fillTextureOffset.x} step="1" required placeholder="X">
 				<input type="number" name="${index}.fillTextureOffset.y" value=${terrainType.fillTextureOffset.y} step="1" required placeholder="Y">
@@ -278,7 +405,7 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 		</div>
 
 		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType !== CONST.DRAWING_FILL_TYPES.PATTERN })}>
-			<label>${l("TERRAINHEIGHTTOOLS.TextureScale")} <span class="hint">%</span></label>
+			<label>${l("TERRAINHEIGHTTOOLS.TextureScale")} <span class="units">%</span></label>
 			<div class="form-fields">
 				<input type="number" name="${index}.fillTextureScale.x" value=${terrainType.fillTextureScale.x} step="1" required placeholder="X">
 				<input type="number" name="${index}.fillTextureScale.y" value=${terrainType.fillTextureScale.y} step="1" required placeholder="Y">
@@ -286,7 +413,7 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 		</div>
 
 		<div class=${classMap({ "form-group": true, "hidden": terrainType.fillType !== CONST.DRAWING_FILL_TYPES.PATTERN })}>
-			<label>${l("TERRAINHEIGHTTOOLS.TextureOffsetAnimation")} <span class="hint">px/s</span></label>
+			<label>${l("TERRAINHEIGHTTOOLS.TextureOffsetAnimation")} <span class="units">px/s</span></label>
 			<div class="form-fields">
 				<input type="number" name="${index}.fillTextureOffsetAnimation.x" value=${terrainType.fillTextureOffsetAnimation.x} step="1" required placeholder="X">
 				<input type="number" name="${index}.fillTextureOffsetAnimation.y" value=${terrainType.fillTextureOffsetAnimation.y} step="1" required placeholder="Y">
@@ -295,7 +422,7 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 	`;
 
 	/** @type {UiPartRenderer} */
-	static _renderLabelTab = ({ terrainType, index }) => html`
+	static _renderLabelTab = ({ app, terrainType, index }) => html`
 		<div class="form-group">
 			<label>${l("TERRAINHEIGHTTOOLS.LabelFormat.Name")}</label>
 			<div class="form-fields">
@@ -333,24 +460,59 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 			</div>
 		</div>
 
-		<div class="form-group">
-			<label>${l("DRAWING.TextColor")}</label>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.textColorAnimation })}>
+			<label>${l("TERRAINHEIGHTTOOLS.LabelColor")}</label>
 			<div class="form-fields">
 				${colorPicker({ name: `${index}.textColor`, value: terrainType.textColor })}
+				<button
+					type="button"
+					data-tooltip=${l("TERRAINHEIGHTTOOLS.EnableAnimation")}
+					@click=${() => app.#setTerrainTypeProperty(index, "textColorAnimation", {
+						duration: 2500,
+						easingFunc: "linear",
+						keyframes: [
+							{ color: 0x000000, alpha: 1, position: 0 },
+							{ color: 0xFFFFFF, alpha: 1, position: 0.5 },
+							{ color: 0x000000, alpha: 1, position: 1 }
+						]
+					})}
+				>
+					<i class="fas fa-sparkles m-0"></i>
+				</button>
 			</div>
 		</div>
 
-		<div class="form-group">
-			<label>${l("DRAWING.TextOpacity")}</label>
+		<div class=${classMap({ "form-group": true, "hidden": terrainType.textColorAnimation })}>
+			<label>${l("TERRAINHEIGHTTOOLS.LabelOpacity")}</label>
 			<div class="form-fields">
 				${rangePicker({ name: `${index}.textOpacity`, value: terrainType.textOpacity, min: 0, max: 1, step: 0.1 })}
 			</div>
 		</div>
 
+		${when(terrainType.textColorAnimation, () => html`
+			<div class="form-group">
+				<label>${l("TERRAINHEIGHTTOOLS.LabelColor")}</label>
+				<div class="form-fields">
+					<color-animation-editor-fwl
+						name=${`${index}.textColorAnimation`}
+						.value=${terrainType.textColorAnimation}
+					></color-animation-editor-fwl>
+					<button
+						type="button"
+						class="btn-active-fwl"
+						data-tooltip=${l("TERRAINHEIGHTTOOLS.DisableAnimation")}
+						@click=${() => app.#setTerrainTypeProperty(index, "textColorAnimation", null)}
+					>
+						<i class="fas fa-sparkles m-0"></i>
+					</button>
+				</div>
+			</div>
+		`)}
+
 		<hr/>
 
 		<div class="form-group">
-			<label>${l("TERRAINHEIGHTTOOLS.StrokeThickness")} <span class="hint">(${l("Pixels")})</span></label>
+			<label>${l("TERRAINHEIGHTTOOLS.StrokeThickness")} <span class="units">(${l("Pixels")})</span></label>
 			<div class="form-fields">
 				<input type="number" name="${index}.textStrokeThickness" value=${terrainType.textStrokeThickness} min="0" step="1">
 			</div>
@@ -389,11 +551,11 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 		<hr/>
 
 		<div class="form-group">
-			<label>${l("TERRAINHEIGHTTOOLS.AllowTextRotation.Name")}</label>
+			<label>${l("TERRAINHEIGHTTOOLS.AllowLabelRotation.Name")}</label>
 			<div class="form-fields">
 				<input type="checkbox" name="${index}.textRotation" .checked=${terrainType.textRotation}>
 			</div>
-			<p class="hint">${l("TERRAINHEIGHTTOOLS.AllowTextRotation.Hint")}</p>
+			<p class="hint">${l("TERRAINHEIGHTTOOLS.AllowLabelRotation.Hint")}</p>
 		</div>
 	`;
 
@@ -452,6 +614,20 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 		this.render();
 	}
 
+	/**
+	 * @template {keyof TerrainType} K
+	 * @param {number} index
+	 * @param {K} key
+	 * @param {TerrainType[K]} value
+	 */
+	#setTerrainTypeProperty(index, key, value) {
+		this.#terrainTypes.value = this.#terrainTypes.value.with(index, {
+			...this.#terrainTypes.value[index],
+			[key]: value
+		});
+		this.render();
+	}
+
 	async #saveTerrainTypes() {
 		const formData = new FormDataExtended(this.element);
 		const terrainTypes = this.#getTerrainTypesFromForm(formData);
@@ -480,6 +656,20 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 		const newTerrainTypes = [...this.#terrainTypes.value];
 		const [terrainType] = newTerrainTypes.splice(index, 1);
 		newTerrainTypes.splice(index + dir, 0, terrainType);
+		this.#terrainTypes.value = newTerrainTypes;
+		this.render();
+	}
+
+	/**
+	 * @param {string} terrainTypeId
+	 * @param {number} newIndex
+	 */
+	#moveTerrainTypeTo(terrainTypeId, newIndex) {
+		const index = this.#terrainTypes.value.findIndex(t => t.id === terrainTypeId);
+
+		const newTerrainTypes = [...this.#terrainTypes.value];
+		const [terrainType] = newTerrainTypes.splice(index, 1);
+		newTerrainTypes.splice(newIndex, 0, terrainType);
 		this.#terrainTypes.value = newTerrainTypes;
 		this.render();
 	}
@@ -688,22 +878,22 @@ export class TerrainTypesConfig extends LitApplicationMixin(ApplicationV2) {
 /** @type {Record<string, { label: string; icon: string; parts: UiPartRenderer[]; }>} */
 const configTabs = {
 	lines: {
-		label: "DRAWING.TabLines",
+		label: "TERRAINHEIGHTTOOLS.TabLine",
 		icon: "fas fa-paint-brush",
 		parts: [TerrainTypesConfig._renderLinesTab]
 	},
 	fill: {
-		label: "DRAWING.TabFill",
+		label: "TERRAINHEIGHTTOOLS.TabFill",
 		icon: "fas fa-fill-drip",
 		parts: [TerrainTypesConfig._renderFillTab]
 	},
 	label: {
-		label: "DRAWING.TabText",
+		label: "TERRAINHEIGHTTOOLS.TabLabel",
 		icon: "fas fa-font",
 		parts: [TerrainTypesConfig._renderLabelTab]
 	},
 	other: {
-		label: "TERRAINHEIGHTTOOLS.Other",
+		label: "TERRAINHEIGHTTOOLS.TabOther",
 		icon: "fas fa-cogs",
 		parts: [TerrainTypesConfig._renderOtherTab]
 	}

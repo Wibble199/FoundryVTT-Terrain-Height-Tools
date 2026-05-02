@@ -76,13 +76,6 @@ export const flags = /** @type {const} */ ({
 	ignoreAutoElevation: "ignoreAutoElevation"
 });
 
-/** @enum {number} */
-export const lineTypes = {
-	none: 0,
-	solid: 1,
-	dashed: 2
-};
-
 /** @enum {keyof typeof socketFuncs} */
 export const socketFuncs = /** @type {const} */ ({
 	drawLineOfSightRay: "drawLineOfSightRay",

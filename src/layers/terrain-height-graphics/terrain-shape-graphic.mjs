@@ -1,15 +1,19 @@
 /** @import { Polygon } from "../../geometry/polygon.mjs" */
 /** @import { TerrainShape } from "../../geometry/terrain-shape.mjs"; */
+/** @import { ColorAnimationKeyframe } from "../../shared/color/color-animation.mjs" */
 /** @import { TerrainType } from "../../stores/terrain-types.mjs" */
 /** @import { TerrainHeightGraphicsLayer } from "./terrain-height-graphics-layer.mjs" */
-import { lineTypes, moduleName, settingNames } from "../../consts.mjs";
+import { moduleName, settingNames } from "../../consts.mjs";
 import { LineSegment } from "../../geometry/line-segment.mjs";
 import { Point } from "../../geometry/point.mjs";
+import { getColorAnimationValue, premultiplyKeyframes } from "../../shared/color/color-animation.mjs";
+import { unpremultiply } from "../../shared/color/conversions.mjs";
+import { PolygonGraphic } from "../../shared/pixi/polygon-graphic.mjs";
 import { terrainTypesWithPreview$, terrainTypesWithPreviewMap$ } from "../../stores/terrain-types.mjs";
 import { chunk } from "../../utils/array-utils.mjs";
 import { toSceneUnits } from "../../utils/grid-utils.mjs";
 import { prettyFraction } from "../../utils/misc-utils.mjs";
-import { drawDashedPath } from "../../utils/pixi-utils.mjs";
+
 
 /**
  * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.
@@ -17,7 +21,7 @@ import { drawDashedPath } from "../../utils/pixi-utils.mjs";
  */
 const labelPositionAnchors = [0.5, 0.4, 0.6, 0.2, 0.8];
 
-export class TerrainShapeGraphic extends PIXI.Container {
+export class TerrainShapeGraphic extends PolygonGraphic {
 
 	/** @type {TerrainHeightGraphicsLayer} */
 	#parent;
@@ -28,23 +32,19 @@ export class TerrainShapeGraphic extends PIXI.Container {
 	/** @type {TerrainShape} */
 	shape;
 
-	/** @type {TerrainType} */
+	/** @type {TerrainType | undefined} */
 	terrainType;
 
 	/** @type {PIXI.Graphics} */
 	#fadeGraphics;
 
-	/** @type {PIXI.Graphics | undefined} */
-	#shapeMask;
-
 	/** @type {PreciseText} */
 	#label;
 
-	/** @type {(() => void)[]} */
-	#tickerFns = [];
+	/** @type {ColorAnimationKeyframe[] | null} */
+	#textColorAnimationKeyframePremultiplied;
 
-	/** @type {PIXI.Texture | undefined} */
-	static #_whiteTexture;
+	#boundTick;
 
 	/**
 	 * @param {TerrainHeightGraphicsLayer} parent
@@ -60,10 +60,15 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		this.shape = shape;
 		this.terrainType = terrainTypesWithPreviewMap$.value.get(shape.terrainTypeId);
 
+		this.#textColorAnimationKeyframePremultiplied = this.terrainType?.textColorAnimation
+			? premultiplyKeyframes(this.terrainType.textColorAnimation.keyframes)
+			: null;
+
+		this.#boundTick = this.tick.bind(this);
+
+		this.#drawMain();
 		this._redrawLabel();
-		this.#drawBorder();
 		this.#drawFade();
-		this.#drawFill();
 	}
 
 	_destroy() {
@@ -71,9 +76,8 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		if (this.#fadeGraphics)
 			canvas.blurFilters.delete(this.#fadeGraphics.filters[0]);
 
-		// Remove ticker functions from global ticker
-		for (const tickerFn of this.#tickerFns)
-			canvas.app.ticker.remove(tickerFn);
+		// Remove ticker function from global ticker
+		canvas.app.ticker.remove(this.#boundTick);
 	}
 
 	/**
@@ -100,18 +104,6 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		return terrainTypesWithPreview$.value.findIndex(t => t.id === this.shape.terrainTypeId);
 	}
 
-	/** @returns {PIXI.Texture} */
-	static get #whiteTexture() {
-		if (this.#_whiteTexture) return this.#_whiteTexture;
-
-		const g = new PIXI.Graphics();
-		g.beginFill(0xFFFFFF);
-		g.drawRect(0, 0, 1, 1);
-		g.endFill();
-
-		return this.#_whiteTexture = canvas.app.renderer.generateTexture(g);
-	}
-
 	/**
 	 * @param {boolean} visible
 	 * @param {boolean} animate
@@ -127,31 +119,35 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		], { name, duration: animate ? 250 : 1 });
 	}
 
-	// -------------------- //
-	// Main drawing methods //
-	// -------------------- //
-	/** @returns {Promise<PIXI.Graphics>} */
-	#drawBorder() {
-		const g = this.addChild(new PIXI.Graphics());
-		g.zIndex = 20;
+	async #drawMain() {
+		if (!this.terrainType) return;
 
-		const lineStyle = this.#getLineStyleFromTerrainType();
+		super.update(
+			{
+				lineType: this.terrainType.lineType,
+				lineWidth: this.terrainType.lineWidth,
+				lineColor: Color.from(this.terrainType.lineColor),
+				lineOpacity: this.terrainType.lineOpacity,
+				lineColorAnimation: this.terrainType.lineColorAnimation,
+				lineDashSize: this.terrainType.lineDashSize,
+				lineGapSize: this.terrainType.lineGapSize,
+				lineDashOffsetAnimation: this.terrainType.lineDashOffsetAnimation,
+				lineAlignment: 0,
+				fillType: this.terrainType.fillType,
+				fillColor: Color.from(this.terrainType.fillColor),
+				fillOpacity: this.terrainType.fillOpacity,
+				fillColorAnimation: this.terrainType.fillColorAnimation,
+				fillTexture: await this.#parent._terrainTextures.get(this.shape.terrainTypeId),
+				fillTextureOffset: this.terrainType.fillTextureOffset,
+				fillTextureOffsetAnimation: this.terrainType.fillTextureOffsetAnimation,
+				fillTextureScale: this.terrainType.fillTextureScale
+			},
+			polygonToPathCommands(this.shape.polygon),
+			this.shape.holes.map(polygonToPathCommands),
+			this.shape.polygon.boundingRect
+		);
 
-		g.lineStyle(lineStyle);
-		if (this.terrainType.lineType === lineTypes.dashed) {
-			const dashedLineStyle = {
-				closed: true,
-				dashSize: this.terrainType.lineDashSize ?? 15,
-				gapSize: this.terrainType.lineGapSize ?? 10
-			};
-
-			drawDashedPath(g, this.shape.polygon.vertices, dashedLineStyle);
-			for (const hole of this.shape.holes) drawDashedPath(g, hole.vertices, dashedLineStyle);
-
-		} else {
-			this.#drawPolygon(g, this.shape.polygon);
-			for (const hole of this.shape.holes) this.#drawPolygon(g, hole);
-		}
+		canvas.app.ticker.add(this.#boundTick);
 	}
 
 	#drawFade() {
@@ -160,7 +156,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		// Graphics
 		const g = new PIXI.Graphics();
 		this.#fadeGraphics = this.addChild(g);
-		g.zIndex = 10;
+		g.zIndex = 0.5;
 
 		g.lineStyle({
 			width: 48 * this.terrainType.lineFadeDistance,
@@ -177,56 +173,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		// out of the scene. Also use a higher blur quality for this as this blur is larger than most others.
 		g.filters = [canvas.createBlurFilter(60 * this.terrainType.lineFadeDistance, CONFIG.Canvas.blurQuality * 2)];
 
-		g.mask = this.#shapeMask ?? this.#drawMask();
-	}
-
-	async #drawFill() {
-		if (this.terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE) return;
-
-		const isPattern = this.terrainType.fillType === CONST.DRAWING_FILL_TYPES.PATTERN && !!this.terrainType.fillTexture?.length;
-
-		// If using a texture, load that, falling back to solid colour if it fails to load (e.g. missing image)
-		const texture = isPattern
-			? await this.#parent._terrainTextures.get(this.shape.terrainTypeId) ?? TerrainShapeGraphic.#whiteTexture
-			: TerrainShapeGraphic.#whiteTexture;
-
-		const { x1, y1, w, h } = this.shape.polygon.boundingBox;
-		const sprite = this.addChild(new PIXI.TilingSprite(texture, w, h));
-		sprite.zIndex = 0;
-
-		sprite.x = x1;
-		sprite.y = y1;
-
-		// Color
-		sprite.tint = Color.from(this.terrainType.fillColor ?? "#000000");
-		sprite.alpha = this.terrainType.fillOpacity ?? 0.4;
-
-		// Pattern dimensions
-		if (isPattern) {
-			const { x: xOffset, y: yOffset } = this.terrainType.fillTextureOffset;
-			const { x: xScale, y: yScale } = this.terrainType.fillTextureScale;
-			const { x: xAnim, y: yAnim } = this.terrainType.fillTextureOffsetAnimation;
-
-			sprite.tilePosition.set(xOffset, yOffset);
-			sprite.tileScale.set(xScale / 100, yScale / 100);
-
-			if (xAnim !== 0 || yAnim !== 0) {
-				const tickerFn = () => {
-					const { deltaMS } = canvas.app.ticker;
-					sprite.tilePosition.x += ((xAnim / 1000) * deltaMS) % (texture.width * xScale);
-					sprite.tilePosition.y += ((yAnim / 1000) * deltaMS) % (texture.height * yScale);
-				};
-				canvas.app.ticker.add(tickerFn);
-				this.#tickerFns.push(tickerFn);
-			}
-		}
-
-		sprite.mask = this.#shapeMask ?? this.#drawMask();
-	}
-
-	#drawMask() {
-		const mask = new PIXI.Graphics();
-		this.#shapeMask = this.addChild(mask);
+		const mask = this.addChild(new PIXI.Graphics());
 
 		mask.beginFill(0x000000);
 
@@ -237,7 +184,7 @@ export class TerrainShapeGraphic extends PIXI.Container {
 			mask.endHole();
 		}
 
-		return mask;
+		g.mask = mask;
 	}
 
 	_redrawLabel() {
@@ -351,16 +298,16 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		return label;
 	}
 
-	// ---------------- //
-	// Graphics styling //
-	// ---------------- //
-	#getLineStyleFromTerrainType() {
-		return {
-			width: this.terrainType.lineType === lineTypes.none ? 0 : this.terrainType.lineWidth ?? 0,
-			color: Color.from(this.terrainType.lineColor ?? "#000000"),
-			alpha: this.terrainType.lineOpacity ?? 1,
-			alignment: 0
-		};
+	/** @override */
+	tick() {
+		super.tick();
+
+		if (this.#label && this.#textColorAnimationKeyframePremultiplied) {
+			const { duration, easingFunc } = this.terrainType.textColorAnimation;
+			const { color, alpha } = getColorAnimationValue(this.#textColorAnimationKeyframePremultiplied, duration, easingFunc, Date.now());
+			this.#label.style.fill = unpremultiply(color, alpha);
+			this.#label.alpha = alpha;
+		}
 	}
 
 	/** @returns {PIXI.TextStyle} */
@@ -390,9 +337,6 @@ export class TerrainShapeGraphic extends PIXI.Container {
 		return style;
 	}
 
-	// ------- //
-	// Helpers //
-	// ------- //
 	/** @param {Polygon} polygon */
 	#drawPolygon(graphics, polygon) {
 		graphics.moveTo(polygon.vertices.at(-1).x, polygon.vertices.at(-1).y);
@@ -421,4 +365,15 @@ export function getLabelText(shape, terrainStyle) {
 			.replace(/%e%/g, prettyFraction(toSceneUnits(shape.elevation)))
 			.replace(/%t%/g, prettyFraction(toSceneUnits(shape.height + shape.elevation)))
 		: format;
+}
+
+/**
+ * @param {Polygon} polygon
+ * @returns {import("../../shared/pixi/drawing.mjs").PathCommand[]}
+ */
+function polygonToPathCommands(polygon) {
+	return [
+		{ type: "m", x: polygon.vertices.at(-1).x, y: polygon.vertices.at(-1).y },
+		...polygon.vertices.map(({ x, y }) => ({ type: "l", x, y }))
+	];
 }

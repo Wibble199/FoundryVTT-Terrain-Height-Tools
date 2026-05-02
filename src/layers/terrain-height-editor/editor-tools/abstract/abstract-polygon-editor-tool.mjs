@@ -2,8 +2,8 @@
 /** @import { PointLike } from "../../../../geometry/point.mjs" */
 import { signal } from "@preact/signals-core";
 import { drawingModeTypes } from "../../../../consts.mjs";
+import { drawDashedComplexPath } from "../../../../shared/pixi/drawing.mjs";
 import { getGridCellPolygon, polygonsFromGridCells } from "../../../../utils/grid-utils.mjs";
-import { drawDashedPath } from "../../../../utils/pixi-utils.mjs";
 import { AbstractEditorTool } from "./abstract-editor-tool.mjs";
 
 /**
@@ -563,10 +563,10 @@ class CustomPolygonDrawingMode extends AbstractDrawingMode {
 			this._previewGraphics.lineTo(...this.#currentPoints[i]);
 
 		// Draw dashed preview line
-		drawDashedPath(this._previewGraphics, [
-			this.#currentPoints.at(-1),
-			[mouseX, mouseY],
-			this.#currentPoints.length > 1 && this.#currentPoints[0] // don't double-draw line if only one
+		drawDashedComplexPath(this._previewGraphics, [
+			{ type: "m", x: this.#currentPoints.at(-1)[0], y: this.#currentPoints.at(-1)[1] },
+			{ type: "l", x: mouseX, y: mouseY },
+			this.#currentPoints.length > 1 && { type: "l", x: this.#currentPoints[0][0], y: this.#currentPoints[0][1] } // don't double-draw line if only one
 		].filter(Boolean));
 	}
 }
