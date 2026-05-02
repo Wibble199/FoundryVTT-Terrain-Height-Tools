@@ -1,8 +1,8 @@
 /** @import { ColorAnimation, ColorAnimationKeyframe } from "../color/color-animation.mjs" */
 /** @import { PathCommand } from "./drawing.mjs" */
-import { LINE_TYPES } from "../../consts.mjs";
 import { getColorAnimationValue, premultiplyKeyframes } from "../color/color-animation.mjs";
 import { unpremultiply } from "../color/conversions.mjs";
+import { LINE_TYPES } from "../consts.mjs";
 import { drawComplexPath, drawDashedComplexPath } from "./drawing.mjs";
 
 /**
@@ -205,7 +205,7 @@ export class PolygonGraphic extends PIXI.Container {
 	}
 
 	/** Function to be called each frame to animate anything that needs animating. */
-	tick = () => {
+	tick() {
 		const now = Date.now();
 
 		// Line color
@@ -252,7 +252,7 @@ export class PolygonGraphic extends PIXI.Container {
 			const yOffset = ((now / 1000) * yDelta) % (this.#style.fillTexture?.height ?? 1);
 			this.#fillTilingSprite.tilePosition.set(xOffset, yOffset);
 		}
-	};
+	}
 
 	/** @param {PolygonGraphicStyle | null} style */
 	#hasLine(style) {
