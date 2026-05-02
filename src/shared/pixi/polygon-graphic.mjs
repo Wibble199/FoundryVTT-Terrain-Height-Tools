@@ -15,6 +15,7 @@ import { drawComplexPath, drawDashedComplexPath } from "./drawing.mjs";
  * @property {number} lineDashSize
  * @property {number} lineGapSize
  * @property {number} [lineDashOffsetAnimation]
+ * @property {number} [lineAlignment]
  * @property {number} fillType
  * @property {number} fillColor
  * @property {ColorAnimation | null} [fillColorAnimation]
@@ -93,7 +94,7 @@ export class PolygonGraphic extends PIXI.Container {
 				color: 0xFFFFFF,
 				alpha: 1,
 				width: style.lineWidth,
-				alignment: 0.5
+				alignment: style.lineAlignment ?? 0.5
 			});
 
 			this.#lineGraphics.tint = style.lineColor;
