@@ -3,8 +3,8 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "rolldown -c -w",
-		"build": "rolldown -c",
+		"dev": "tsdown -w",
+		"build": "rNODE_ENV=production tsdown",
 		"test": "node --test test/**/*.test.mjs",
 		"lint": "eslint -c eslint.config.mjs"
 	},
@@ -17,8 +17,9 @@
 	"devDependencies": {
 		"@eslint/js": "^9.39.3",
 		"@stylistic/eslint-plugin-js": "^4.4.1",
+		"@tsdown/css": "^0.21.10",
 		"@types/node": "^22.8.1",
 		"eslint": "^9.39.3",
-		"rolldown": "^1.0.0-rc.9"
+		"tsdown": "^0.21.10"
 	}
 }

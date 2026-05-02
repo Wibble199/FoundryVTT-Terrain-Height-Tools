@@ -14,6 +14,7 @@ import * as canvasStore from "./stores/canvas.mjs";
 import { updateActiveControlTool } from "./stores/scene-controls.mjs";
 import { registerTerrainProvider } from "./stores/terrain-manager.mjs";
 import { loadTerrainTypes } from "./stores/terrain-types.mjs";
+import "./styles/main.css";
 import { log } from "./utils/log.mjs";
 
 Hooks.once("init", init);
