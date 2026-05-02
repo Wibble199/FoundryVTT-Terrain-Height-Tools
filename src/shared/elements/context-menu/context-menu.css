@@ -1,0 +1,4 @@
+context-menu-fwl {
+	position: absolute;
+	z-index: var(--z-index-tooltip);
+}
