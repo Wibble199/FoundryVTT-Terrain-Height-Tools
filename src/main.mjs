@@ -101,7 +101,7 @@ function initLibWrapper() {
 function handleSocketEvent({ func, args }) {
 	switch (func) {
 		case socketFuncs.drawLineOfSightRay: {
-			LineOfSightRulerLayer.current?._updateTokenLineOfSightRays(...args);
+			LineOfSightRulerLayer.current?._drawLineOfSightRays(...args);
 			break;
 		}
 
