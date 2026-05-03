@@ -1,14 +1,14 @@
 import { html } from "@lit-labs/preact-signals";
 import { computed } from "@preact/signals-core";
 import { classMap } from "lit/directives/class-map.js";
-import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
 import { terrainPaintMode, tools } from "../consts.mjs";
 import { drawingMode$, paintingConfig$ } from "../stores/drawing.mjs";
-import { getCssColorsFor, getTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { getTerrainType, terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
 import "./components/drawing-mode-picker.mjs";
+import { styleTerrainColor } from "./directives/style-terrain-color.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 import { TerrainTypesConfig } from "./terrain-types-config.mjs";
@@ -70,22 +70,22 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 			<ul class="terrain-type-palette">
 				${when(
 					terrainTypes$.value.length,
-					() => terrainTypes$.value.map(terrainType => {
-						const { borderColor, background } = getCssColorsFor(terrainType);
-						return html`
-							<li
-								class=${computed(() => classMap({ active: paintingConfig$.terrainTypeId.value === terrainType.id }))}
-								@click=${() => paintingConfig$.value = {
-									terrainTypeId: terrainType.id,
-									height: terrainType.defaultHeight ?? paintingConfig$.height.value,
-									elevation: terrainType.defaultElevation ?? paintingConfig$.elevation.value
-								}}
-							>
-								<div class="preview-box" style=${styleMap({ borderColor, background })}></div>
-								<label class="terrain-type-name">${terrainType.name}</label>
-							</li>
-						`;
-					}),
+					() => terrainTypes$.value.map(terrainType => html`
+						<li
+							class=${computed(() => classMap({ active: paintingConfig$.terrainTypeId.value === terrainType.id }))}
+							@click=${() => paintingConfig$.value = {
+								terrainTypeId: terrainType.id,
+								height: terrainType.defaultHeight ?? paintingConfig$.height.value,
+								elevation: terrainType.defaultElevation ?? paintingConfig$.elevation.value
+							}}
+						>
+							<div
+								class="preview-box"
+								style=${styleTerrainColor(terrainType, { textColorCssPropertyName: "" })}
+							></div>
+							<label class="terrain-type-name">${terrainType.name}</label>
+						</li>
+					`),
 					() => html`<li>
 						<a @click=${TerrainPaintPalette.#configureTerrainTypes}>
 							${l("TERRAINHEIGHTTOOLS.NoTerrainTypesWarn")}

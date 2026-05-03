@@ -1,9 +1,10 @@
 /** @import { TerrainShape } from "../geometry/terrain-shape.mjs" */
 import { html } from "lit";
 import { when } from "lit/directives/when.js";
-import { getCssColorsFor, terrainTypeMap$ } from "../stores/terrain-types.mjs";
+import { terrainTypeMap$ } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
+import { styleTerrainColor } from "./directives/style-terrain-color.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 
 const { ApplicationV2 } = foundry.applications.api;
@@ -76,9 +77,7 @@ export class TerrainShapeChoiceDialog extends LitApplicationMixin(ApplicationV2)
 					<svg class="flex1" xmlns="http://www.w3.org/2000/svg" viewBox=${data.svgViewBox}>
 						<path
 							d=${data.svgPath}
-							fill=${data.background}
-							stroke=${data.borderColor}
-							stroke-width=${data.borderWidth}
+							${styleTerrainColor(data.terrainType, { fillColorCssPropertyName: "fill", lineColorCssPropertyName: "stroke", lineWidthCssPropertyName: "stroke-width" })}
 						/>
 					</svg>
 				</div>
@@ -97,8 +96,8 @@ export class TerrainShapeChoiceDialog extends LitApplicationMixin(ApplicationV2)
 
 				return {
 					terrainTypeName: terrainType.name,
+					terrainType,
 					usesHeight: !!terrainType.usesHeight,
-					...getCssColorsFor(terrainType),
 					height: prettyFraction(toSceneUnits(shape.height)),
 					elevation: prettyFraction(toSceneUnits(shape.elevation)),
 					top: prettyFraction(toSceneUnits(shape.height + shape.elevation)),

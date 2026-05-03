@@ -1,12 +1,12 @@
 import { html } from "@lit-labs/preact-signals";
 import { computed } from "@preact/signals-core";
 import { classMap } from "lit/directives/class-map.js";
-import { styleMap } from "lit/directives/style-map.js";
 import { drawingMode$, eraseConfig$ } from "../stores/drawing.mjs";
-import { getCssColorsFor, terrainTypes$ } from "../stores/terrain-types.mjs";
+import { terrainTypes$ } from "../stores/terrain-types.mjs";
 import { fromSceneUnits, toSceneUnits } from "../utils/grid-utils.mjs";
 import { abortableSubscribe } from "../utils/signal-utils.mjs";
 import "./components/drawing-mode-picker.mjs";
+import { styleTerrainColor } from "./directives/style-terrain-color.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 
@@ -51,18 +51,18 @@ export class TerrainErasePalette extends ThtApplicationPositionMixin(LitApplicat
 
 			<p class="flex0" style="margin-top: 0;">${l("TERRAINHEIGHTTOOLS.TerrainTypesToErase")}</p>
 			<ul class="terrain-type-palette">
-				${terrainTypes$.value.map(terrainType => {
-					const { borderColor, background } = getCssColorsFor(terrainType);
-					return html`
-						<li
-							class=${computed(() => classMap({ active: !eraseConfig$.excludedTerrainTypeIds.value.includes(terrainType.id) }))}
-							@click=${() => this.#selectTerrain(terrainType.id)}
-						>
-							<div class="preview-box" style=${styleMap({ borderColor, background })}></div>
-							<label class="terrain-type-name">${terrainType.name}</label>
-						</li>
-					`;
-				})}
+				${terrainTypes$.value.map(terrainType => html`
+					<li
+						class=${computed(() => classMap({ active: !eraseConfig$.excludedTerrainTypeIds.value.includes(terrainType.id) }))}
+						@click=${() => this.#selectTerrain(terrainType.id)}
+					>
+						<div
+							class="preview-box"
+							${styleTerrainColor(terrainType, { textColorCssPropertyName: "" })}
+						></div>
+						<label class="terrain-type-name">${terrainType.name}</label>
+					</li>
+				`)}
 			</ul>
 
 			<div class="flex0" style="text-align: right;">

@@ -3,7 +3,6 @@
 import { computed, signal } from "@preact/signals-core";
 import { flags, moduleName, settingNames } from "../consts.mjs";
 import { LINE_TYPES } from "../shared/consts.mjs";
-import { alphaToHex } from "../utils/misc-utils.mjs";
 
 /**
  * @typedef {object} TerrainType
@@ -151,25 +150,6 @@ export function getTerrainColor(terrainType, defaultColor = 0x00FFFF) {
 
 	// Otherwise use a default
 	return defaultColor;
-}
-
-/**
- * Returns the 8-digit hexadecimal colours for border, background and text color for the given terrain type.
- * @param {TerrainType} terrainType
- */
-export function getCssColorsFor(terrainType) {
-	return {
-		color: terrainType.textColor + alphaToHex(terrainType.textOpacity),
-		background: terrainType.fillType === CONST.DRAWING_FILL_TYPES.NONE
-			? "transparent"
-			: terrainType.fillColor + alphaToHex(terrainType.fillOpacity),
-		borderColor: terrainType.lineType === LINE_TYPES.NONE || terrainType.lineWidth <= 0
-			? "transparent"
-			: terrainType.lineColor + alphaToHex(terrainType.lineOpacity),
-		borderWidth: terrainType.lineType === LINE_TYPES.NONE
-			? 0
-			: terrainType.lineWidth
-	};
 }
 
 /**

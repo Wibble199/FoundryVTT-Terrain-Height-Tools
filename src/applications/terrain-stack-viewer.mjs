@@ -2,18 +2,19 @@
 /** @import { TerrainType } from "../stores/terrain-types.mjs" */
 import { computed, effect } from "@preact/signals-core";
 import { html, svg } from "lit";
-import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
 import { keyPressed$ } from "../config/keybindings.mjs";
 import { showTerrainStackViewerOnTokenLayer$, terrainStackViewerDisplayMode$ } from "../config/settings.mjs";
 import { keybindings, terrainHeightEditorControlName } from "../consts.mjs";
+import { LINE_TYPES } from "../shared/consts.mjs";
 import { canvasReady$, cursorWorldPosition$ } from "../stores/canvas.mjs";
 import { activeControl$ } from "../stores/scene-controls.mjs";
 import { allTerrainShapes$, getShapesAtPoint } from "../stores/terrain-manager.mjs";
-import { getCssColorsFor, getTerrainType } from "../stores/terrain-types.mjs";
+import { getTerrainType } from "../stores/terrain-types.mjs";
 import { toSceneUnits } from "../utils/grid-utils.mjs";
-import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 import { prettyFraction } from "../utils/misc-utils.mjs";
+import { styleTerrainColor } from "./directives/style-terrain-color.mjs";
+import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 
 // How many pixels each unit in height is represented by in proportional mode.
 const proportionalModeScale = 28;
@@ -121,8 +122,7 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 
 		const shapesWithMeta = shapes.map(shape => {
 			const terrainType = getTerrainType(shape.terrainTypeId);
-			const style = getCssColorsFor(terrainType);
-			return { shape, terrainType, style };
+			return { shape, terrainType };
 		});
 
 		const nonZoneShapes = shapesWithMeta
@@ -152,8 +152,8 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 			${when(nonZoneShapes.length && zoneShapes.length, () => html`<hr>`)}
 
 			<!-- Zones -->
-			${zoneShapes.map(({ terrainType, style: { color, borderColor, background } }) => html`
-				<div class="terrain-layer-block" style=${styleMap({ color, borderColor, background })}>
+			${zoneShapes.map(({ terrainType }) => html`
+				<div class="terrain-layer-block" ${styleTerrainColor(terrainType, { lineWidthCssPropertyName: "" })}>
 					<p class="terrain-layer-block-title">${terrainType.name}</p>
 				</div>
 			`)}
@@ -163,7 +163,7 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 	// TODO: how to handle case where multiple shapes with height overlap at same elevation (e.g. from a provider)?
 
 	/**
-	 * @param {{ shape: TerrainShape; terrainType: TerrainType; style: ReturnType<typeof getCssColorsFor>; }[]} shapes
+	 * @param {{ shape: TerrainShape; terrainType: TerrainType; }[]} shapes
 	 * @param {number} highestElevation
 	 */
 	#renderProportionalDisplay(shapes, highestElevation) {
@@ -193,32 +193,34 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 				`)}
 
 				<!-- Shape blocks -->
-				${shapes.map(({ shape, terrainType, style }) => svg`
-					<rect
-						x="15%" y=${(shape.top * -proportionalModeScale) + (style.borderWidth * proportionalModeBorderScale * 0.5) + proportionalModePadding}
-						width="80%" height=${(shape.height * proportionalModeScale) + (style.borderWidth * -proportionalModeBorderScale) + (proportionalModePadding * -2)}
-						fill=${style.background}
-						stroke=${style.borderColor}
-						stroke-width=${style.borderWidth * proportionalModeBorderScale}
-					/>
+				${shapes.map(({ shape, terrainType }) => {
+					const borderWidth = terrainType.lineType === LINE_TYPES.NONE ? 0 : terrainType.lineWidth;
+					return svg`
+						<rect
+							x="15%" y=${(shape.top * -proportionalModeScale) + (borderWidth * proportionalModeBorderScale * 0.5) + proportionalModePadding}
+							width="80%" height=${(shape.height * proportionalModeScale) + (borderWidth * -proportionalModeBorderScale) + (proportionalModePadding * -2)}
+							stroke-width=${borderWidth * proportionalModeBorderScale}
+							${styleTerrainColor(terrainType, { fillColorCssPropertyName: "fill", lineColorCssPropertyName: "stroke", lineWidthCssPropertyName: "", textColorCssPropertyName: "" })}
+						/>
 
-					<text class="shape-label"
-						x="55%" y=${(shape.elevation + (shape.height / 2)) * -proportionalModeScale}
-						text-anchor="middle" dominant-baseline="middle"
-						fill=${style.color}
-					>
-						${terrainType.name}
-					</text>
-				`)}
+						<text class="shape-label"
+							x="55%" y=${(shape.elevation + (shape.height / 2)) * -proportionalModeScale}
+							text-anchor="middle" dominant-baseline="middle"
+							${styleTerrainColor(terrainType, { fillColorCssPropertyName: "", lineColorCssPropertyName: "", lineWidthCssPropertyName: "", textColorCssPropertyName: "fill" })}
+						>
+							${terrainType.name}
+						</text>
+					`;
+				})}
 			</svg>
 		`;
 	}
 
-	/** @param {{ shape: TerrainShape; terrainType: TerrainType; style: ReturnType<typeof getCssColorsFor>; }[]} shapes */
+	/** @param {{ shape: TerrainShape; terrainType: TerrainType; }[]} shapes */
 	#renderCompactDisplay(shapes) {
 		const f = v => prettyFraction(toSceneUnits(v));
-		return html`${shapes.map(({ shape, terrainType, style: { color, borderColor, background } }) => html`
-			<div class="terrain-layer-block" style=${styleMap({ color, borderColor, background })}>
+		return html`${shapes.map(({ shape, terrainType }) => html`
+			<div class="terrain-layer-block" ${styleTerrainColor(terrainType, { lineWidthCssPropertyName: "" })}>
 				<p class="terrain-layer-block-title">${terrainType.name}</p>
 				<p class="terrain-layer-block-height">${f(shape.bottom)} → ${f(shape.top)} (${l("Height")} ${f(shape.height)})</p>
 			</div>
