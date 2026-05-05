@@ -63,7 +63,7 @@ export class TerrainStackViewer extends LitApplicationMixin(ApplicationV2) {
 		keyPressed$[keybindings.showTerrainStack].value ||
 		activeControl$.value === terrainHeightEditorControlName ||
 		(
-			activeControl$.value === "token" &&
+			activeControl$.value === "tokens" &&
 			showTerrainStackViewerOnTokenLayer$.value &&
 			this.#terrainShapesUnderMouse$.value.length > 0
 		));

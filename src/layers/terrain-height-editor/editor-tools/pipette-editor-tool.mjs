@@ -1,5 +1,5 @@
 /** @import { TerrainShape } from "../../../geometry/terrain-shape.mjs"; */
-import { terrainHeightEditorControlName, tools } from "../../../consts.mjs";
+import { tools } from "../../../consts.mjs";
 import { paintingConfig$ } from "../../../stores/drawing.mjs";
 import { AbstractShapePickerEditorTool } from "./abstract/abstract-shape-picker-editor-tool.mjs";
 
@@ -25,8 +25,6 @@ export class PipetteEditorTool extends AbstractShapePickerEditorTool {
 			elevation: Math.max(shape.elevation, 0)
 		};
 
-		// Select the paintbrush tool. This feels like a horrible dirty way of doing this, but there doesn't seem to be
-		// any API exposed by Foundry to set the tool without pretending to click the button.
-		document.querySelector(`#tools-panel-${terrainHeightEditorControlName} [data-tool="${tools.paint}"]`)?.click();
+		ui.controls.activate({ tool: tools.paint });
 	}
 }

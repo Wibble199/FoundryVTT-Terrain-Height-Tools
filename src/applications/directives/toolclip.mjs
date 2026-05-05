@@ -12,7 +12,7 @@ class ToolclipDirective extends AsyncDirective {
 	render(toolclipConfig, tooltip) {
 		const showToolclips = game.settings.get("core", "showToolclips");
 		if (toolclipConfig && showToolclips) {
-			renderTemplate("templates/hud/toolclip.html", {
+			foundry.applications.handlebars.renderTemplate("templates/ui/toolclip.hbs", {
 				...toolclipConfig,
 				mod: isMac ? "⌘" : game.i18n.localize("CONTROLS.CtrlAbbr"),
 				alt: isMac ? "⌥" : game.i18n.localize("CONTROLS.Alt")

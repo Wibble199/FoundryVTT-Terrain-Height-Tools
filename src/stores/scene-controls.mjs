@@ -12,6 +12,6 @@ export const activeTool$ = signal();
  * @param {SceneControls} controls
  */
 export function updateActiveControlTool(controls) {
-	activeControl$.value = controls.activeControl;
-	activeTool$.value = controls.activeTool;
+	activeControl$.value = controls.control.name;
+	activeTool$.value = controls.tool.name;
 }

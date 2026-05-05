@@ -10,14 +10,14 @@ import { PaintEditorTool } from "./editor-tools/paint-editor-tool.mjs";
 import { PipetteEditorTool } from "./editor-tools/pipette-editor-tool.mjs";
 import { TerrainVisibilityEditorTool } from "./editor-tools/terrain-visibility-editor-tool.mjs";
 
+const { InteractionLayer } = foundry.canvas.layers;
+
 /**
  * Layer for handling interaction with the terrain height data.
  * Individual tools are delegated to `EditorTool` classes, which neatly encapsulate all the logic and state required for
  * that tool.
  */
 export class TerrainHeightEditorLayer extends InteractionLayer {
-
-	#lastPointerPosition = { x: -1, y: -1 };
 
 	#lastPointerButtons = 0;
 
@@ -122,7 +122,6 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		}
 
 		this.#throttledMouseMove(x, y);
-		this.#lastPointerPosition = { x, y };
 	};
 
 	/** @param {PIXI.FederatedPointerEvent} event */
@@ -164,15 +163,10 @@ export class TerrainHeightEditorLayer extends InteractionLayer {
 		this.#selectedTool?._onKeyUp(event);
 	};
 
-	async clear() {
-		await heightMap.clear();
-	}
-
-	get canUndo() {
-		return heightMap.canUndo;
-	}
-
-	async undo() {
-		return await heightMap.undo();
+	/** @override */
+	async _onUndoKey() {
+		if (heightMap.canUndo) {
+			return await heightMap.undo();
+		}
 	}
 }
