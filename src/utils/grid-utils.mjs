@@ -242,9 +242,9 @@ const getRectangleHexTokenSpaces = cacheReturn(
  * @param {number} height Token height (in grid spaces).
  * @param {number} gridType The type of grid.
  * @param {number} gridSize The size of the grid in pixels.
- * @param {number} hexShape For hexagonal tokens, the type of hex shape used.
+ * @param {number} shape For hexagonal tokens, the type of hex shape used.
  */
-export function getSpacesUnderToken(x, y, width, height, gridType, gridSize, hexShape) {
+export function getSpacesUnderToken(x, y, width, height, gridType, gridSize, shape) {
 	// Gridless is not supported
 	if (gridType === CONST.GRID_TYPES.GRIDLESS) {
 		return [];
@@ -264,24 +264,24 @@ export function getSpacesUnderToken(x, y, width, height, gridType, gridSize, hex
 	const primaryAxisSize = isColumnar ? height : width;
 	const secondaryAxisSize = isColumnar ? width : height;
 	const isVariant2 = [
-		CONST.TOKEN_HEXAGONAL_SHAPES.ELLIPSE_2,
-		CONST.TOKEN_HEXAGONAL_SHAPES.TRAPEZOID_2,
-		CONST.TOKEN_HEXAGONAL_SHAPES.RECTANGLE_2
-	].includes(hexShape);
+		CONST.TOKEN_SHAPES.ELLIPSE_2,
+		CONST.TOKEN_SHAPES.TRAPEZOID_2,
+		CONST.TOKEN_SHAPES.RECTANGLE_2
+	].includes(shape);
 
-	switch (hexShape) {
-		case CONST.TOKEN_HEXAGONAL_SHAPES.ELLIPSE_1:
-		case CONST.TOKEN_HEXAGONAL_SHAPES.ELLIPSE_2:
+	switch (shape) {
+		case CONST.TOKEN_SHAPES.ELLIPSE_1:
+		case CONST.TOKEN_SHAPES.ELLIPSE_2:
 			return getEllipseHexTokenSpaces(primaryAxisSize, secondaryAxisSize, isColumnar, isVariant2)
 				.map(p => ({ x: x + (p.x * gridSize), y: y + (p.y * gridSize) }));
 
-		case CONST.TOKEN_HEXAGONAL_SHAPES.TRAPEZOID_1:
-		case CONST.TOKEN_HEXAGONAL_SHAPES.TRAPEZOID_2:
+		case CONST.TOKEN_SHAPES.TRAPEZOID_1:
+		case CONST.TOKEN_SHAPES.TRAPEZOID_2:
 			return getTrapezoidHexTokenSpaces(primaryAxisSize, secondaryAxisSize, isColumnar, isVariant2)
 				.map(p => ({ x: x + (p.x * gridSize), y: y + (p.y * gridSize) }));
 
-		case CONST.TOKEN_HEXAGONAL_SHAPES.RECTANGLE_1:
-		case CONST.TOKEN_HEXAGONAL_SHAPES.RECTANGLE_2:
+		case CONST.TOKEN_SHAPES.RECTANGLE_1:
+		case CONST.TOKEN_SHAPES.RECTANGLE_2:
 			return getRectangleHexTokenSpaces(primaryAxisSize, secondaryAxisSize, isColumnar, isVariant2)
 				.map(p => ({ x: x + (p.x * gridSize), y: y + (p.y * gridSize) }));
 

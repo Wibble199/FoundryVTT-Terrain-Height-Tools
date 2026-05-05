@@ -12,6 +12,9 @@ import { debug } from "../../utils/log.mjs";
 import { abortableEffect, abortableSubscribe } from "../../utils/signal-utils.mjs";
 import { TerrainShapeGraphic } from "./terrain-shape-graphic.mjs";
 
+const { loadTexture } = foundry.canvas;
+const { CanvasLayer } = foundry.canvas.layers;
+
 /**
  * Layer for rendering terrain shapes to the canvas.
  */
@@ -39,12 +42,8 @@ export class TerrainHeightGraphicsLayer extends CanvasLayer {
 	#tearDownController;
 
 	#graphicSortLayer$ = computed(() => {
-		// Note that during the v11 -> v12 migration, I made the mistake of getting this setting backwards, so when this
-		// value is TRUE that actually means that the terrain layer should be rendered BELOW the tiles.
-		// The UI labels have been corrected so that users have the expected behaviour, but the name of the flags and
-		// settings have not been changed so that users do not have to re-do their config.
-		const renderBelowTiles = sceneRenderAboveTilesChoice$.value ?? terrainLayerAboveTilesDefault$.value;
-		return renderBelowTiles ? 490 : 510;
+		const renderAboveTiles = sceneRenderAboveTilesChoice$.value ?? terrainLayerAboveTilesDefault$.value;
+		return renderAboveTiles ? 510 : 490;
 	});
 
 	constructor() {

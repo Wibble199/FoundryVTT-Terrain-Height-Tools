@@ -48,12 +48,14 @@ export class TerrainShapeChoiceDialog extends LitApplicationMixin(ApplicationV2)
 				${this._terrainShapes.map(this.#renderShape)}
 			</div>
 
-			<footer class="form-footer">
-				<button type="submit">
-					<i class=${this.options.submitIcon}></i>
-					<label>${l(this.options.submitLabel)}</label>
-				</button>
-			</footer>
+			<div class="standard-form">
+				<footer class="form-footer">
+					<button type="submit">
+						<i class=${this.options.submitIcon}></i>
+						<label>${l(this.options.submitLabel)}</label>
+					</button>
+				</footer>
+			</div>
 		`;
 	}
 

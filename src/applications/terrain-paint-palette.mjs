@@ -44,7 +44,7 @@ export class TerrainPaintPalette extends ThtApplicationPositionMixin(LitApplicat
 
 		// Add configure terrain types button
 		const configureButton = document.createElement("button");
-		configureButton.classList.add("header-control", "fas", "fa-cog");
+		configureButton.classList.add("header-control", "icon", "fas", "fa-cog");
 		configureButton.addEventListener("click", TerrainPaintPalette.#configureTerrainTypes);
 		this.window.header.append(configureButton);
 

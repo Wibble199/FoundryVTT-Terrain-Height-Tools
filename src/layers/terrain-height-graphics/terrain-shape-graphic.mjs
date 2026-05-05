@@ -14,6 +14,8 @@ import { chunk } from "../../utils/array-utils.mjs";
 import { toSceneUnits } from "../../utils/grid-utils.mjs";
 import { prettyFraction } from "../../utils/misc-utils.mjs";
 
+const { CanvasAnimation } = foundry.canvas.animation;
+const { PreciseText } = foundry.canvas.containers;
 
 /**
  * The positions relative to the shape that the label placement algorithm will test, both horizontal and vertical.

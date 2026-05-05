@@ -38,7 +38,7 @@
 	display: block;
 	margin-left: -1px; /* Collapse adjacent borders */
 	padding: 4px 8px;
-	border: 1px solid var(--color-border-light-tertiary);
+	border: 1px solid var(--color-cool-4);
 	text-align: center;
 	cursor: pointer;
 }
@@ -50,8 +50,7 @@
 }
 
 .tht-radio-button input:checked + label {
-	border-color: var(--color-border-highlight-alt);
-    box-shadow: 0 0 6px inset var(--color-shadow-highlight);
+	border-color: var(--color-warm-2);
 }
 
 .tht-radio-button:first-of-type label {
@@ -74,6 +73,7 @@ ul.terrain-type-palette {
 	margin: 0;
 	padding: 0;
 	overflow-y: auto;
+	flex: 1 1 0;
 }
 
 ul.terrain-type-palette li {
@@ -90,8 +90,7 @@ ul.terrain-type-palette li * {
 }
 
 ul.terrain-type-palette li.active {
-	border-color: var(--color-border-highlight-alt);
-	box-shadow: 0 0 6px inset var(--color-shadow-highlight);
+	border-color: var(--color-warm-2);
 }
 
 ul.terrain-type-palette li .preview-box {
@@ -233,6 +232,7 @@ ul.terrain-type-palette li .terrain-type-name {
 #tht_terrainTypesConfig .terrain-type-list > li > button {
 	flex: 0 0 24px;
 	height: 24px;
+	min-height: unset;
 	padding: 0;
 	font-size: var(--font-size-12);
 	line-height: 24px;
@@ -243,7 +243,7 @@ ul.terrain-type-palette li .terrain-type-name {
 }
 
 #tht_terrainTypesConfig .terrain-type-list > li.active {
-	border-color: var(--color-border-highlight);
+	border-color: var(--color-warm-2);
 }
 
 #tht_terrainTypesConfig .terrain-type-edit-pane {
@@ -409,8 +409,7 @@ ul.terrain-type-palette li .terrain-type-name {
 }
 
 #tht_tokenLineOfSightConfig .token-selection-container.is-selecting-token {
-	border-color: var(--color-border-highlight-alt);
-	box-shadow: 0 0 6px inset var(--color-shadow-highlight);
+	border-color: var(--color-warm-2);
 }
 
 #tht_tokenLineOfSightConfig .token-selection-container > * {
@@ -479,36 +478,12 @@ ul.terrain-type-palette li .terrain-type-name {
 }
 
 .terrain-shape-choice-dialog .terrain-shape-list-radio:checked + .terrain-shape-list-item {
-	border-color: var(--color-border-highlight-alt);
-	box-shadow: 0px 0px 4px -1px rgb(0 0 0 / 50%), 0 0 6px inset var(--color-shadow-highlight);
+	border-color: var(--color-warm-2);
 }
 
 .terrain-shape-choice-dialog .terrain-shape-list-item > p {
 	margin: 0 0 4px;
 	text-align: center;
-}
-
-
-/* ----- */
-/* Icons */
-/* ----- */
-.tht-icon-erase-shape {
-	position: relative;
-	font: var(--fa-font-solid);
-}
-
-.tht-icon-erase-shape:before {
-	content: "\f5ee";
-    position: absolute;
-    top: -0.25em;
-    transform: scale(0.9) translateX(-60%);
-}
-
-.tht-icon-erase-shape:after {
-	content: "\f12d";
-    position: absolute;
-    bottom: -0.125em;
-    transform: scale(0.7) translateX(-40%);
 }
 
 

@@ -2,6 +2,8 @@ import { updateTerrainHook } from "../consts.mjs";
 import { TerrainShape } from "../geometry/terrain-shape.mjs";
 import { ObservableSet } from "../utils/observable-set.mjs";
 
+const { CanvasQuadtree } = foundry.canvas.geometry;
+
 /**
  * @typedef {Object} TerrainProviderMeta
  * @property {string} id

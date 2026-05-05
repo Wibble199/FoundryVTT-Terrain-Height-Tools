@@ -4,15 +4,14 @@ import { TokenLineOfSightConfig } from "./applications/token-line-of-sight-confi
 import { registerSceneControls } from "./config/controls.mjs";
 import { registerKeybindings } from "./config/keybindings.mjs";
 import { addAboveTilesToSceneConfig, addIgnoreAutoElevationToTokenConfig, registerSettings } from "./config/settings.mjs";
-import { heightMapProviderId, moduleName, socketFuncs, socketName } from "./consts.mjs";
+import { heightMapProviderId, moduleName, socketFuncs, socketName, tools } from "./consts.mjs";
 import { heightMap } from "./geometry/height-map.mjs";
-import * as autoTokenElevation from "./hooks/token-elevation.mjs";
 import { LineOfSightRulerLayer } from "./layers/line-of-sight-ruler-layer.mjs";
 import { TerrainHeightEditorLayer } from "./layers/terrain-height-editor/terrain-height-editor-layer.mjs";
 import { TerrainHeightGraphicsLayer } from "./layers/terrain-height-graphics/terrain-height-graphics-layer.mjs";
 import "./shared/style/shared.css";
 import * as canvasStore from "./stores/canvas.mjs";
-import { updateActiveControlTool } from "./stores/scene-controls.mjs";
+import { activeControl$, activeTool$, updateActiveControlTool } from "./stores/scene-controls.mjs";
 import { registerTerrainProvider } from "./stores/terrain-manager.mjs";
 import { loadTerrainTypes } from "./stores/terrain-types.mjs";
 import "./styles/main.css";
@@ -20,17 +19,6 @@ import { log } from "./utils/log.mjs";
 
 Hooks.once("init", init);
 Hooks.once("ready", ready);
-Hooks.on("getSceneControlButtons", registerSceneControls);
-Hooks.on("renderSceneControls", updateActiveControlTool);
-Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
-Hooks.on("renderTokenConfig", addIgnoreAutoElevationToTokenConfig);
-
-Hooks.on("updateScene", canvasStore.onUpdateScene);
-Hooks.on("canvasReady", canvasStore.onCanvasReady);
-Hooks.on("canvasTearDown", canvasStore.onCanvasTearDown);
-
-Hooks.on("preCreateToken", autoTokenElevation.handleTokenPreCreation);
-Hooks.on("preUpdateToken", autoTokenElevation.handleTokenElevationChange);
 
 Object.defineProperty(globalThis, "terrainHeightTools", {
 	value: {
@@ -44,6 +32,15 @@ function init() {
 
 	registerSettings();
 	loadTerrainTypes();
+
+	Hooks.on("getSceneControlButtons", registerSceneControls);
+	Hooks.on("activateSceneControls", updateActiveControlTool);
+	Hooks.on("renderSceneConfig", addAboveTilesToSceneConfig);
+	Hooks.on("renderTokenConfig", addIgnoreAutoElevationToTokenConfig);
+
+	Hooks.on("updateScene", canvasStore.onUpdateScene);
+	Hooks.on("canvasReady", canvasStore.onCanvasReady);
+	Hooks.on("canvasTearDown", canvasStore.onCanvasTearDown);
 
 	registerKeybindings();
 
@@ -68,34 +65,47 @@ function ready() {
 }
 
 function initLibWrapper() {
-	// Patch to allow the Undo keybinding to work for the Terrain Height Layer
-	libWrapper.register(moduleName, "ClientKeybindings._onUndo", function(wrapped, ...args) {
-		const layer = canvas.ready && canvas.activeLayer;
-		if (layer instanceof TerrainHeightEditorLayer && layer.canUndo) {
-			layer.undo();
-			return true;
-		}
-
-		return wrapped(...args);
-	}, libWrapper.MIXED);
-
-	// Patch to allow clicking on a token to select it for the token line of sight
+	// Patches to allow clicking on a token to select it for the token line of sight
 	// Since players are not allowed to click on tokens they do not own (in which case `_onClickLeft` does not even get
 	// called) we also need to override the `can` method to allow players to click tokens they don't own when using the
-	// token LoS tool. Feels dirty, but hey, whatever works, right?
-	libWrapper.register(moduleName, "Token.prototype._onClickLeft", function(wrapped, ...args) {
-		if (TokenLineOfSightConfig.current?._isSelectingToken$.value) {
-			TokenLineOfSightConfig.current._onSelectToken(this);
-			return;
-		}
-		wrapped(...args);
-	}, libWrapper.MIXED);
+	// token LoS tool.
+	libWrapper.register(
+		moduleName,
+		"foundry.canvas.placeables.Token.prototype._onClickLeft",
+		function(wrapped, ...args) {
+			if (TokenLineOfSightConfig.current?._isSelectingToken$.value) {
+				TokenLineOfSightConfig.current._onSelectToken(this);
+				return;
+			}
+			wrapped(...args);
+		},
+		libWrapper.MIXED
+	);
 
-	libWrapper.register(moduleName, "MouseInteractionManager.prototype.can", function(wrapped, action, event) {
-		if (action === "clickLeft" && TokenLineOfSightConfig.current?._isSelectingToken$.value)
-			return true;
-		return wrapped(action, event);
-	}, libWrapper.MIXED);
+	libWrapper.register(
+		moduleName,
+		"foundry.canvas.interaction.MouseInteractionManager.prototype.can",
+		function(wrapped, action, event) {
+			if (action === "clickLeft" && TokenLineOfSightConfig.current?._isSelectingToken$.value)
+				return true;
+			return wrapped(action, event);
+		},
+		libWrapper.MIXED
+	);
+
+	// If the game is paused and a player (non-GM) tries to do a left click on the token layer, a warning message
+	// appears telling them they can't do that while paused, so override _canDragLeftStart to prevent this message
+	// appearing if the user is using the line of sight ruler or token line of sight tools.
+	libWrapper.register(
+		moduleName,
+		"foundry.canvas.layers.TokenLayer.prototype._canDragLeftStart",
+		function(wrapped, user, event) {
+			if (activeControl$.value === "tokens" && [tools.tokenLineOfSight, tools.lineOfSight].includes(activeTool$.value))
+				return false;
+			return wrapped(user, event);
+		},
+		libWrapper.MIXED
+	);
 }
 
 function handleSocketEvent({ func, args }) {

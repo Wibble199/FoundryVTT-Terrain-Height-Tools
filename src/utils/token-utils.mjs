@@ -2,6 +2,8 @@
 import { LineSegment } from "../geometry/line-segment.mjs";
 import { isPoint3d } from "./misc-utils.mjs";
 
+const { Token } = foundry.canvas.placeables;
+
 /**
  * Gets the vertical height of a token from the given token document.
  * @param {TokenDocument} tokenDoc

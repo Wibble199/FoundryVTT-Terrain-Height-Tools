@@ -2,7 +2,7 @@
 import { ShapeConversionConfig } from "../../../applications/shape-conversion-config.mjs";
 import { wallHeightModuleName } from "../../../consts.mjs";
 import { heightMap } from "../../../geometry/height-map.mjs";
-import { convertConfig$ } from "../../../stores/drawing.mjs";
+import { convertConfig$, wallConfig$ } from "../../../stores/drawing.mjs";
 import { getTerrainType } from "../../../stores/terrain-types.mjs";
 import { toSceneUnits } from "../../../utils/grid-utils.mjs";
 import { getLabelText } from "../../terrain-height-graphics/terrain-shape-graphic.mjs";
@@ -26,7 +26,7 @@ export class ConvertShapeEditorTool extends AbstractShapePickerEditorTool {
 	 * @override
 	 */
 	async _selectShape(shape) {
-		const { toDrawing, toRegion, toWalls, wallConfig, setWallHeightFlags, deleteAfter } = convertConfig$.value;
+		const { toDrawing, toRegion, toWalls, setWallHeightFlags, deleteAfter } = convertConfig$.value;
 
 		const terrainData = getTerrainType(shape.terrainTypeId);
 		if (!terrainData) return;
@@ -117,7 +117,7 @@ export class ConvertShapeEditorTool extends AbstractShapePickerEditorTool {
 
 			await canvas.scene.createEmbeddedDocuments("Wall", [...shape.polygon.edges, ...shape.holes.flatMap(h => h.edges)]
 				.map(edge => ({
-					...wallConfig,
+					...wallConfig$.value,
 					c: [
 						edge.p1.x,
 						edge.p1.y,

@@ -10,7 +10,7 @@ export const ThtApplicationPositionMixin = BaseClass => class extends BaseClass 
 		super._configureRenderOptions(options);
 
 		if (options.isFirstRender) {
-			options.position.left ??= ui.sidebar?.element[0].getBoundingClientRect()?.left - this.constructor.DEFAULT_OPTIONS.position.width - 7;
+			options.position.left ??= ui.sidebar?.element.getBoundingClientRect()?.left - this.constructor.DEFAULT_OPTIONS.position.width - 7;
 			options.position.top ??= 5;
 		}
 	}

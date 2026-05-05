@@ -1,5 +1,6 @@
 /** @import { Signal } from "@preact/signals-core" */
 import { signal } from "@preact/signals-core";
+import { html, render } from "lit";
 import { TerrainTypesConfig } from "../applications/terrain-types-config.mjs";
 import { flags, moduleName, settingNames, terrainStackViewerDisplayModes, tokenRelativeHeights } from "../consts.mjs";
 import { loadTerrainTypes } from "../stores/terrain-types.mjs";
@@ -36,17 +37,12 @@ export function registerSettings() {
 		}
 	});
 
-	// Note that during the v11 -> v12 migration, I made the mistake of getting this setting backwards, so when this
-	// value is TRUE that actually means that the terrain layer should be rendered BELOW the tiles.
-	// The UI labels have been corrected so that users have the expected behaviour, but the name of the setting has not
-	// been changed so that users do not have to re-do their settings.
-	// Will fix if there are ever any more breaking changes (such as a v13 port).
 	registerSetting(settingNames.terrainLayerAboveTilesDefault, {
 		name: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Name",
 		hint: "SETTINGS.TerrainHeightLayerRenderAboveTiles.Hint",
 		scope: "world",
 		type: Boolean,
-		default: false,
+		default: true,
 		config: true
 	}, terrainLayerAboveTilesDefault$);
 
@@ -143,14 +139,14 @@ export function registerSettings() {
 		default: true
 	});
 
-	registerSetting(settingNames.tokenElevationChange, {
+	/* registerSetting(settingNames.tokenElevationChange, {
 		name: "SETTINGS.TokenElevationChange.Name",
 		hint: "SETTINGS.TokenElevationChange.Hint",
 		scope: "world",
 		type: Boolean,
 		config: true,
 		default: false
-	});
+	}); */
 
 	registerSetting(settingNames.showZonesAboveNonZones, {
 		name: "SETTINGS.ShowZonesAboveNonZones.Name",
@@ -203,56 +199,48 @@ export function registerSettings() {
 /**
  * When scene config is rendered, add a setting for the scene-level tile render order option.
  * @param {SceneConfig} sceneConfig
- * @param {jQuery} html
+ * @param {HTMLElement} html
  */
-export function addAboveTilesToSceneConfig(sceneConfig, html) {
-	// Note that during the v11 -> v12 migration, I made the mistake of getting this value backwards, so when this
-	// value is TRUE that actually means that the terrain layer should be rendered BELOW the tiles.
-	// The UI labels have been corrected so that users have the expected behaviour, but the name of the flag has not
-	// been changed so that users do not have to re-do their settings.
-	// Will fix if there are ever any more breaking changes (such as a v13 port).
+export function addAboveTilesToSceneConfig(sceneConfig, element) {
 	/** @type {boolean | null | undefined} */
-	const currentValue = sceneConfig.object.getFlag(moduleName, flags.terrainLayerAboveTiles);
+	const currentValue = sceneConfig.document.getFlag(moduleName, flags.terrainLayerAboveTiles);
 
-	html.find(".tab[data-tab='grid']").append(`
-		<hr/>
+	render(html`
 		<div class="form-group">
 			<label>${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTiles")}</label>
-			<select name="flags.${moduleName}.${flags.terrainLayerAboveTiles}" data-dtype="JSON">
-				<option value="null" ${currentValue === null || currentValue === undefined ? "selected" : ""}>
+			<select name=${`flags.${moduleName}.${flags.terrainLayerAboveTiles}`} data-dtype="JSON">
+				<option value="null" ?selected=${currentValue === null || currentValue === undefined}>
 					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.UseGlobal")}
 				</option>
-				<option value="false" ${currentValue === false ? "selected" : ""}>
+				<option value="true" ?selected=${currentValue === true}>
 					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.AboveTiles")}
 				</option>
-				<option value="true" ${currentValue === true ? "selected" : ""}>
+				<option value="false" ?selected=${currentValue === false}>
 					${game.i18n.localize("TERRAINHEIGHTTOOLS.SceneRenderAboveTilesChoice.BelowTiles")}
 				</option>
 			</select>
 		</div>
-	`);
+	`, element.querySelector(".tab[data-tab='grid']"));
 }
 
 /**
  * When token config is rendered, add a checkbox to ignore automatic elevation changes.
  * @param {TokenConfig} tokenConfig
- * @param {jQuery} html
+ * @param {HTMLElement} element
  */
-export function addIgnoreAutoElevationToTokenConfig(tokenConfig, html) {
+export function addIgnoreAutoElevationToTokenConfig(tokenConfig, element) {
 	// Don't show the checkbox if the token elevation change setting isn't active
 	if (!game.settings.get(moduleName, settingNames.tokenElevationChange)) return;
 
 	const currentValue = tokenConfig.token.getFlag(moduleName, flags.ignoreAutoElevation) ?? false;
 
-	html.find('.tab[data-tab="character"]').append(`
-		<hr/>
+	render(html`
 		<div class="form-group">
 			<label>${game.i18n.localize("TERRAINHEIGHTTOOLS.IgnoreAutoElevation.Name")}</label>
 			<div class="form-fields">
-				<input type="checkbox" name="flags.${moduleName}.${flags.ignoreAutoElevation}"
-					${currentValue ? "checked" : ""} />
+				<input type="checkbox" name="flags.${moduleName}.${flags.ignoreAutoElevation}" ?checked=${currentValue} />
 			</div>
 			<p class="hint">${game.i18n.localize("TERRAINHEIGHTTOOLS.IgnoreAutoElevation.Hint")}</p>
 		</div>
-	`);
+	`, element.querySelector('.tab[data-tab="identity"]'));
 }

@@ -2,11 +2,12 @@ import { html } from "@lit-labs/preact-signals";
 import { computed } from "@preact/signals-core";
 import { when } from "lit/directives/when.js";
 import { wallHeightModuleName } from "../consts.mjs";
-import { convertConfig$ } from "../stores/drawing.mjs";
+import { convertConfig$, wallConfig$ } from "../stores/drawing.mjs";
 import { LitApplicationMixin } from "./mixins/lit-application-mixin.mjs";
 import { ThtApplicationPositionMixin } from "./mixins/tht-application-position-mixin.mjs";
 
-const { ApplicationV2 } = foundry.applications.api;
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { WallDocument } = foundry.documents;
 
 /** @type {(k: string) => string} */
 const l = k => game.i18n.localize(k);
@@ -103,104 +104,115 @@ export class ShapeConversionConfig extends ThtApplicationPositionMixin(LitApplic
 
 /**
  * Custom wall config window that updates the conversion config instead of a WallDocument.
+ *
+ * This is basically a clone of the base Foundry system one with a tweaked _prepareContext and _processSubmitData.
  */
-class WallConversionConfig extends FormApplication {
-
-	#audioPreviewState = 0;
+class WallConversionConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
 	constructor(options = {}) {
 		super(undefined, options);
 	}
 
-	static get defaultOptions() {
-		return foundry.utils.mergeObject(super.defaultOptions, {
-			id: "tht_wallConversionConfig",
-			title: game.i18n.localize("DOCUMENT.Wall"),
-			classes: ["sheet", "wall-config"],
-			template: "templates/scene/wall-config.html",
-			width: 400,
-			height: "auto"
+	static DEFAULT_OPTIONS = {
+		id: "tht_wallConversionConfig",
+		classes: ["wall-config"],
+		tag: "form",
+		position: {
+			width: 480
+		},
+		window: {
+			contentClasses: ["standard-form"],
+			icon: "fa-solid fa-block-brick"
+		},
+		form: {
+			handler: this.#onSubmit,
+			closeOnSubmit: true,
+			submitOnChange: false
+		},
+		actions: {
+			previewSound: WallConversionConfig.#onPreviewSound
+		}
+	};
+
+	static PARTS = {
+		body: {
+			template: "templates/scene/wall-config.hbs"
+		},
+		footer: {
+			template: "templates/generic/form-footer.hbs"
+		}
+	};
+
+	static #PROXIMITY_SENSE_TYPES = [CONST.WALL_SENSE_TYPES.PROXIMITY, CONST.WALL_SENSE_TYPES.DISTANCE];
+
+	#audioPreviewState = 0;
+
+	// Nearly identical to WallConfig._prepareContext, but uses wallConfig$ instead of document.
+	/** @override */
+	async _prepareContext(options) {
+		const context = await super._prepareContext(options);
+
+		const { fields } = WallDocument.schema;
+
+		const source = {
+			_id: null,
+			...wallConfig$.value,
+			flags: {}
+		};
+
+		const thresholdFields = ["light", "sight", "sound"].map(k => ({
+			name: k,
+			label: fields[k].label,
+			choices: fields[k].choices,
+			disabled: !WallConversionConfig.#PROXIMITY_SENSE_TYPES.includes(source[k])
+		}));
+
+		const animationDirections = [
+			{ value: -1, label: game.i18n.localize("WALL.ANIMATION_DIRECTIONS.REVERSE") },
+			{ value: 1, label: game.i18n.localize("WALL.ANIMATION_DIRECTIONS.DEFAULT") }
+		];
+		return Object.assign(context, {
+			fields,
+			source,
+			coordinates: "N/A",
+			thresholdFields,
+			animation: source.animation ?? fields.animation.clean({}),
+			animationDirections,
+			animationTypes: CONFIG.Wall.animationTypes,
+			animationFieldsetClass: (source.door > 0) && source.animation?.type ? "" : "hidden",
+			editingMany: false,
+			rootId: foundry.utils.randomID(),
+			gridUnits: canvas.scene.grid.units ?? game.i18n.localize("GridUnits"),
+			doorSounds: CONFIG.Wall.doorSounds,
+			buttons: [{ type: "submit", icon: "fa-solid fa-floppy-disk", label: "WALL.Submit" }]
 		});
 	}
 
-	/** @override */
-	getData(options = {}) {
-		// This needs to match the data that is provided to the base system's wall config dialog.
-
-		const context = super.getData(options);
-
-		// Populate from the THT config
-		context.source = {
-			_id: null,
-			c: [0, 0, 1, 1],
-			...convertConfig$.wallConfig.value,
-			flags: {}
-		};
-		context.p0 = { x: 0, y: 0 };
-		context.p1 = { x: 1, y: 1 };
-
-		context.gridUnits = game.i18n.localize("GridUnits");
-
-		// Copied from the normal WallConfig
-		context.moveTypes = Object.keys(CONST.WALL_MOVEMENT_TYPES).reduce((obj, key) => {
-			const k = CONST.WALL_MOVEMENT_TYPES[key];
-			obj[k] = game.i18n.localize(`WALLS.SenseTypes.${key}`);
-			return obj;
-		}, {});
-		context.senseTypes = Object.keys(CONST.WALL_SENSE_TYPES).reduce((obj, key) => {
-			const k = CONST.WALL_SENSE_TYPES[key];
-			obj[k] = game.i18n.localize(`WALLS.SenseTypes.${key}`);
-			return obj;
-		}, {});
-		context.dirTypes = Object.keys(CONST.WALL_DIRECTIONS).reduce((obj, key) => {
-			const k = CONST.WALL_DIRECTIONS[key];
-			obj[k] = game.i18n.localize(`WALLS.Directions.${key}`);
-			return obj;
-		}, {});
-		context.doorTypes = Object.keys(CONST.WALL_DOOR_TYPES).reduce((obj, key) => {
-			const k = CONST.WALL_DOOR_TYPES[key];
-			obj[k] = game.i18n.localize(`WALLS.DoorTypes.${key}`);
-			return obj;
-		}, {});
-		context.doorStates = Object.keys(CONST.WALL_DOOR_STATES).reduce((obj, key) => {
-			const k = CONST.WALL_DOOR_STATES[key];
-			obj[k] = game.i18n.localize(`WALLS.DoorStates.${key}`);
-			return obj;
-		}, {});
-		context.doorSounds = CONFIG.Wall.doorSounds;
-		context.isDoor = undefined;
-		return context;
-	}
-
-	/** @override */
-	_updateObject(_event, formData) {
-		const newWallConfig = foundry.utils.expandObject(formData);
-		delete newWallConfig.flags;
-		convertConfig$.wallConfig.value = newWallConfig;
-	}
-
-	activateListeners(html) {
-		html.find(".audio-preview").click(this.#onAudioPreview.bind(this));
-		this.#enableDoorOptions(convertConfig$.wallConfig.door.value > CONST.WALL_DOOR_TYPES.NONE);
-		this.#toggleThresholdInputVisibility();
-		return super.activateListeners(html);
-	}
-
-	// Copied from WallConfig //
-
-	async _onChangeInput(event) {
-		if (event.currentTarget.name === "door") {
-			this.#enableDoorOptions(Number(event.currentTarget.value) > CONST.WALL_DOOR_TYPES.NONE);
-		} else if (event.currentTarget.name === "doorSound") {
-			this.#audioPreviewState = 0;
-		} else if (["light", "sight", "sound"].includes(event.currentTarget.name)) {
-			this.#toggleThresholdInputVisibility();
+	// Identical to WallConfig._onChangeForm
+	_onChangeForm(_formConfig, event) {
+		switch (event.target.name) {
+			case "door":
+				this.#toggleDoorOptions(Number(event.target.value) > CONST.WALL_DOOR_TYPES.NONE);
+				this.#toggleAnimationOptions();
+				break;
+			case "doorSound":
+				// Reset the audio preview state
+				this.#audioPreviewState = 0;
+				break;
+			case "light":
+			case "sight":
+			case "sound":
+				this.#toggleThresholdInputVisibility();
+				break;
+			case "animation.type":
+				this.#toggleAnimationOptions();
 		}
-		return super._onChangeInput(event);
 	}
 
-	#onAudioPreview() {
-		const doorSoundName = this.form.doorSound.value;
+	// Identical to WallConfig.#onPreviewSound
+	/** @this {WallConversionConfig} */
+	static async #onPreviewSound() {
+		const doorSoundName = this.form["doorSound"].value;
 		const doorSound = CONFIG.Wall.doorSounds[doorSoundName];
 		if (!doorSound) return;
 		const interactions = CONST.WALL_DOOR_INTERACTIONS;
@@ -209,23 +221,57 @@ class WallConversionConfig extends FormApplication {
 		if (!sounds) return;
 		if (!Array.isArray(sounds)) sounds = [sounds];
 		const src = sounds[Math.floor(Math.random() * sounds.length)];
-		game.audio.play(src, { context: game.audio.interface });
+		await game.audio.play(src, { context: game.audio.interface });
 	}
 
-	#enableDoorOptions(isDoor) {
-		const doorOptions = this.form.querySelector(".door-options");
-		doorOptions.disabled = !isDoor;
-		doorOptions.classList.toggle("hidden", !isDoor);
-		this.setPosition({ height: "auto" });
-	}
-
-	#toggleThresholdInputVisibility() {
-		const form = this.form;
-		const showTypes = [CONST.WALL_SENSE_TYPES.PROXIMITY, CONST.WALL_SENSE_TYPES.DISTANCE];
-		for (const sense of ["light", "sight", "sound"]) {
-			const select = form[sense];
-			const input = select.parentElement.querySelector(".proximity");
-			input.classList.toggle("hidden", !showTypes.includes(Number(select.value)));
+	// Identical to WallConfig.#toggleDoorOptions
+	#toggleDoorOptions(isDoor) {
+		for (const name of ["ds", "doorSound", "animation.type"]) {
+			const select = this.form[name];
+			select.disabled = !isDoor;
+			select.closest(".form-group").hidden = !isDoor;
 		}
+		this.setPosition(); // Form height changed
+	}
+
+	// Identical to WallConfig.#toggleAnimationOptions
+	#toggleAnimationOptions() {
+		const showOptions = (Number(this.form.door.value) > 0) && !!this.form["animation.type"].value;
+		const fieldset = this.element.querySelector("fieldset.door-animation");
+		fieldset.classList.toggle("hidden", !showOptions);
+		this.setPosition(); // Form height changed
+	}
+
+	// Identical to WallConfig.#toggleThresholdInputVisibility
+	#toggleThresholdInputVisibility() {
+		for (const sense of ["light", "sight", "sound"]) {
+			const type = Number(this.form[sense].value);
+			const input = this.form[`threshold.${sense}`];
+			input.disabled = input.hidden = !WallConversionConfig.#PROXIMITY_SENSE_TYPES.includes(type);
+		}
+	}
+
+	// Nearly identical to WallConfig._prepareSubmitData (with some functions from DocumentSheetV2 inlined)
+	_prepareSubmitData(_event, _form, formData, updateData) {
+		const submitData = foundry.utils.expandObject(formData.object);
+		if (updateData) {
+			foundry.utils.mergeObject(submitData, updateData, { performDeletions: true });
+			foundry.utils.mergeObject(submitData, updateData, { performDeletions: false });
+		}
+		WallDocument.schema.validate({ changes: submitData, clean: true, fallback: false });
+
+		const thresholds = submitData.threshold ??= {};
+		for (const sense of ["light", "sight", "sound"]) {
+			if (!WallConversionConfig.#PROXIMITY_SENSE_TYPES.includes(submitData[sense])) thresholds[sense] = null;
+		}
+		if (submitData.door === CONST.WALL_DOOR_TYPES.NONE) submitData.animation = null; // Purge animation data
+		return submitData;
+	}
+
+	// Custom handler to write to wallConfig$ instead of a document.
+	/** @this {WallConversionConfig} */
+	static #onSubmit(event, form, formData, options = {}) {
+		const submitData = this._prepareSubmitData(event, form, formData, options.updateData);
+		wallConfig$.value = submitData;
 	}
 }
