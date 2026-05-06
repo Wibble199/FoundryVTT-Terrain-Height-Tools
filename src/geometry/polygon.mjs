@@ -366,18 +366,19 @@ export class Polygon {
 
 	/**
 	 * Determines whether the given vertices are clockwise or counter-clockwise.
-	 * @param {({ x: number; y: number; } | { X: number; Y: number; })[]} vertices
+	 * @param {PointLike[]} vertices
 	 */
 	static isClockwise(vertices) {
+		const verticesPoints = vertices.map(Point.from);
+
 		// Work out shoelace area. If negative, then counter-clockwise; if positive then clockwise.
 		let area = 0;
 
-		for (let i = 0; i < vertices.length; i++) {
-			const p1 = vertices[i];
-			const p2 = vertices[(i + 1) % vertices.length];
+		for (let i = 0; i < verticesPoints.length; i++) {
+			const p1 = verticesPoints[i];
+			const p2 = verticesPoints[(i + 1) % verticesPoints.length];
 
-			// Use (x ?? X) so that this can work with THT polygons and ClipperLib paths
-			area += ((p2.x ?? p2.X) - (p1.x ?? p1.X)) * ((p2.y ?? p2.Y) + (p1.y ?? p1.Y));
+			area += (p2.x - p1.x) * (p2.y + p1.y);
 		}
 
 		return area < 0;

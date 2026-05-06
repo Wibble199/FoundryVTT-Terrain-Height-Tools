@@ -1,7 +1,9 @@
 /** @import { ReadonlySignal } from "@preact/signals-core" */
 /** @import { PointLike } from "../../../../geometry/point.mjs" */
 import { signal } from "@preact/signals-core";
+import { union as polygonUnion } from "polygon-clipping";
 import { drawingModeTypes } from "../../../../consts.mjs";
+import { Polygon } from "../../../../geometry/polygon.mjs";
 import { drawDashedComplexPath } from "../../../../shared/pixi/drawing.mjs";
 import { getGridCellPolygon, polygonsFromGridCells } from "../../../../utils/grid-utils.mjs";
 import { AbstractEditorTool } from "./abstract-editor-tool.mjs";
@@ -215,6 +217,10 @@ class GridCellDrawingMode extends AbstractDrawingMode {
 
 	#isDrawing = false;
 
+	get #pendingCellsCoords() {
+		return [...this.#pendingCells].map(c => c.split("|").map(Number));
+	}
+
 	/** @override */
 	_onMouseDownLeft(x, y) {
 		this.#isDrawing = true;
@@ -232,7 +238,7 @@ class GridCellDrawingMode extends AbstractDrawingMode {
 		if (!this.#isDrawing) return;
 
 		this.#isDrawing = false;
-		const selectedCells = [...this.#pendingCells].map(c => c.split("|").map(Number));
+		const selectedCells = this.#pendingCellsCoords;
 		this._previewGraphics.clear();
 		this.#pendingCells.clear();
 		this._complete(polygonsFromGridCells(selectedCells, canvas.grid));
@@ -248,10 +254,34 @@ class GridCellDrawingMode extends AbstractDrawingMode {
 		const { i, j } = canvas.grid.getOffset({ x, y });
 		const cellKey = `${i}|${j}`;
 		if (this.#pendingCells.has(cellKey)) return;
-
 		this.#pendingCells.add(cellKey);
-		this._configurePreviewFill();
-		this._previewGraphics.drawPolygon(getGridCellPolygon(i, j)).endFill();
+
+		const combinedCellPolygons = polygonUnion(...this.#pendingCellsCoords.map(([i, j]) => [
+			getGridCellPolygon(i, j).map(({ x, y }) => [x, y])
+		]));
+
+		this._previewGraphics.clear();
+		this._configurePreviewLine();
+
+		for (const polygon of combinedCellPolygons) {
+			for (const ring of polygon) {
+				const isHole = !Polygon.isClockwise(ring);
+
+				if (isHole)
+					this._previewGraphics.beginHole();
+				else
+					this._configurePreviewFill();
+
+				this._previewGraphics.moveTo(...ring.at(-1));
+				for (let i = 0; i < ring.length; i++)
+					this._previewGraphics.lineTo(...ring[i]);
+
+				if (isHole)
+					this._previewGraphics.endHole();
+				else
+					this._previewGraphics.endFill();
+			}
+		}
 	}
 }
 
