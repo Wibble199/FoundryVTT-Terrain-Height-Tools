@@ -19,11 +19,11 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: Update module.json download URL
+      - name: Update module.json version and download URL
         run: |
           VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
-          jq --arg DOWNLOAD_URL "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/$VERSION/release.zip" \
-             '.download = $DOWNLOAD_URL' module.json > temp.json && mv temp.json module.json
+          jq --arg DOWNLOAD_URL "https://github.com/${{ github.repository }}/releases/download/$VERSION/release.zip" \
+             '.version = $VERSION | .download = $DOWNLOAD_URL' module.json > temp.json && mv temp.json module.json
 
       - name: Zip module files
         run: |
@@ -78,8 +78,8 @@ jobs:
                      "id": "terrain-height-tools",
                      "release": {
                        "version": "'"$VERSION"'",
-                       "manifest": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/download/'"$VERSION_TAG"'/module.json",
-                       "notes": "https://github.com/Wibble199/FoundryVTT-Terrain-Height-Tools/releases/tag/'"$VERSION_TAG"'",
+                       "manifest": "https://github.com/${{ github.repository }}/releases/download/'"$VERSION_TAG"'/module.json",
+                       "notes": "https://github.com/${{ github.repository }}/releases/tag/'"$VERSION_TAG"'",
                        "compatibility": {
                          "minimum": "'"$MINIMUM"'",
                          "verified": "'"$VERIFIED"'",
