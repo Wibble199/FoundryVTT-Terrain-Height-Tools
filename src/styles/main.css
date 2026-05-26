@@ -483,7 +483,7 @@
 	color: var(--color-light-3);
 }
 
-.themed.theme-light {
+.themed.theme-light #tht_tokenLineOfSightToolbar .token-name {
 	color: var(--color-dark-2);
 }
 
